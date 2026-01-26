@@ -40,12 +40,28 @@ RÈGLES STRICTES À SUIVRE :
 L'utilisateur s'appelle {user_name}. Quand tu vois "{user_name}" dans les conversations, c'est lui qui parle."""
 
 
+# Prompt pour la réécriture de requête (Query Rewriting)
+REWRITE_PROMPT = """Tu es un expert en analyse de conversations Instagram. 
+Ta tâche est de transformer une question utilisateur en une liste de mots-clés et de phrases courtes qui sont plus susceptibles d'apparaître dans une conversation Instagram réelle (style informel, abréviations, slang).
+
+Question originale : {query}
+
+RÈGLES :
+1. Imagine comment les gens en parlent naturellement par message (ex: "anniversaire" -> "anniv", "restaurant" -> "resto", "est-ce que" -> "tu veux/on va").
+2. Inclus des variations de vocabulaire.
+3. Retourne uniquement la liste de termes optimisés pour la recherche, séparés par des virgules.
+4. Ne réponds pas à la question, réécris-la pour la recherche uniquement.
+
+Requête optimisée :"""
+
+
 @dataclass
 class ChatResponse:
     """Réponse du chatbot."""
     answer: str
     context: RetrievalContext
     model: str
+    rewritten_query: Optional[str] = None
     
 
 class ChatBot:
@@ -56,6 +72,35 @@ class ChatBot:
         self.retriever = retriever
         self.conversation_history: List[dict] = []
     
+    def _rewrite_query(self, query: str) -> str:
+        """Réécrit la requête pour améliorer le retrieval."""
+        prompt = REWRITE_PROMPT.format(query=query)
+        
+        payload = {
+            "model": self.config.llm_model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+            "options": {
+                "temperature": 0.3,
+                "top_p": 0.9,
+                "num_predict": 100,
+            }
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.config.ollama_url}/api/chat",
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            rewritten = response.json()["message"]["content"].strip()
+            # Combiner l'originale et la réécrite pour ne rien perdre
+            return f"{query} {rewritten}"
+        except Exception as e:
+            print(f"⚠️ Échec de la réécriture de requête: {e}")
+            return query
+
     def _build_prompt(self, query: str, context: RetrievalContext) -> str:
         """Construit le prompt complet pour le LLM."""
         if context.has_results:
@@ -139,7 +184,8 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         self, 
         query: str,
         stream: bool = True,
-        top_k: int = None
+        top_k: int = None,
+        use_rewriting: bool = True
     ) -> ChatResponse | Generator[str, None, ChatResponse]:
         """
         Pose une question et obtient une réponse basée sur les conversations.
@@ -148,32 +194,42 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
             query: Question de l'utilisateur
             stream: Si True, retourne un générateur pour le streaming
             top_k: Nombre de documents à récupérer
+            use_rewriting: Activer la réécriture de question
             
         Returns:
             ChatResponse ou générateur de tokens + ChatResponse final
         """
-        # Retrieval
-        context = self.retriever.retrieve(query, top_k=top_k)
+        search_query = query
+        rewritten_query = None
         
-        # Construire le prompt
+        if use_rewriting:
+            rewritten_query = self._rewrite_query(query)
+            search_query = rewritten_query
+
+        # Retrieval
+        context = self.retriever.retrieve(search_query, top_k=top_k)
+        
+        # Construire le prompt (avec la question ORIGINALE pour la réponse finale)
         prompt = self._build_prompt(query, context)
         
         if stream:
-            return self._chat_stream(query, prompt, context)
+            return self._chat_stream(query, prompt, context, rewritten_query)
         else:
             answer = self._call_ollama(prompt, stream=False)
             self._update_history(query, answer)
             return ChatResponse(
                 answer=answer,
                 context=context,
-                model=self.config.llm_model
+                model=self.config.llm_model,
+                rewritten_query=rewritten_query
             )
     
     def _chat_stream(
         self, 
         query: str, 
         prompt: str, 
-        context: RetrievalContext
+        context: RetrievalContext,
+        rewritten_query: Optional[str] = None
     ) -> Generator[str, None, ChatResponse]:
         """Chat en mode streaming."""
         full_response = []
@@ -189,7 +245,8 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         return ChatResponse(
             answer=answer,
             context=context,
-            model=self.config.llm_model
+            model=self.config.llm_model,
+            rewritten_query=rewritten_query
         )
     
     def _update_history(self, query: str, answer: str):
@@ -210,3 +267,4 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         for source in context.get_sources():
             lines.append(f"  • {source}")
         return "\n".join(lines)
+
