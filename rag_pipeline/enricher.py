@@ -80,15 +80,46 @@ class ChunkEnricher:
             print(f"⚠️ Erreur enrichissement chunk {chunk.chunk_id}: {e}")
             return "", []
 
-    def enrich_batch(self, chunks: List[Chunk], progress_callback=None) -> List[Chunk]:
-        """Enrichit une liste de chunks."""
+    def enrich_batch(
+        self, 
+        chunks: List[Chunk], 
+        progress_callback=None,
+        save_callback=None,
+        save_interval: int = 20
+    ) -> List[Chunk]:
+        """
+        Enrichit une liste de chunks avec reprise sur erreur.
+        
+        Args:
+            chunks: Liste des chunks à traiter
+            progress_callback: Fonction(current, total) appelée à chaque étape
+            save_callback: Fonction() appelée périodiquement pour sauvegarder
+            save_interval: Sauvegarder tous les X chunks
+        """
+        print(f"🔄 Démarrage de l'enrichissement par lots (Sauvegarde tous les {save_interval} items)")
+        
         for i, chunk in enumerate(chunks):
-            if not chunk.narrative_summary or not chunk.hypothetical_questions:
-                summary, questions = self.enrich_chunk(chunk)
-                chunk.narrative_summary = summary
-                chunk.hypothetical_questions = questions
+            # Si déjà enrichi (reprise), on saute
+            if chunk.narrative_summary and chunk.hypothetical_questions:
+                if progress_callback:
+                    progress_callback(i + 1, len(chunks))
+                continue
+                
+            summary, questions = self.enrich_chunk(chunk)
+            chunk.narrative_summary = summary
+            chunk.hypothetical_questions = questions
             
+            # Callback de progrès
             if progress_callback:
                 progress_callback(i + 1, len(chunks))
+            
+            # Sauvegarde périodique
+            if save_callback and (i + 1) % save_interval == 0:
+                print("   💾 Sauvegarde intermédiaire...")
+                save_callback()
                 
+        # Sauvegarde finale
+        if save_callback:
+            save_callback()
+            
         return chunks

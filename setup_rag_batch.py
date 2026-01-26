@@ -202,23 +202,46 @@ def main():
     else:
         print(f"🧠 Enrichissement de {len(to_enrich)} chunks via Ollama ({config.llm_model})...")
         print("   Cela améliore drastiquement la qualité de la recherche.")
+        print(f"   (Sauvegarde automatique tous les 20 chunks)")
         
         try:
+            start_time = time.time()
+            
             def enrich_progress(current, total):
-                if current % 10 == 0 or current == total:
-                    print(f"   ✨ [{current}/{total}] chunks enrichis...")
+                if current % 5 == 0 or current == total:
+                    elapsed = time.time() - start_time
+                    speed = current / elapsed if elapsed > 0 else 0
+                    remaining = (total - current) / speed if speed > 0 else 0
+                    
+                    # Formatter le temps restant
+                    rem_str = f"{int(remaining // 60)}m {int(remaining % 60)}s"
+                    
+                    sys.stdout.write(f"\r   ✨ [{current}/{total}] chunks | Vitesse: {speed:.1f} ch/s | Reste: {rem_str}   ")
+                    sys.stdout.flush()
+
+            def save_progress():
+                chunker.save_chunks(chunks)
+                # On revient à la ligne après une sauvegarde pour garder une trace
+                sys.stdout.write("\n")
             
-            enricher.enrich_batch(to_enrich, progress_callback=enrich_progress)
+            enricher.enrich_batch(
+                to_enrich, 
+                progress_callback=enrich_progress,
+                save_callback=save_progress,
+                save_interval=20
+            )
             
-            # Sauvegarder les chunks enrichis immédiatement
-            chunker.save_chunks(chunks)
-            print("✅ Chunks enrichis et sauvegardés en cache.")
+            print("\n✅ Chunks enrichis et sauvegardés en cache.")
+
         except KeyboardInterrupt:
-            print("\n⚠️ Interruption : Sauvegarde des chunks déjà enrichis...")
+            print("\n\n⚠️ Interruption : Sauvegarde des chunks déjà enrichis...")
             chunker.save_chunks(chunks)
+            print("✅ Sauvegarde effectuée. Relancez le script pour reprendre.")
             sys.exit(0)
         except Exception as e:
-            print(f"\n⚠️ Erreur pendant l'enrichissement: {e}")
+            print(f"\n\n⚠️ Erreur pendant l'enrichissement: {e}")
+            print("   Tentative de sauvegarde du travail effectué...")
+            chunker.save_chunks(chunks)
             print("   L'indexation continue avec les données disponibles.")
 
     print()

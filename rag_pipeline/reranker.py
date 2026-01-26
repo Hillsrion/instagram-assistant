@@ -89,11 +89,27 @@ class CrossEncoderReranker:
         self._load_model()
 
         # Préparer les paires (query, document)
-        # On utilise le résumé + début du contenu pour le reranking
         pairs = []
         for chunk, _ in candidates:
-            # Limiter la taille du document pour le cross-encoder
-            doc_text = f"{chunk.summary}\n\n{chunk.content[:1500]}"
+            # Construction optimale pour le Cross-Encoder
+            text_parts = []
+            
+            # 1. Questions hypothétiques (Trèèès fort signal si match)
+            if chunk.hypothetical_questions:
+                # On concatène les questions pour que le reranker voie la similarité
+                text_parts.append("Questions abordées: " + " ".join(chunk.hypothetical_questions))
+            
+            # 2. Résumé Narratif (Contexte fort)
+            if chunk.narrative_summary:
+                text_parts.append(f"Résumé: {chunk.narrative_summary}")
+            else:
+                text_parts.append(f"Résumé: {chunk.summary}")
+            
+            # 3. Contenu (Preuve)
+            # On garde un extrait significatif (1000 chars) pour ne pas tronquer les autres signaux
+            text_parts.append(chunk.content[:1000])
+            
+            doc_text = "\n".join(text_parts)
             pairs.append([query, doc_text])
 
         # Obtenir les scores du cross-encoder

@@ -47,8 +47,9 @@ class AdvancedRetrievalContext:
             expanded = " [expanded]" if r.is_expanded else ""
             source = (
                 f"[{r.rank}] {r.chunk.file_source} "
-                f"({r.chunk.date_start[:10]} → {r.chunk.date_end[:10]}) "
-                f"- Score: {r.final_score:.2f}{expanded}"
+                f"({r.chunk.date_start[:10]})\n"
+                f"    📝 {r.chunk.narrative_summary if r.chunk.narrative_summary else r.chunk.summary}\n"
+                f"    🎯 Score: {r.final_score:.2f}{expanded}"
             )
             sources.append(source)
         return sources
