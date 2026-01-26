@@ -1,0 +1,19 @@
+# RAG Pipeline - Dépendances
+# ==========================
+
+# Embeddings de qualité (bge-m3 multilingue)
+sentence-transformers>=2.2.0
+torch>=2.0.0
+
+# Vector Store
+faiss-cpu>=1.7.4
+
+# Web Application
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.0.0
+
+# Utilitaires
+numpy>=1.24.0
+tqdm>=4.65.0
+requests>=2.28.0

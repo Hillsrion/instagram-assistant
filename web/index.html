@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Conversations Assistant</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="new-chat-btn" id="newChatBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Nouvelle conversation
+                </button>
+            </div>
+
+            <div class="conversations-list" id="conversationsList">
+                <!-- Conversations will be loaded here -->
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator" id="statusIndicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Chargement...</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="chat-header">
+                <button class="menu-toggle" id="menuToggle">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12h18M3 6h18M3 18h18"/>
+                    </svg>
+                </button>
+                <h1 class="chat-title" id="chatTitle">Instagram Assistant</h1>
+                <button class="filters-toggle" id="filtersToggle">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+                    </svg>
+                    Filtres
+                </button>
+            </header>
+
+            <!-- Filters panel -->
+            <div class="filters-panel" id="filtersPanel">
+                <div class="filter-group">
+                    <label for="participantFilter">Participant</label>
+                    <select id="participantFilter">
+                        <option value="">Tous</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="yearFilter">Annee</label>
+                    <select id="yearFilter">
+                        <option value="">Toutes</option>
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                        <option value="2022">2022</option>
+                        <option value="2021">2021</option>
+                        <option value="2020">2020</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="dateStart">Date debut</label>
+                    <input type="date" id="dateStart">
+                </div>
+                <div class="filter-group">
+                    <label for="dateEnd">Date fin</label>
+                    <input type="date" id="dateEnd">
+                </div>
+                <div class="filter-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="useReranking" checked>
+                        Reranking
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="useHybrid" checked>
+                        Hybrid Search
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="expandContext" checked>
+                        Context Expansion
+                    </label>
+                </div>
+            </div>
+
+            <!-- Chat messages -->
+            <div class="chat-messages" id="chatMessages">
+                <div class="welcome-message" id="welcomeMessage">
+                    <div class="welcome-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                    </div>
+                    <h2>Instagram Conversations Assistant</h2>
+                    <p>Posez des questions sur vos conversations Instagram.</p>
+                    <div class="welcome-examples">
+                        <button class="example-btn" data-query="De quoi j'ai parle avec mes amis en 2023 ?">
+                            De quoi j'ai parle avec mes amis en 2023 ?
+                        </button>
+                        <button class="example-btn" data-query="Quels sont les sujets les plus frequents dans mes conversations ?">
+                            Quels sont les sujets les plus frequents ?
+                        </button>
+                        <button class="example-btn" data-query="Resume mes dernieres conversations importantes">
+                            Resume mes dernieres conversations importantes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input area -->
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <textarea
+                        id="messageInput"
+                        placeholder="Posez une question sur vos conversations..."
+                        rows="1"
+                        autocomplete="off"
+                    ></textarea>
+                    <button class="send-btn" id="sendBtn" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                        </svg>
+                    </button>
+                </div>
+                <p class="input-hint">Utilisez @nom pour filtrer par participant, #annee pour l'annee</p>
+            </div>
+        </main>
+
+        <!-- Sources panel -->
+        <aside class="sources-panel" id="sourcesPanel">
+            <div class="sources-header">
+                <h3>Sources</h3>
+                <button class="close-sources" id="closeSourcesBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="sources-content" id="sourcesContent">
+                <!-- Sources will be displayed here -->
+            </div>
+        </aside>
+    </div>
+
+    <!-- Delete confirmation modal -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content">
+            <h3>Supprimer la conversation ?</h3>
+            <p>Cette action est irreversible.</p>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="cancelDelete">Annuler</button>
+                <button class="btn-danger" id="confirmDelete">Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

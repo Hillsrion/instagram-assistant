@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(vm_stat:*)",
+      "Bash(kill:*)",
+      "Bash(find:*)",
+      "Bash(tree:*)"
+    ]
+  }
+}
