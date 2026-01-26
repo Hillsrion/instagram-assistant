@@ -282,6 +282,32 @@ async def list_participants():
     return [{"name": name, "count": count} for name, count in participants[:50]]
 
 
+@app.get("/api/chunks/{chunk_id}")
+async def get_chunk_content(chunk_id: str):
+    """Get full chunk content for source detail modal."""
+    if not components or 'vector_store' not in components:
+        raise HTTPException(status_code=503, detail="Vector store not available")
+
+    vector_store = components['vector_store']
+
+    # Find chunk by ID
+    for chunk in vector_store.chunks:
+        if chunk.chunk_id == chunk_id:
+            return {
+                "chunk_id": chunk.chunk_id,
+                "content": chunk.content,
+                "summary": chunk.narrative_summary or chunk.summary,
+                "participants": chunk.participants,
+                "date_start": chunk.date_start,
+                "date_end": chunk.date_end,
+                "file_source": chunk.file_source,
+                "message_count": chunk.message_count,
+                "hypothetical_questions": chunk.hypothetical_questions or []
+            }
+
+    raise HTTPException(status_code=404, detail="Chunk not found")
+
+
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     """Send a message and get a response (non-streaming)."""
@@ -400,8 +426,8 @@ async def chat_stream(request: ChatRequest):
         }
         conv['messages'].append(user_msg)
 
-        # Retrieve context
-        yield f"data: {json.dumps({'type': 'status', 'message': 'Recherche en cours...'})}\n\n"
+        # Progress: Search step
+        yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Recherche en cours...'})}\n\n"
 
         context = retriever.retrieve(
             query=request.message,
@@ -414,35 +440,64 @@ async def chat_stream(request: ChatRequest):
             expand_context=request.expand_context
         )
 
-        # Send sources
+        # Send sources with chunk_id and preview
         sources = []
         if context.results:
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'documents', 'message': f'Lecture de {len(context.results)} documents...', 'count': len(context.results)})}\n\n"
+
             for r in context.results:
                 sources.append({
                     "rank": r.rank,
+                    "chunk_id": r.chunk.chunk_id,
                     "file": r.chunk.file_source,
                     "participants": r.chunk.participants,
                     "date_start": r.chunk.date_start[:10],
                     "date_end": r.chunk.date_end[:10],
                     "score": round(r.final_score, 2),
-                    "expanded": r.is_expanded
+                    "expanded": r.is_expanded,
+                    "preview": (r.chunk.narrative_summary or r.chunk.summary or r.chunk.content[:200])[:200]
                 })
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
 
-        # Stream response
-        prompt = chatbot._build_prompt(request.message, context)
-        response_text = ""
-        for chunk in chatbot._chat_stream(request.message, prompt, context):
-            response_text += chunk
-            yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
-            await asyncio.sleep(0)  # Allow other tasks to run
+        # Check for low confidence - skip LLM call if confidence is too low
+        if context.low_confidence or not context.has_results:
+            response_text = "Je n'ai pas trouve d'information pertinente dans les conversations pour repondre a cette question. Pouvez-vous reformuler ou preciser votre demande ?"
+            yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
+        else:
+            # Progress: Generating step
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'generating', 'message': 'Generation de la reponse...'})}\n\n"
+
+            # Stream response
+            response_text = ""
+            for chunk in chatbot.chat_stream(request.message, context.formatted_context):
+                response_text += chunk
+                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+                await asyncio.sleep(0)  # Allow other tasks to run
+
+            # Filter PII from final response
+            response_text = chatbot.filter_pii(response_text)
+
+        # Generate follow-up questions
+        yield f"data: {json.dumps({'type': 'progress', 'step': 'followups', 'message': 'Preparation des suggestions...'})}\n\n"
+
+        followups = []
+        if response_text and not context.low_confidence:
+            try:
+                followups = chatbot.generate_followup_questions(request.message, response_text)
+            except Exception as e:
+                print(f"Followup generation error: {e}")
+
+        if followups:
+            yield f"data: {json.dumps({'type': 'followups', 'questions': followups})}\n\n"
 
         # Save conversation
         assistant_msg = {
             "role": "assistant",
             "content": response_text,
             "timestamp": datetime.now().isoformat(),
-            "sources": sources
+            "sources": sources,
+            "low_confidence": context.low_confidence,
+            "confidence_score": round(context.max_confidence_score, 3)
         }
         conv['messages'].append(assistant_msg)
         conv['updated_at'] = datetime.now().isoformat()

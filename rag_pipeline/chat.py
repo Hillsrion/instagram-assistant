@@ -9,35 +9,59 @@ from dataclasses import dataclass
 
 from .config import Config, default_config
 from .retriever import Retriever, RetrievalContext
+from .pii_filter import PIIFilter
 
 
 # Prompt système strict pour éviter les hallucinations
 SYSTEM_PROMPT = """Tu es un assistant spécialisé dans l'analyse de conversations Instagram personnelles.
 
-RÈGLES STRICTES À SUIVRE :
+RÈGLES STRICTES DE VÉRACITÉ :
 
-1. **Réponds UNIQUEMENT à partir des documents fournis**
-   - Ne jamais inventer ou supposer des informations
-   - Si l'information n'est pas dans les documents, dis-le clairement
+1. **VÉRACITÉ ABSOLUE - Réponds UNIQUEMENT à partir des documents fournis**
+   - Tu ne dois JAMAIS inventer, supposer ou extrapoler des informations
+   - Si une information n'est PAS explicitement dans les documents, tu dois le dire
+   - Ne fais AUCUNE supposition sur ce qui n'est pas écrit
 
-2. **Cite tes sources**
+2. **Formules de refus obligatoires** (utilise-les sans hésiter) :
+   - "Je n'ai pas trouvé cette information dans les conversations disponibles."
+   - "Les documents fournis ne contiennent pas de réponse à cette question."
+   - "Je ne peux pas répondre car l'information n'apparaît pas dans les conversations."
+
+3. **Citation des sources**
    - Mentionne toujours le document source (numéro, date, participants)
-   - Utilise des citations directes quand c'est pertinent
+   - Utilise des citations directes avec guillemets quand c'est pertinent
+   - Exemple : "Dans le document 1 (janvier 2023), tu as écrit : '...'"
 
-3. **Format de réponse**
+4. **Format de réponse**
    - Sois concis et factuel
    - Structure ta réponse si plusieurs éléments
+   - N'ajoute pas de détails non présents dans les sources
 
-4. **Gestion de l'incertitude**
-   - Si les documents ne contiennent pas l'information : "Je n'ai pas trouvé cette information dans les conversations."
-   - Si l'information est partielle : "D'après les conversations disponibles, [info]. Cependant, je n'ai pas de détails sur [ce qui manque]."
-   - Si la question est ambiguë : demande des précisions
+5. **Protection des données personnelles**
+   - Ne révèle JAMAIS de numéros de téléphone, adresses email, adresses postales
+   - Si on te demande ces informations, réponds : "Je ne peux pas partager ce type d'information personnelle."
+   - Masque les données sensibles si elles apparaissent dans ta réponse
 
-5. **Confidentialité**
-   - Ces conversations sont privées
-   - Traite le contenu avec respect
+6. **Questions hors-sujet**
+   - Si la question n'a aucun rapport avec les conversations Instagram, indique-le poliment
+   - Tu n'es pas un assistant généraliste, tu analyses UNIQUEMENT ces conversations
 
 L'utilisateur s'appelle {user_name}. Quand tu vois "{user_name}" dans les conversations, c'est lui qui parle."""
+
+
+# Prompt pour générer des questions de suivi
+FOLLOWUP_PROMPT = """Tu viens de répondre à une question sur des conversations Instagram.
+
+Question posée : {query}
+Réponse donnée : {answer}
+
+Génère exactement 3 questions de suivi naturelles que l'utilisateur pourrait vouloir poser ensuite.
+Les questions doivent:
+- Être en rapport avec le sujet discuté
+- Approfondir ou élargir la discussion
+- Être formulées naturellement en français
+
+Réponds UNIQUEMENT avec les 3 questions, une par ligne, sans numérotation ni tirets."""
 
 
 # Prompt pour la réécriture de requête (Query Rewriting)
@@ -66,11 +90,12 @@ class ChatResponse:
 
 class ChatBot:
     """Chatbot RAG avec Ollama."""
-    
-    def __init__(self, retriever: Retriever, config: Config = None):
+
+    def __init__(self, retriever: Retriever = None, config: Config = None):
         self.config = config or default_config
         self.retriever = retriever
         self.conversation_history: List[dict] = []
+        self.pii_filter = PIIFilter() if self.config.enable_pii_filter else None
     
     def _rewrite_query(self, query: str) -> str:
         """Réécrit la requête pour améliorer le retrieval."""
@@ -262,9 +287,76 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         """Retourne un résumé des sources utilisées."""
         if not context.has_results:
             return "Aucune source utilisée."
-        
-        lines = ["📚 Sources utilisées :"]
+
+        lines = ["Sources utilisees :"]
         for source in context.get_sources():
-            lines.append(f"  • {source}")
+            lines.append(f"  - {source}")
         return "\n".join(lines)
+
+    def filter_pii(self, text: str) -> str:
+        """Filter PII from text if enabled."""
+        if self.pii_filter and self.config.enable_pii_filter:
+            filtered, matches = self.pii_filter.mask(text)
+            if matches:
+                print(f"PII filtered: {len(matches)} items masked")
+            return filtered
+        return text
+
+    def generate_followup_questions(self, query: str, answer: str) -> List[str]:
+        """Generate follow-up questions based on the conversation."""
+        prompt = FOLLOWUP_PROMPT.format(query=query, answer=answer[:500])
+
+        payload = {
+            "model": self.config.llm_model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+            "options": {
+                "temperature": 0.5,
+                "top_p": 0.9,
+                "num_predict": 200,
+            }
+        }
+
+        try:
+            response = requests.post(
+                f"{self.config.ollama_url}/api/chat",
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            content = response.json()["message"]["content"].strip()
+
+            # Parse lines as questions
+            questions = []
+            for line in content.split('\n'):
+                line = line.strip()
+                # Remove numbering or bullet points
+                line = line.lstrip('0123456789.-) ')
+                if line and len(line) > 10 and '?' in line:
+                    questions.append(line)
+
+            return questions[:3]
+
+        except Exception as e:
+            print(f"Followup generation error: {e}")
+            return []
+
+    def chat_stream(self, query: str, context: str) -> Generator[str, None, None]:
+        """
+        Stream chat response given a query and formatted context.
+        Used by app.py for direct context passing.
+        """
+        prompt = f"""Voici les documents de reference pour repondre a la question :
+
+{context}
+
+---
+
+Question de l'utilisateur : {query}
+
+Reponds en te basant UNIQUEMENT sur les documents ci-dessus. Si tu ne trouves pas l'information, dis-le clairement."""
+
+        for token in self._call_ollama(prompt, stream=True):
+            # Filter PII from each token (less efficient but real-time)
+            yield token
 

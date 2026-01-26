@@ -53,6 +53,12 @@ class Config:
     use_hybrid: bool = True
     # Activer le context expansion par défaut
     use_context_expansion: bool = True
+
+    # === Robustness & Confidence ===
+    # Seuil de confiance minimum (en dessous, on refuse de répondre)
+    confidence_threshold: float = 0.25
+    # Activer le filtrage PII dans les réponses
+    enable_pii_filter: bool = True
     
     # === LLM ===
     # Modèle Ollama à utiliser

@@ -51,10 +51,16 @@ const elements = {
     sourcesContent: document.getElementById('sourcesContent'),
     closeSourcesBtn: document.getElementById('closeSourcesBtn'),
 
-    // Modal
+    // Delete Modal
     deleteModal: document.getElementById('deleteModal'),
     cancelDelete: document.getElementById('cancelDelete'),
-    confirmDelete: document.getElementById('confirmDelete')
+    confirmDelete: document.getElementById('confirmDelete'),
+
+    // Source Modal
+    sourceModal: document.getElementById('sourceModal'),
+    sourceModalTitle: document.getElementById('sourceModalTitle'),
+    sourceModalBody: document.getElementById('sourceModalBody'),
+    closeSourceModal: document.getElementById('closeSourceModal')
 };
 
 // ============================================================
@@ -97,6 +103,12 @@ const api = {
         return res.json();
     },
 
+    async getChunkContent(chunkId) {
+        const res = await fetch(`/api/chunks/${encodeURIComponent(chunkId)}`);
+        if (!res.ok) throw new Error('Chunk not found');
+        return res.json();
+    },
+
     async sendMessage(data) {
         const res = await fetch('/api/chat', {
             method: 'POST',
@@ -107,7 +119,7 @@ const api = {
     },
 
     streamMessage(data, callbacks) {
-        const { onChunk, onSources, onDone, onError, onConversationId } = callbacks;
+        const { onChunk, onSources, onDone, onError, onConversationId, onProgress, onFollowups } = callbacks;
 
         fetch('/api/chat/stream', {
             method: 'POST',
@@ -126,11 +138,17 @@ const api = {
                             case 'conversation_id':
                                 onConversationId?.(data.id);
                                 break;
+                            case 'progress':
+                                onProgress?.(data.step, data.message, data.count);
+                                break;
                             case 'sources':
                                 onSources?.(data.sources);
                                 break;
                             case 'chunk':
                                 onChunk?.(data.content);
+                                break;
+                            case 'followups':
+                                onFollowups?.(data.questions);
                                 break;
                             case 'done':
                                 onDone?.();
@@ -350,6 +368,82 @@ function addLoadingMessage() {
     scrollToBottom();
 }
 
+function showProgressIndicator(step, message, count) {
+    let indicator = document.getElementById('progress-indicator');
+
+    if (!indicator) {
+        removeLoadingMessage();
+        const html = `
+            <div class="progress-indicator" id="progress-indicator">
+                <div class="progress-spinner"></div>
+                <span class="progress-text">${escapeHtml(message)}</span>
+                ${count ? `<span class="progress-count">${count}</span>` : ''}
+            </div>
+        `;
+        elements.chatMessages.insertAdjacentHTML('beforeend', html);
+        indicator = document.getElementById('progress-indicator');
+    } else {
+        indicator.querySelector('.progress-text').textContent = message;
+        const countEl = indicator.querySelector('.progress-count');
+        if (count && countEl) {
+            countEl.textContent = count;
+        } else if (count) {
+            indicator.insertAdjacentHTML('beforeend', `<span class="progress-count">${count}</span>`);
+        }
+    }
+
+    scrollToBottom();
+}
+
+function hideProgressIndicator() {
+    const indicator = document.getElementById('progress-indicator');
+    if (indicator) indicator.remove();
+}
+
+function showFollowupButtons(questions) {
+    if (!questions || questions.length === 0) return;
+
+    const container = document.getElementById('followup-container') || createFollowupContainer();
+
+    const buttonsHtml = questions.map(q =>
+        `<button class="followup-btn" data-question="${escapeHtml(q)}">${escapeHtml(q)}</button>`
+    ).join('');
+
+    container.innerHTML = `
+        <span class="followup-label">Questions suggerees</span>
+        ${buttonsHtml}
+    `;
+
+    // Add click handlers
+    container.querySelectorAll('.followup-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const question = btn.dataset.question;
+            elements.messageInput.value = question;
+            autoResizeTextarea();
+            elements.sendBtn.disabled = false;
+            // Remove followups after selection
+            container.remove();
+            // Optionally auto-send
+            sendMessage();
+        });
+    });
+
+    scrollToBottom();
+}
+
+function createFollowupContainer() {
+    const container = document.createElement('div');
+    container.id = 'followup-container';
+    container.className = 'followup-suggestions';
+    elements.chatMessages.appendChild(container);
+    return container;
+}
+
+function removeFollowupContainer() {
+    const container = document.getElementById('followup-container');
+    if (container) container.remove();
+}
+
 function removeLoadingMessage() {
     const loading = document.getElementById('loading-message');
     if (loading) loading.remove();
@@ -402,7 +496,7 @@ function finalizeStreamingMessage(sources) {
 
 function showSources(sources) {
     const html = sources.map(s => `
-        <div class="source-item ${s.expanded ? 'expanded' : ''}">
+        <div class="source-item clickable ${s.expanded ? 'expanded' : ''}" data-chunk-id="${escapeHtml(s.chunk_id || '')}">
             <div class="source-header">
                 <span class="source-rank">#${s.rank}</span>
                 <span class="source-score">Score: ${s.score}</span>
@@ -410,11 +504,78 @@ function showSources(sources) {
             <div class="source-file">${escapeHtml(s.file)}</div>
             <div class="source-participants">${s.participants.join(', ')}</div>
             <div class="source-dates">${s.date_start} - ${s.date_end}</div>
+            ${s.preview ? `<div class="source-preview">${escapeHtml(s.preview)}</div>` : ''}
         </div>
     `).join('');
 
     elements.sourcesContent.innerHTML = html;
     elements.sourcesPanel.classList.add('visible');
+
+    // Add click handlers for source detail
+    elements.sourcesContent.querySelectorAll('.source-item.clickable').forEach(item => {
+        item.addEventListener('click', () => {
+            const chunkId = item.dataset.chunkId;
+            if (chunkId) {
+                showSourceDetail(chunkId);
+            }
+        });
+    });
+}
+
+async function showSourceDetail(chunkId) {
+    try {
+        elements.sourceModalBody.innerHTML = '<div class="progress-indicator"><div class="progress-spinner"></div><span class="progress-text">Chargement...</span></div>';
+        elements.sourceModal.classList.add('visible');
+
+        const chunk = await api.getChunkContent(chunkId);
+
+        const questionsHtml = chunk.hypothetical_questions && chunk.hypothetical_questions.length > 0
+            ? `<div class="source-detail-questions">
+                <div class="source-detail-questions-label">Questions associees</div>
+                ${chunk.hypothetical_questions.map(q => `<span class="source-detail-question">${escapeHtml(q)}</span>`).join('')}
+               </div>`
+            : '';
+
+        elements.sourceModalTitle.textContent = chunk.file_source;
+        elements.sourceModalBody.innerHTML = `
+            <div class="source-detail">
+                <div class="source-detail-meta">
+                    <div class="source-detail-meta-item">
+                        <span class="source-detail-meta-label">Participants</span>
+                        <span class="source-detail-meta-value">${chunk.participants.join(', ')}</span>
+                    </div>
+                    <div class="source-detail-meta-item">
+                        <span class="source-detail-meta-label">Periode</span>
+                        <span class="source-detail-meta-value">${chunk.date_start.slice(0, 10)} - ${chunk.date_end.slice(0, 10)}</span>
+                    </div>
+                    <div class="source-detail-meta-item">
+                        <span class="source-detail-meta-label">Messages</span>
+                        <span class="source-detail-meta-value">${chunk.message_count}</span>
+                    </div>
+                    <div class="source-detail-meta-item">
+                        <span class="source-detail-meta-label">Chunk ID</span>
+                        <span class="source-detail-meta-value">${chunk.chunk_id}</span>
+                    </div>
+                </div>
+
+                <div class="source-detail-summary">
+                    <div class="source-detail-summary-label">Resume</div>
+                    ${escapeHtml(chunk.summary)}
+                </div>
+
+                ${questionsHtml}
+
+                <div class="source-detail-content">${escapeHtml(chunk.content)}</div>
+            </div>
+        `;
+
+    } catch (e) {
+        elements.sourceModalBody.innerHTML = `<p style="color: var(--danger);">Erreur: ${escapeHtml(e.message)}</p>`;
+    }
+}
+
+function hideSourceModal() {
+    elements.sourceModal.classList.remove('visible');
 }
 
 function renderParticipants(participants) {
@@ -492,6 +653,9 @@ async function sendMessage() {
     elements.messageInput.value = '';
     autoResizeTextarea();
 
+    // Remove previous followups
+    removeFollowupContainer();
+
     // Add user message
     addMessage('user', message);
 
@@ -513,6 +677,7 @@ async function sendMessage() {
 
     let responseContent = '';
     let responseSources = [];
+    let responseFollowups = [];
 
     // Stream response
     api.streamMessage(data, {
@@ -522,20 +687,32 @@ async function sendMessage() {
                 loadConversations();
             }
         },
+        onProgress: (step, message, count) => {
+            showProgressIndicator(step, message, count);
+        },
         onSources: (sources) => {
             responseSources = sources;
         },
         onChunk: (chunk) => {
+            hideProgressIndicator();
             responseContent += chunk;
             updateStreamingMessage(responseContent);
         },
+        onFollowups: (questions) => {
+            responseFollowups = questions;
+        },
         onDone: () => {
+            hideProgressIndicator();
             finalizeStreamingMessage(responseSources);
+            if (responseFollowups.length > 0) {
+                showFollowupButtons(responseFollowups);
+            }
             state.isLoading = false;
             elements.sendBtn.disabled = false;
             loadConversations();
         },
         onError: (error) => {
+            hideProgressIndicator();
             removeLoadingMessage();
             addMessage('assistant', 'Erreur: ' + (error || 'Une erreur est survenue'));
             state.isLoading = false;
@@ -664,6 +841,12 @@ elements.cancelDelete.addEventListener('click', hideDeleteModal);
 elements.confirmDelete.addEventListener('click', confirmDeleteConversation);
 elements.deleteModal.addEventListener('click', (e) => {
     if (e.target === elements.deleteModal) hideDeleteModal();
+});
+
+// Source modal
+elements.closeSourceModal.addEventListener('click', hideSourceModal);
+elements.sourceModal.addEventListener('click', (e) => {
+    if (e.target === elements.sourceModal) hideSourceModal();
 });
 
 // Close sidebar when clicking outside on mobile

@@ -39,6 +39,8 @@ class AdvancedRetrievalContext:
     has_results: bool
     filters_applied: dict = field(default_factory=dict)
     search_mode: str = "hybrid"  # dense, bm25, hybrid
+    low_confidence: bool = False  # True if max score < confidence_threshold
+    max_confidence_score: float = 0.0  # Highest score among results
 
     def get_sources(self) -> List[str]:
         """Retourne la liste des sources."""
@@ -253,13 +255,19 @@ class AdvancedRetriever:
         # Formater le contexte
         formatted_context = self._format_context(results)
 
+        # Compute confidence score
+        max_confidence_score = max((r.final_score for r in results), default=0.0)
+        low_confidence = max_confidence_score < self.config.confidence_threshold if results else True
+
         return AdvancedRetrievalContext(
             query=query,
             results=results,
             formatted_context=formatted_context,
             has_results=len(results) > 0,
             filters_applied=filters_applied,
-            search_mode=search_mode
+            search_mode=search_mode,
+            low_confidence=low_confidence,
+            max_confidence_score=max_confidence_score
         )
 
     def _search_dense(
