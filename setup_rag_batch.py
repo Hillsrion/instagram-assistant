@@ -161,7 +161,7 @@ def main():
     # Étape 1: Charger les chunks
     # ========================================
     print("=" * 40)
-    print("📝 Étape 1/3: Chargement des chunks")
+    print("📝 Étape 1/6: Chargement des chunks")
     print("=" * 40)
 
     chunker = ConversationChunker(config)
@@ -185,11 +185,51 @@ def main():
     print()
 
     # ========================================
-    # Étape 2: Génération des embeddings par batch
+    # Étape 2: Enrichissement LLM (Gold Standard RAG)
     # ========================================
     print("=" * 40)
-    print("🧠 Étape 2/3: Génération des embeddings (batched)")
+    print("✨ Étape 2/6: Enrichissement sémantique (LLM)")
     print("=" * 40)
+    
+    from rag_pipeline.enricher import ChunkEnricher
+    enricher = ChunkEnricher(config)
+    
+    # Vérifier combien de chunks ont besoin d'être enrichis
+    to_enrich = [c for c in chunks if not c.narrative_summary or not c.hypothetical_questions]
+    
+    if not to_enrich:
+        print("✅ Tous les chunks sont déjà enrichis.")
+    else:
+        print(f"🧠 Enrichissement de {len(to_enrich)} chunks via Ollama ({config.llm_model})...")
+        print("   Cela améliore drastiquement la qualité de la recherche.")
+        
+        try:
+            def enrich_progress(current, total):
+                if current % 10 == 0 or current == total:
+                    print(f"   ✨ [{current}/{total}] chunks enrichis...")
+            
+            enricher.enrich_batch(to_enrich, progress_callback=enrich_progress)
+            
+            # Sauvegarder les chunks enrichis immédiatement
+            chunker.save_chunks(chunks)
+            print("✅ Chunks enrichis et sauvegardés en cache.")
+        except KeyboardInterrupt:
+            print("\n⚠️ Interruption : Sauvegarde des chunks déjà enrichis...")
+            chunker.save_chunks(chunks)
+            sys.exit(0)
+        except Exception as e:
+            print(f"\n⚠️ Erreur pendant l'enrichissement: {e}")
+            print("   L'indexation continue avec les données disponibles.")
+
+    print()
+
+    # ========================================
+    # Étape 3: Génération des embeddings par batch
+    # ========================================
+    print("=" * 40)
+    print("🧠 Étape 3/6: Génération des embeddings (batched)")
+    print("=" * 40)
+
 
     # Créer le dossier checkpoints
     CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
@@ -270,7 +310,7 @@ def main():
     # Étape 3: Construction de l'index FAISS
     # ========================================
     print("=" * 40)
-    print("🗃️  Étape 3/3: Construction de l'index FAISS")
+    print("🗃️  Étape 4/6: Construction de l'index FAISS")
     print("=" * 40)
 
     vector_store = VectorStore(config)
@@ -283,7 +323,7 @@ def main():
     # Étape 4: Construction des index avancés
     # ========================================
     print("=" * 40)
-    print("📚 Étape 4/5: Index BM25 (recherche lexicale)")
+    print("📚 Étape 5/6: Index BM25 (recherche lexicale)")
     print("=" * 40)
 
     from rag_pipeline.bm25_index import BM25Index
@@ -298,7 +338,7 @@ def main():
     # Étape 5: Index métadonnées (pre-filtering)
     # ========================================
     print("=" * 40)
-    print("📋 Étape 5/5: Index métadonnées (SQLite)")
+    print("📋 Étape 6/6: Index métadonnées (SQLite)")
     print("=" * 40)
 
     from rag_pipeline.metadata_store import MetadataStore

@@ -25,7 +25,7 @@ class Message:
 
 @dataclass
 class Chunk:
-    """Un chunk de conversation avec métadonnées."""
+    """Un chunk de conversation avec métadonnées enrichies."""
     chunk_id: str
     conversation_id: str
     participants: List[str]
@@ -35,6 +35,9 @@ class Chunk:
     summary: str
     content: str
     file_source: str
+    # Nouveaux champs pour le RAG "Gold Standard"
+    narrative_summary: Optional[str] = None
+    hypothetical_questions: Optional[List[str]] = None
     
     def to_dict(self) -> dict:
         return asdict(self)
@@ -44,8 +47,32 @@ class Chunk:
         return cls(**data)
     
     def get_embedding_text(self) -> str:
-        """Retourne le texte à encoder (résumé + contenu)."""
-        return f"{self.summary}\n\n{self.content}"
+        """
+        Retourne le texte à encoder (Questions + Résumé + Contenu).
+        L'inclusion des questions hypothétiques améliore drastiquement le retrieval.
+        """
+        text_parts = []
+        
+        # 1. Questions hypothétiques (Priorité haute pour le matching)
+        if self.hypothetical_questions:
+            text_parts.append("Questions auxquelles ce document répond :")
+            text_parts.extend(self.hypothetical_questions)
+            text_parts.append("")
+            
+        # 2. Résumé narratif (Contexte sémantique)
+        if self.narrative_summary:
+            text_parts.append(f"Résumé : {self.narrative_summary}")
+        else:
+            text_parts.append(f"Résumé statistique : {self.summary}")
+            
+        text_parts.append("")
+        
+        # 3. Contenu brut (Détails)
+        text_parts.append("Contenu de la conversation :")
+        text_parts.append(self.content)
+        
+        return "\n".join(text_parts)
+
 
 
 class ConversationChunker:
