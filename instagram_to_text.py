@@ -58,21 +58,38 @@ def convert_conversation(conversation_path: Path, output_dir: Path) -> None:
     # Trier les messages par ordre chronologique (du plus ancien au plus récent)
     messages.sort(key=lambda m: m.get('timestamp_ms', 0))
     
+    # Calculer des statistiques enrichies
+    media_count = sum(1 for m in messages if 'photos' in m or 'videos' in m or 'audio_files' in m)
+    link_count = sum(1 for m in messages if 'share' in m)
+    reaction_count = sum(len(m.get('reactions', [])) for m in messages)
+    call_count = sum(1 for m in messages if 'call_duration' in m)
+
     # Créer le document texte
     output_file = output_dir / f"{conv_id}.txt"
-    
+
     with open(output_file, 'w', encoding='utf-8') as f:
-        # En-tête
+        # En-tête enrichi
         f.write(f"# Conversation Instagram avec {conv_name}\n")
         f.write(f"ID: {conv_id}\n")
         f.write(f"Nombre de messages: {len(messages)}\n")
-        
+
         if messages:
             first_msg_date = format_timestamp(messages[0].get('timestamp_ms', 0))
             last_msg_date = format_timestamp(messages[-1].get('timestamp_ms', 0))
             f.write(f"Période: du {first_msg_date} au {last_msg_date}\n")
-        
+
         f.write(f"\nParticipants: {', '.join([decode_instagram_text(p.get('name', '')) for p in participants])}\n")
+
+        # Statistiques enrichies
+        f.write(f"\nStatistiques:\n")
+        f.write(f"  • Médias partagés: {media_count}\n")
+        if link_count > 0:
+            f.write(f"  • Liens partagés: {link_count}\n")
+        if reaction_count > 0:
+            f.write(f"  • Réactions totales: {reaction_count}\n")
+        if call_count > 0:
+            f.write(f"  • Appels: {call_count}\n")
+
         f.write("\n" + "="*80 + "\n\n")
         
         # Messages
@@ -80,41 +97,94 @@ def convert_conversation(conversation_path: Path, output_dir: Path) -> None:
             sender = decode_instagram_text(msg.get('sender_name', 'Inconnu'))
             timestamp = format_timestamp(msg.get('timestamp_ms', 0))
             content = decode_instagram_text(msg.get('content', ''))
-            
+
             f.write(f"[{timestamp}] {sender}:\n")
-            
+
+            # Contenu du message (ou action spéciale)
             if content:
-                f.write(f"{content}\n")
-            
-            # Photos
+                # Détecter les actions spéciales Instagram
+                if content == "A aimé un message":
+                    f.write(f"👍 {content}\n")
+                elif content == "A réagi à votre message":
+                    f.write(f"👍 {content}\n")
+                else:
+                    f.write(f"{content}\n")
+
+            # Photos avec URIs si disponibles
             if 'photos' in msg:
                 photo_count = len(msg['photos'])
-                f.write(f"📷 [{photo_count} photo(s)]\n")
-            
-            # Vidéos
+                f.write(f"📷 [{photo_count} photo(s)]")
+                # Ajouter les URIs si disponibles (pour contexte)
+                photo_uris = [p.get('uri', '') for p in msg['photos'] if p.get('uri')]
+                if photo_uris:
+                    f.write(f" - Fichiers: {', '.join([Path(uri).name for uri in photo_uris])}")
+                f.write("\n")
+
+            # Vidéos avec URIs si disponibles
             if 'videos' in msg:
                 video_count = len(msg['videos'])
-                f.write(f"🎥 [{video_count} vidéo(s)]\n")
-            
-            # Audio
+                f.write(f"🎥 [{video_count} vidéo(s)]")
+                video_uris = [v.get('uri', '') for v in msg['videos'] if v.get('uri')]
+                if video_uris:
+                    f.write(f" - Fichiers: {', '.join([Path(uri).name for uri in video_uris])}")
+                f.write("\n")
+
+            # Audio avec URI si disponible
             if 'audio_files' in msg:
-                f.write(f"🎵 [Message vocal]\n")
-            
-            # Partage de lien
+                f.write(f"🎵 [Message vocal]")
+                if msg['audio_files']:
+                    audio_uri = msg['audio_files'][0].get('uri', '')
+                    if audio_uri:
+                        f.write(f" - Fichier: {Path(audio_uri).name}")
+                f.write("\n")
+
+            # Partage de lien avec contexte enrichi
             if 'share' in msg:
-                link = msg['share'].get('link', '')
+                share = msg['share']
+                link = share.get('link', '')
+                share_text = decode_instagram_text(share.get('share_text', ''))
+                original_content_owner = decode_instagram_text(share.get('original_content_owner', ''))
+
                 if link:
-                    f.write(f"🔗 {link}\n")
-            
-            # Réactions
+                    f.write(f"🔗 Lien partagé: {link}\n")
+                # Afficher le texte du share seulement s'il est différent du contenu déjà affiché
+                if share_text and share_text.strip() != content.strip():
+                    f.write(f"   Texte: {share_text}\n")
+                if original_content_owner:
+                    f.write(f"   Auteur original: {original_content_owner}\n")
+
+            # Réactions avec emojis exacts
             if 'reactions' in msg:
                 reactions = msg['reactions']
-                reaction_text = ', '.join([
-                    f"{decode_instagram_text(r.get('actor', ''))} {decode_instagram_text(r.get('reaction', ''))}"
-                    for r in reactions
-                ])
-                f.write(f"❤️ Réactions: {reaction_text}\n")
-            
+                if reactions:
+                    reaction_list = []
+                    for r in reactions:
+                        actor = decode_instagram_text(r.get('actor', ''))
+                        reaction = decode_instagram_text(r.get('reaction', ''))
+                        if actor and reaction:
+                            reaction_list.append(f"{actor} {reaction}")
+
+                    if reaction_list:
+                        f.write(f"💬 Réactions: {', '.join(reaction_list)}\n")
+
+            # Stickers/GIFs
+            if 'sticker' in msg:
+                f.write(f"🎨 [Sticker/GIF partagé]\n")
+
+            # Appels
+            if 'call_duration' in msg:
+                duration = msg.get('call_duration', 0)
+                if duration > 0:
+                    minutes = duration // 60
+                    seconds = duration % 60
+                    f.write(f"📞 [Appel - Durée: {minutes}m {seconds}s]\n")
+                else:
+                    f.write(f"📞 [Appel manqué]\n")
+
+            # Messages annulés/supprimés (unsent)
+            if msg.get('is_unsent', False):
+                f.write(f"🗑️ [Message supprimé]\n")
+
             f.write("\n")
     
     print(f"✓ Converti: {conv_name} ({len(messages)} messages)")
