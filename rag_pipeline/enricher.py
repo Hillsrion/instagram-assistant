@@ -95,8 +95,18 @@ class ChunkEnricher:
             response.raise_for_status()
             result = response.json()["message"]["content"]
 
+            # Nettoyage de la réponse (au cas où le LLM ajoute des markdown code blocks)
+            cleaned_result = result.strip()
+            if cleaned_result.startswith("```json"):
+                cleaned_result = cleaned_result[7:]
+            if cleaned_result.startswith("```"):
+                cleaned_result = cleaned_result[3:]
+            if cleaned_result.endswith("```"):
+                cleaned_result = cleaned_result[:-3]
+            cleaned_result = cleaned_result.strip()
+
             # Parser le JSON de réponse
-            data = json.loads(result)
+            data = json.loads(cleaned_result)
             summary = data.get("narrative_summary", "")
             questions = data.get("questions", [])
             speaker_intents = data.get("speaker_intents", {})
@@ -106,9 +116,18 @@ class ChunkEnricher:
 
             return summary, questions, speaker_intents, temporal_context, entities, emotions
 
+        except json.JSONDecodeError as e:
+            print(f"⚠️ Erreur décodage JSON pour chunk {chunk.chunk_id}: {e}")
+            if 'cleaned_result' in locals():
+                print(f"   Contenu reçu (cleaned): {cleaned_result}...")
+            elif 'result' in locals():
+                 print(f"   Contenu reçu (raw): {result}...")
+            return "", [], {}, "", {}, {}
         except Exception as e:
             # En cas d'erreur, on retourne des valeurs vides (fallback sur le résumé statistique)
             print(f"⚠️ Erreur enrichissement chunk {chunk.chunk_id}: {e}")
+            if 'result' in locals():
+                print(f"   Contenu reçu (raw): {result}...")
             return "", [], {}, "", {}, {}
 
     def enrich_batch(
