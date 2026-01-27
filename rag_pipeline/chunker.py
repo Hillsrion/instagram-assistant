@@ -276,7 +276,7 @@ class ConversationChunker:
         return '\n'.join(lines)
     
     def chunk_conversation(self, file_path: Path) -> List[Chunk]:
-        """Découpe une conversation en chunks."""
+        """Découpe une conversation en chunks adaptatifs."""
         metadata, messages = self.parse_conversation(file_path)
         
         if not messages:
@@ -286,21 +286,30 @@ class ConversationChunker:
         chunk_idx = 0
         current_chunk_messages = []
         chunk_start_time = None
+        last_msg_time = None
         
-        for msg in messages:
+        for i, msg in enumerate(messages):
             if not current_chunk_messages:
                 chunk_start_time = msg.timestamp
                 current_chunk_messages.append(msg)
+                last_msg_time = msg.timestamp
                 continue
             
-            # Calculer la durée depuis le début du chunk
-            days_elapsed = (msg.timestamp - chunk_start_time).days
+            # 1. Calculer les deltas
+            hours_since_last_msg = (msg.timestamp - last_msg_time).total_seconds() / 3600
+            days_elapsed_chunk = (msg.timestamp - chunk_start_time).days
             
-            # Conditions de création d'un nouveau chunk
-            should_split = (
+            # 2. Critères de découpage
+            # A. Rupture temporelle (Conversation interrompue > Gap)
+            is_time_gap = hours_since_last_msg >= self.config.chunk_time_gap
+            
+            # B. Limites de taille (Sécurité pour éviter les chunks géants)
+            is_too_long = (
                 len(current_chunk_messages) >= self.config.chunk_max_messages or
-                days_elapsed >= self.config.chunk_max_days
+                days_elapsed_chunk >= self.config.chunk_max_days
             )
+            
+            should_split = is_time_gap or is_too_long
             
             if should_split:
                 # Créer le chunk actuel
@@ -310,12 +319,23 @@ class ConversationChunker:
                 chunks.append(chunk)
                 chunk_idx += 1
                 
-                # Commencer un nouveau chunk avec overlap
-                overlap_start = max(0, len(current_chunk_messages) - self.config.chunk_overlap)
-                current_chunk_messages = current_chunk_messages[overlap_start:]
-                chunk_start_time = current_chunk_messages[0].timestamp if current_chunk_messages else msg.timestamp
+                if is_time_gap:
+                    # Si c'est une rupture temporelle, on repart de zéro (pas d'overlap nécessaire/pertinent)
+                    current_chunk_messages = []
+                    # Mais on ajoute le message actuel comme début du nouveau chunk
+                else:
+                    # Si c'est juste trop long, on fait un overlap pour la continuité
+                    overlap_start = max(0, len(current_chunk_messages) - self.config.chunk_overlap)
+                    current_chunk_messages = current_chunk_messages[overlap_start:]
+                
+                # Réinitialiser pour le nouveau chunk
+                if not current_chunk_messages:
+                    chunk_start_time = msg.timestamp
+                else:
+                    chunk_start_time = current_chunk_messages[0].timestamp
             
             current_chunk_messages.append(msg)
+            last_msg_time = msg.timestamp
         
         # Dernier chunk
         if current_chunk_messages:

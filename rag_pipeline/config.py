@@ -28,6 +28,8 @@ class Config:
     chunk_max_days: int = field(default_factory=lambda: int(os.getenv('CHUNK_MAX_DAYS', '3')))
     # Chevauchement entre chunks (en messages)
     chunk_overlap: int = field(default_factory=lambda: int(os.getenv('CHUNK_OVERLAP', '5')))
+    # Pause (en heures) qui déclenche un nouveau chunk
+    chunk_time_gap: float = field(default_factory=lambda: float(os.getenv('CHUNK_TIME_GAP', '6.0')))
 
     # === Embeddings ===
     # Modèle d'embeddings (bge-m3 recommandé pour multilingue)
