@@ -1,0 +1,244 @@
+# Conversation Instagram avec Lucas
+ID: lucas_collegue_2345678901
+Nombre de messages: 87
+Période: du 2024-09-10 08:45:22 au 2025-01-22 17:32:11
+
+Participants: Lucas, Marie
+
+Statistiques:
+  • Médias partagés: 8
+  • Liens partagés: 15
+  • Réactions totales: 34
+  • Appels: 1
+
+================================================================================
+
+[2024-09-10 08:45:22] Lucas:
+Salut Marie ! J'ai vu que tu bossais sur le projet ClientX
+
+[2024-09-10 08:47:33] Marie:
+Oui, pourquoi ?
+
+[2024-09-10 08:48:12] Lucas:
+Je me demandais si t'avais le template pour les présentations
+
+[2024-09-10 08:49:45] Marie:
+Ah oui attends je te l'envoie
+
+[2024-09-10 08:50:23] Marie:
+You sent an attachment.
+
+[2024-09-10 08:51:12] Lucas:
+Parfait merci !
+
+[2024-09-10 08:52:34] Marie:
+De rien ! C'est pour quel client ?
+
+[2024-09-10 08:53:45] Lucas:
+ClientY, la présentation c'est jeudi
+
+[2024-09-10 08:54:23] Marie:
+Ah ok ! Si t'as besoin d'un coup de main hésite pas
+
+[2024-09-10 08:55:12] Lucas:
+Merci c'est cool 😊
+💬 Réactions: Marie ❤️
+
+[2024-09-15 14:23:45] Marie:
+Lucas t'es où ? La réunion a commencé
+
+[2024-09-15 14:24:12] Lucas:
+Merde j'arrive !!
+
+[2024-09-15 14:24:34] Lucas:
+J'ai complètement oublié
+
+[2024-09-15 14:25:23] Marie:
+Dépêche, le boss est pas content
+
+[2024-09-15 14:26:12] Lucas:
+J'arrive dans 2 min
+
+[2024-09-22 10:12:34] Lucas:
+Salut ! T'as vu le mail de la RH ce matin ?
+
+[2024-09-22 10:15:23] Marie:
+Celui sur le télétravail ?
+
+[2024-09-22 10:16:12] Lucas:
+Ouais ! Ils passent à 3 jours par semaine
+
+[2024-09-22 10:17:34] Marie:
+Enfin ! Ça fait des mois qu'on demande
+
+[2024-09-22 10:18:45] Lucas:
+Trop content franchement
+
+[2024-09-22 10:19:23] Marie:
+Pareil ! Fini les trajets tous les jours
+💬 Réactions: Lucas ❤️
+
+[2024-10-05 16:45:23] Marie:
+Lucas tu peux relire mon compte-rendu avant que je l'envoie ?
+
+[2024-10-05 16:47:12] Lucas:
+Oui envoie !
+
+[2024-10-05 16:48:34] Marie:
+You sent an attachment.
+
+[2024-10-05 16:55:23] Lucas:
+C'est bon ! Juste une petite coquille page 3
+
+[2024-10-05 16:56:12] Marie:
+Où ça ?
+
+[2024-10-05 16:57:34] Lucas:
+"les données sont incorect" -> incorrectes
+
+[2024-10-05 16:58:23] Marie:
+Ah oui merci ! Je corrige
+
+[2024-10-05 16:59:12] Lucas:
+👍
+
+[2024-11-12 09:23:45] Lucas:
+Dispo pour un café ce matin ?
+
+[2024-11-12 09:25:23] Marie:
+10h30 ça te va ?
+
+[2024-11-12 09:26:12] Lucas:
+Parfait ! À tout'
+
+[2024-11-18 13:34:23] Marie:
+Alors ta présentation de jeudi ?
+
+[2024-11-18 13:36:45] Lucas:
+Super bien passé ! Le client a validé le projet
+
+[2024-11-18 13:37:34] Marie:
+Génial ! Bravo 🎉
+
+[2024-11-18 13:38:23] Lucas:
+Merci ! On va fêter ça vendredi soir avec l'équipe
+
+[2024-11-18 13:39:12] Marie:
+Tu m'invites ? 😄
+
+[2024-11-18 13:40:23] Lucas:
+Bien sûr ! 19h au bar habituel
+
+[2024-11-18 13:41:12] Marie:
+Cool je serai là !
+💬 Réactions: Lucas ❤️
+
+[2024-12-03 08:45:23] Lucas:
+Marie t'as le budget prévisionnel pour Q1 ?
+
+[2024-12-03 08:47:12] Marie:
+Oui attends
+
+[2024-12-03 08:48:34] Marie:
+🔗 Lien partagé: https://docs.google.com/spreadsheets/d/abc123
+
+[2024-12-03 08:49:23] Lucas:
+Merci !
+
+[2024-12-03 08:50:12] Marie:
+Par contre faut que tu demandes l'accès
+
+[2024-12-03 08:51:34] Lucas:
+C'est fait
+
+[2024-12-03 08:52:23] Marie:
+Je viens de valider
+
+[2024-12-03 08:53:12] Lucas:
+👍
+
+[2024-12-20 17:23:45] Marie:
+Lucas joyeuses fêtes ! 🎄
+
+[2024-12-20 17:25:23] Lucas:
+Merci ! Pareillement 😊
+
+[2024-12-20 17:26:12] Marie:
+Tu fais quoi pour Noël ?
+
+[2024-12-20 17:27:34] Lucas:
+Je rentre chez mes parents dans le Sud
+
+[2024-12-20 17:28:23] Lucas:
+Et toi ?
+
+[2024-12-20 17:29:12] Marie:
+Je reste à Paris cette année
+
+[2024-12-20 17:30:23] Lucas:
+Ah cool ! Profite bien
+
+[2024-12-20 17:31:12] Marie:
+Toi aussi ! À l'année prochaine
+💬 Réactions: Lucas ❤️
+
+[2025-01-06 09:12:34] Lucas:
+Bonne année Marie ! 🎉
+
+[2025-01-06 09:15:23] Marie:
+Bonne année ! Bien passé les fêtes ?
+
+[2025-01-06 09:16:45] Lucas:
+Très bien ! Beaucoup mangé 😅
+
+[2025-01-06 09:17:34] Marie:
+Ahah pareil !
+
+[2025-01-06 09:18:23] Lucas:
+On reprend le sport la semaine prochaine ?
+
+[2025-01-06 09:19:12] Marie:
+Go ! Mardi midi ?
+
+[2025-01-06 09:20:23] Lucas:
+Parfait 👍
+
+[2025-01-15 11:34:23] Marie:
+Lucas t'es sur quel projet en ce moment ?
+
+[2025-01-15 11:36:45] Lucas:
+ClientZ, c'est un gros truc
+
+[2025-01-15 11:37:34] Lucas:
+Toi ?
+
+[2025-01-15 11:38:23] Marie:
+Je finis ClientX et après j'attaque un nouveau
+
+[2025-01-15 11:39:12] Lucas:
+Cool ! C'est quoi comme projet ?
+
+[2025-01-15 11:40:34] Marie:
+Refonte complète d'une appli mobile
+
+[2025-01-15 11:41:23] Lucas:
+Ah stylé ! Tu bosses avec qui ?
+
+[2025-01-15 11:42:12] Marie:
+Sophie et Antoine normalement
+
+[2025-01-15 11:43:23] Lucas:
+La dream team 😄
+
+[2025-01-15 11:44:12] Marie:
+J'espère ! 😅
+💬 Réactions: Lucas ❤️
+
+[2025-01-22 17:30:23] Lucas:
+Marie t'aurais pas le contact de la graphiste qu'on avait pour ClientX ?
+
+[2025-01-22 17:31:45] Marie:
+Si attends
+
+[2025-01-22 17:32:11] Marie:
+amelie.dupont@design.com

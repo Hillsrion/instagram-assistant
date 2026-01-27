@@ -1,0 +1,26 @@
+# Conversation Instagram avec Pierre
+ID: annulation_9012345678
+Nombre de messages: 4
+Période: du 2024-11-15 18:12:34 au 2024-11-15 18:15:23
+
+Participants: Pierre, Hugo
+
+Statistiques:
+  • Médias partagés: 0
+  • Liens partagés: 0
+  • Réactions totales: 1
+
+================================================================================
+
+[2024-11-15 18:12:34] Pierre:
+Désolé je peux pas ce soir finalement
+
+[2024-11-15 18:13:45] Hugo:
+Ah mince, tout va bien ?
+
+[2024-11-15 18:14:23] Pierre:
+Oui juste un imprévu au taff
+
+[2024-11-15 18:15:23] Hugo:
+Ok pas de soucis ! On se refait ça
+💬 Réactions: Pierre ❤️
