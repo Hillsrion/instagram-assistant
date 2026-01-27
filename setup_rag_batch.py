@@ -153,10 +153,22 @@ def main():
     parser.add_argument("--status", action="store_true", help="Affiche l'état actuel")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE, help=f"Taille des batches (défaut: {BATCH_SIZE})")
     parser.add_argument("--limit", type=int, help="Limite le nombre de conversations à traiter")
+    parser.add_argument("--model", type=str, help="Override du modèle LLM pour l'enrichissement (ex: qwen2.5:3b)")
     parser.add_argument("--import-test", action="store_true", help="Importe les conversations de test depuis test_conversations/")
+    
+    # Options pour sauter des étapes
+    parser.add_argument("--skip-enrich", action="store_true", help="Saute l'étape d'enrichissement LLM")
+    parser.add_argument("--skip-embed", action="store_true", help="Saute la génération des embeddings")
+    parser.add_argument("--skip-indexes", action="store_true", help="Saute la création des index (FAISS, BM25, Metadata)")
+    parser.add_argument("--skip-summary", action="store_true", help="Saute la génération des résumés hiérarchiques")
+
     args = parser.parse_args()
 
     config = Config()
+
+    if args.model:
+        config.llm_model = args.model
+        print(f"🔄 Override modèle LLM: {config.llm_model}")
 
     if args.status:
         show_status(config)
@@ -241,307 +253,329 @@ def main():
     # ========================================
     # Étape 2: Enrichissement LLM (Gold Standard RAG)
     # ========================================
-    print("=" * 40)
-    print("✨ Étape 2/8: Enrichissement sémantique (LLM)")
-    print("=" * 40)
-    
-    from rag_pipeline.enricher import ChunkEnricher
-    enricher = ChunkEnricher(config)
-    
-    # Vérifier combien de chunks ont besoin d'être enrichis
-    to_enrich = [c for c in chunks if not c.narrative_summary or not c.hypothetical_questions]
-    
-    if not to_enrich:
-        print("✅ Tous les chunks sont déjà enrichis.")
-    else:
-        print(f"🧠 Enrichissement de {len(to_enrich)} chunks via Ollama ({config.llm_model})...")
-        print("   Cela améliore drastiquement la qualité de la recherche.")
-        print(f"   (Sauvegarde automatique tous les 20 chunks)")
+    if not args.skip_enrich:
+        print("=" * 40)
+        print("✨ Étape 2/8: Enrichissement sémantique (LLM)")
+        print("=" * 40)
         
-        try:
-            start_time = time.time()
+        from rag_pipeline.enricher import ChunkEnricher
+        enricher = ChunkEnricher(config)
+        
+        # Vérifier combien de chunks ont besoin d'être enrichis
+        to_enrich = [c for c in chunks if not c.narrative_summary or not c.hypothetical_questions]
+        
+        if not to_enrich:
+            print("✅ Tous les chunks sont déjà enrichis.")
+        else:
+            print(f"🧠 Enrichissement de {len(to_enrich)} chunks via Ollama ({config.llm_model})...")
+            print("   Cela améliore drastiquement la qualité de la recherche.")
+            print(f"   (Sauvegarde automatique tous les 20 chunks)")
             
-            def enrich_progress(current, total):
-                if current % 5 == 0 or current == total:
-                    elapsed = time.time() - start_time
-                    speed = current / elapsed if elapsed > 0 else 0
-                    remaining = (total - current) / speed if speed > 0 else 0
-                    
-                    rem_str = format_duration(remaining)
-                    
-                    sys.stdout.write(f"\r   ✨ [{current}/{total}] chunks | Vitesse: {speed:.1f} ch/s | Reste: {rem_str}   ")
-                    sys.stdout.flush()
+            try:
+                start_time = time.time()
+                
+                def enrich_progress(current, total):
+                    if current % 5 == 0 or current == total:
+                        elapsed = time.time() - start_time
+                        speed = current / elapsed if elapsed > 0 else 0
+                        remaining = (total - current) / speed if speed > 0 else 0
+                        
+                        rem_str = format_duration(remaining)
+                        
+                        sys.stdout.write(f"\r   ✨ [{current}/{total}] chunks | Vitesse: {speed:.1f} ch/s | Reste: {rem_str}   ")
+                        sys.stdout.flush()
 
-            def save_progress():
+                def save_progress():
+                    chunker.save_chunks(chunks)
+                    # On revient à la ligne après une sauvegarde pour garder une trace
+                    sys.stdout.write("\n")
+                
+                enricher.enrich_batch(
+                    to_enrich, 
+                    progress_callback=enrich_progress,
+                    save_callback=save_progress,
+                    save_interval=20
+                )
+                
+                print("\n✅ Chunks enrichis et sauvegardés en cache.")
+
+            except KeyboardInterrupt:
+                print("\n\n⚠️ Interruption : Sauvegarde des chunks déjà enrichis...")
                 chunker.save_chunks(chunks)
-                # On revient à la ligne après une sauvegarde pour garder une trace
-                sys.stdout.write("\n")
-            
-            enricher.enrich_batch(
-                to_enrich, 
-                progress_callback=enrich_progress,
-                save_callback=save_progress,
-                save_interval=20
-            )
-            
-            print("\n✅ Chunks enrichis et sauvegardés en cache.")
-
-        except KeyboardInterrupt:
-            print("\n\n⚠️ Interruption : Sauvegarde des chunks déjà enrichis...")
-            chunker.save_chunks(chunks)
-            print("✅ Sauvegarde effectuée. Relancez le script pour reprendre.")
-            sys.exit(0)
-        except Exception as e:
-            print(f"\n\n⚠️ Erreur pendant l'enrichissement: {e}")
-            print("   Tentative de sauvegarde du travail effectué...")
-            chunker.save_chunks(chunks)
-            print("   L'indexation continue avec les données disponibles.")
+                print("✅ Sauvegarde effectuée. Relancez le script pour reprendre.")
+                sys.exit(0)
+            except Exception as e:
+                print(f"\n\n⚠️ Erreur pendant l'enrichissement: {e}")
+                print("   Tentative de sauvegarde du travail effectué...")
+                chunker.save_chunks(chunks)
+                print("   L'indexation continue avec les données disponibles.")
+    else:
+        print("⏩ Étape 2/8: Enrichissement sauté (--skip-enrich)")
 
     print()
 
     # ========================================
     # Étape 3: Génération des embeddings par batch
     # ========================================
-    print("=" * 40)
-    print("🧠 Étape 3/8: Génération des embeddings (batched)")
-    print("=" * 40)
+    if not args.skip_embed:
+        print("=" * 40)
+        print("🧠 Étape 3/8: Génération des embeddings (batched)")
+        print("=" * 40)
 
 
-    # Créer le dossier checkpoints
-    CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+        # Créer le dossier checkpoints
+        CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Déterminer où reprendre (compter les embeddings réels, pas juste les checkpoints)
-    existing_checkpoints = count_existing_checkpoints()
-    start_idx = count_existing_embeddings() if existing_checkpoints > 0 else 0
+        # Déterminer où reprendre (compter les embeddings réels, pas juste les checkpoints)
+        existing_checkpoints = count_existing_checkpoints()
+        start_idx = count_existing_embeddings() if existing_checkpoints > 0 else 0
 
-    if start_idx >= len(chunks):
-        print(f"✅ Tous les embeddings sont déjà générés ({existing_checkpoints} checkpoints)")
-        embeddings = load_all_checkpoints()
-    else:
-        if existing_checkpoints > 0:
-            print(f"🔄 Reprise depuis le checkpoint {existing_checkpoints}")
-            print(f"   Embeddings existants: {start_idx}")
-            print(f"   Chunks restants: {len(chunks) - start_idx}")
+        if start_idx >= len(chunks):
+            print(f"✅ Tous les embeddings sont déjà générés ({existing_checkpoints} checkpoints)")
+            embeddings = load_all_checkpoints()
+        else:
+            if existing_checkpoints > 0:
+                print(f"🔄 Reprise depuis le checkpoint {existing_checkpoints}")
+                print(f"   Embeddings existants: {start_idx}")
+                print(f"   Chunks restants: {len(chunks) - start_idx}")
 
-        print()
-
-        # Charger le modèle d'embeddings
-        embedding_model = EmbeddingModel(config)
-
-        # Calculer le nombre de batches restants
-        remaining_chunks = len(chunks) - start_idx
-        n_batches = (remaining_chunks + batch_size - 1) // batch_size
-
-        print(f"📊 {n_batches} batch(es) à traiter")
-        print()
-
-        total_start_time = time.time()
-
-        for batch_num in range(n_batches):
-            batch_start = start_idx + (batch_num * batch_size)
-            batch_end = min(batch_start + batch_size, len(chunks))
-            batch_chunks = chunks[batch_start:batch_end]
-
-            checkpoint_idx = existing_checkpoints + batch_num
-            checkpoint_path = get_checkpoint_path(checkpoint_idx)
-
-            print(f"📦 Batch {batch_num + 1}/{n_batches} (chunks {batch_start}-{batch_end})")
-
-            # Préparer les textes
-            texts = [chunk.get_embedding_text() for chunk in batch_chunks]
-
-            # Encoder
-            batch_start_time = time.time()
-            batch_embeddings = embedding_model.encode(texts, show_progress=True)
-            batch_time = time.time() - batch_start_time
-
-            # Sauvegarder le checkpoint
-            np.save(checkpoint_path, batch_embeddings)
-
-            print(f"   ✅ Sauvegardé: {checkpoint_path.name}")
-            print(f"   ⏱️  Temps: {batch_time:.1f}s ({batch_time/len(batch_chunks):.2f}s/chunk)")
             print()
 
-        total_time = time.time() - total_start_time
-        print(f"✅ Génération terminée en {total_time:.1f}s")
-        print()
+            # Charger le modèle d'embeddings
+            embedding_model = EmbeddingModel(config)
 
-        # Charger tous les embeddings
-        print("📂 Chargement de tous les embeddings...")
+            # Calculer le nombre de batches restants
+            remaining_chunks = len(chunks) - start_idx
+            n_batches = (remaining_chunks + batch_size - 1) // batch_size
+
+            print(f"📊 {n_batches} batch(es) à traiter")
+            print()
+
+            total_start_time = time.time()
+
+            for batch_num in range(n_batches):
+                batch_start = start_idx + (batch_num * batch_size)
+                batch_end = min(batch_start + batch_size, len(chunks))
+                batch_chunks = chunks[batch_start:batch_end]
+
+                checkpoint_idx = existing_checkpoints + batch_num
+                checkpoint_path = get_checkpoint_path(checkpoint_idx)
+
+                print(f"📦 Batch {batch_num + 1}/{n_batches} (chunks {batch_start}-{batch_end})")
+
+                # Préparer les textes
+                texts = [chunk.get_embedding_text() for chunk in batch_chunks]
+
+                # Encoder
+                batch_start_time = time.time()
+                batch_embeddings = embedding_model.encode(texts, show_progress=True)
+                batch_time = time.time() - batch_start_time
+
+                # Sauvegarder le checkpoint
+                np.save(checkpoint_path, batch_embeddings)
+
+                print(f"   ✅ Sauvegardé: {checkpoint_path.name}")
+                print(f"   ⏱️  Temps: {batch_time:.1f}s ({batch_time/len(batch_chunks):.2f}s/chunk)")
+                print()
+
+            total_time = time.time() - total_start_time
+            print(f"✅ Génération terminée en {total_time:.1f}s")
+            print()
+
+            # Charger tous les embeddings
+            print("📂 Chargement de tous les embeddings...")
+            embeddings = load_all_checkpoints()
+            
+        print(f"\n📊 Shape finale: {embeddings.shape}")
+        print(f"   • {embeddings.shape[0]} vecteurs")
+        print(f"   • {embeddings.shape[1]} dimensions")
+        print(f"   • {embeddings.nbytes / 1024 / 1024:.1f} MB")
+        
+        # Vérification de cohérence
+        if len(embeddings) != len(chunks):
+            print(f"⚠️  ATTENTION: {len(embeddings)} embeddings ≠ {len(chunks)} chunks")
+            print("   Utilisez --reset pour recommencer proprement")
+            sys.exit(1)
+            
+    else:
+        print("⏩ Étape 3/8: Génération des embeddings sautée (--skip-embed)")
+        # On essaie quand même de charger les embeddings pour la suite si possible
         embeddings = load_all_checkpoints()
+        if embeddings is None:
+            print("⚠️ Attention: Pas d'embeddings chargés. Les étapes suivantes (indexation) risquent d'échouer si elles ne sont pas sautées.")
 
-    print(f"\n📊 Shape finale: {embeddings.shape}")
-    print(f"   • {embeddings.shape[0]} vecteurs")
-    print(f"   • {embeddings.shape[1]} dimensions")
-    print(f"   • {embeddings.nbytes / 1024 / 1024:.1f} MB")
     print()
-
-    # Vérification de cohérence
-    if len(embeddings) != len(chunks):
-        print(f"⚠️  ATTENTION: {len(embeddings)} embeddings ≠ {len(chunks)} chunks")
-        print("   Utilisez --reset pour recommencer proprement")
-        sys.exit(1)
 
     # ========================================
     # Étape 3: Construction de l'index FAISS
     # ========================================
-    print("=" * 40)
-    print("🗃️  Étape 4/8: Construction de l'index FAISS")
-    print("=" * 40)
+    if not args.skip_indexes:
+        print("=" * 40)
+        print("🗃️  Étape 4/8: Construction de l'index FAISS")
+        print("=" * 40)
 
-    vector_store = VectorStore(config)
-    vector_store.build_index(chunks, embeddings)
-    vector_store.save()
+        if embeddings is not None:
+            vector_store = VectorStore(config)
+            vector_store.build_index(chunks, embeddings)
+            vector_store.save()
+        else:
+            print("❌ Impossible de créer l'index FAISS sans embeddings.")
 
-    print()
+        print()
 
-    # ========================================
-    # Étape 4: Construction des index avancés
-    # ========================================
-    print("=" * 40)
-    print("📚 Étape 5/8: Index BM25 (recherche lexicale)")
-    print("=" * 40)
+        # ========================================
+        # Étape 4: Construction des index avancés
+        # ========================================
+        print("=" * 40)
+        print("📚 Étape 5/8: Index BM25 (recherche lexicale)")
+        print("=" * 40)
 
-    from rag_pipeline.bm25_index import BM25Index
-    bm25_index = BM25Index(config)
-    bm25_index.chunks = chunks
-    bm25_index.build_index(chunks)
-    bm25_index.save()
+        from rag_pipeline.bm25_index import BM25Index
+        bm25_index = BM25Index(config)
+        bm25_index.chunks = chunks
+        bm25_index.build_index(chunks)
+        bm25_index.save()
 
-    print()
+        print()
 
-    # ========================================
-    # Étape 5: Index métadonnées (pre-filtering)
-    # ========================================
-    print("=" * 40)
-    print("📋 Étape 6/8: Index métadonnées (SQLite)")
-    print("=" * 40)
+        # ========================================
+        # Étape 5: Index métadonnées (pre-filtering)
+        # ========================================
+        print("=" * 40)
+        print("📋 Étape 6/8: Index métadonnées (SQLite)")
+        print("=" * 40)
 
-    from rag_pipeline.metadata_store import MetadataStore
-    metadata_store = MetadataStore(config)
-    metadata_store.build_index(chunks)
+        from rag_pipeline.metadata_store import MetadataStore
+        metadata_store = MetadataStore(config)
+        metadata_store.build_index(chunks)
 
-    # Afficher quelques stats
-    participants = metadata_store.get_all_participants()[:10]
-    date_range = metadata_store.get_date_range()
-    print(f"   • Période: {date_range[0][:10] if date_range[0] else 'N/A'} → {date_range[1][:10] if date_range[1] else 'N/A'}")
-    print(f"   • Top participants: {', '.join(p[0] for p in participants[:5])}")
+        # Afficher quelques stats
+        participants = metadata_store.get_all_participants()[:10]
+        date_range = metadata_store.get_date_range()
+        print(f"   • Période: {date_range[0][:10] if date_range[0] else 'N/A'} → {date_range[1][:10] if date_range[1] else 'N/A'}")
+        print(f"   • Top participants: {', '.join(p[0] for p in participants[:5])}")
 
-    metadata_store.close()
+        metadata_store.close()
+    else:
+         print("⏩ Étapes 4-6/8: Indexation sautée (--skip-indexes)")
+
     print()
 
     # ========================================
     # Étape 7: Génération des résumés hiérarchiques
     # ========================================
-    print("=" * 40)
-    print("📝 Étape 7/8: Génération des résumés hiérarchiques (LLM)")
-    print("=" * 40)
+    if not args.skip_summary:
+        print("=" * 40)
+        print("📝 Étape 7/8: Génération des résumés hiérarchiques (LLM)")
+        print("=" * 40)
 
-    from rag_pipeline.summary_generator import SummaryGenerator
-    from rag_pipeline.summary_store import SummaryStore
+        from rag_pipeline.summary_generator import SummaryGenerator
+        from rag_pipeline.summary_store import SummaryStore
 
-    # Vérifier si les résumés existent déjà
-    conv_summaries_path = config.index_dir / "conversation_summaries.json"
-    period_summaries_path = config.index_dir / "period_summaries.json"
+        # Vérifier si les résumés existent déjà
+        conv_summaries_path = config.index_dir / "conversation_summaries.json"
+        period_summaries_path = config.index_dir / "period_summaries.json"
 
-    if conv_summaries_path.exists() and period_summaries_path.exists():
-        print("✅ Résumés hiérarchiques déjà générés.")
-        import json
-        with open(conv_summaries_path, 'r', encoding='utf-8') as f:
-            conv_data = json.load(f)
-        with open(period_summaries_path, 'r', encoding='utf-8') as f:
-            period_data = json.load(f)
-        print(f"   • {len(conv_data)} résumés de conversation")
-        print(f"   • {len(period_data)} résumés de période")
-    else:
-        print(f"🧠 Génération via Ollama ({config.llm_model})...")
-        print("   Cette étape peut prendre du temps selon le nombre de conversations.")
-
-        summary_generator = SummaryGenerator(config)
-
-        try:
-            summary_start_time = time.time()
-
-            def summary_progress(current, total, desc=""):
-                elapsed = time.time() - summary_start_time
-                speed = current / elapsed if elapsed > 0 else 0
-                remaining = (total - current) / speed if speed > 0 else 0
-                rem_str = format_duration(remaining)
-                sys.stdout.write(f"\r   📝 [{current}/{total}] {desc[:40]:<40} | Reste: {rem_str}   ")
-                sys.stdout.flush()
-
-            def save_summaries(conv_summaries, period_summaries):
-                # Sauvegarder les résumés en JSON (sans index FAISS pour l'instant)
-                import json
-                with open(conv_summaries_path, 'w', encoding='utf-8') as f:
-                    json.dump([s.to_dict() for s in conv_summaries], f, ensure_ascii=False, indent=2)
-                with open(period_summaries_path, 'w', encoding='utf-8') as f:
-                    json.dump([s.to_dict() for s in period_summaries], f, ensure_ascii=False, indent=2)
-
-            conversation_summaries, period_summaries = summary_generator.generate_all_summaries(
-                chunks,
-                progress_callback=summary_progress,
-                save_callback=save_summaries
-            )
-
-            print(f"\n✅ Résumés générés: {len(conversation_summaries)} conversations, {len(period_summaries)} périodes")
-
-        except KeyboardInterrupt:
-            print("\n\n⚠️ Interruption : les résumés partiels ont été sauvegardés.")
-            print("   Relancez le script pour reprendre.")
-            sys.exit(0)
-        except Exception as e:
-            print(f"\n\n⚠️ Erreur pendant la génération des résumés: {e}")
-            print("   L'indexation continue sans résumés hiérarchiques.")
-            conversation_summaries = []
-            period_summaries = []
-
-    print()
-
-    # ========================================
-    # Étape 8: Construction de l'index des résumés
-    # ========================================
-    print("=" * 40)
-    print("🔍 Étape 8/8: Index FAISS pour les résumés")
-    print("=" * 40)
-
-    summary_index_path = config.index_dir / "summary_index"
-    conv_index_exists = (summary_index_path / "conversation_index.faiss").exists()
-    period_index_exists = (summary_index_path / "period_index.faiss").exists()
-
-    if conv_index_exists and period_index_exists:
-        print("✅ Index des résumés déjà construit.")
-    else:
-        # Charger les résumés si pas déjà en mémoire
-        if 'conversation_summaries' not in dir() or not conversation_summaries:
+        if conv_summaries_path.exists() and period_summaries_path.exists():
+            print("✅ Résumés hiérarchiques déjà générés.")
             import json
-            from rag_pipeline.summary_models import ConversationSummary, PeriodSummary
+            with open(conv_summaries_path, 'r', encoding='utf-8') as f:
+                conv_data = json.load(f)
+            with open(period_summaries_path, 'r', encoding='utf-8') as f:
+                period_data = json.load(f)
+            print(f"   • {len(conv_data)} résumés de conversation")
+            print(f"   • {len(period_data)} résumés de période")
+        else:
+            print(f"🧠 Génération via Ollama ({config.llm_model})...")
+            print("   Cette étape peut prendre du temps selon le nombre de conversations.")
 
-            if conv_summaries_path.exists():
-                with open(conv_summaries_path, 'r', encoding='utf-8') as f:
-                    conv_data = json.load(f)
-                conversation_summaries = [ConversationSummary.from_dict(d) for d in conv_data]
-            else:
+            summary_generator = SummaryGenerator(config)
+
+            try:
+                summary_start_time = time.time()
+
+                def summary_progress(current, total, desc=""):
+                    elapsed = time.time() - summary_start_time
+                    speed = current / elapsed if elapsed > 0 else 0
+                    remaining = (total - current) / speed if speed > 0 else 0
+                    rem_str = format_duration(remaining)
+                    sys.stdout.write(f"\r   📝 [{current}/{total}] {desc[:40]:<40} | Reste: {rem_str}   ")
+                    sys.stdout.flush()
+
+                def save_summaries(conv_summaries, period_summaries):
+                    # Sauvegarder les résumés en JSON (sans index FAISS pour l'instant)
+                    import json
+                    with open(conv_summaries_path, 'w', encoding='utf-8') as f:
+                        json.dump([s.to_dict() for s in conv_summaries], f, ensure_ascii=False, indent=2)
+                    with open(period_summaries_path, 'w', encoding='utf-8') as f:
+                        json.dump([s.to_dict() for s in period_summaries], f, ensure_ascii=False, indent=2)
+
+                conversation_summaries, period_summaries = summary_generator.generate_all_summaries(
+                    chunks,
+                    progress_callback=summary_progress,
+                    save_callback=save_summaries
+                )
+
+                print(f"\n✅ Résumés générés: {len(conversation_summaries)} conversations, {len(period_summaries)} périodes")
+
+            except KeyboardInterrupt:
+                print("\n\n⚠️ Interruption : les résumés partiels ont été sauvegardés.")
+                print("   Relancez le script pour reprendre.")
+                sys.exit(0)
+            except Exception as e:
+                print(f"\n\n⚠️ Erreur pendant la génération des résumés: {e}")
+                print("   L'indexation continue sans résumés hiérarchiques.")
                 conversation_summaries = []
-
-            if period_summaries_path.exists():
-                with open(period_summaries_path, 'r', encoding='utf-8') as f:
-                    period_data = json.load(f)
-                period_summaries = [PeriodSummary.from_dict(d) for d in period_data]
-            else:
                 period_summaries = []
 
-        if conversation_summaries or period_summaries:
-            # Réutiliser le modèle d'embeddings
-            if 'embedding_model' not in dir():
-                embedding_model = EmbeddingModel(config)
+        print()
 
-            summary_store = SummaryStore(config, embedding_model)
-            summary_store.build_indexes(conversation_summaries, period_summaries)
-            summary_store.save()
-            print("✅ Index des résumés construit et sauvegardé.")
+        # ========================================
+        # Étape 8: Construction de l'index des résumés
+        # ========================================
+        print("=" * 40)
+        print("🔍 Étape 8/8: Index FAISS pour les résumés")
+        print("=" * 40)
+
+        summary_index_path = config.index_dir / "summary_index"
+        conv_index_exists = (summary_index_path / "conversation_index.faiss").exists()
+        period_index_exists = (summary_index_path / "period_index.faiss").exists()
+
+        if conv_index_exists and period_index_exists:
+            print("✅ Index des résumés déjà construit.")
         else:
-            print("⚠️  Aucun résumé à indexer.")
+            # Charger les résumés si pas déjà en mémoire
+            if 'conversation_summaries' not in dir() or not conversation_summaries:
+                import json
+                from rag_pipeline.summary_models import ConversationSummary, PeriodSummary
+
+                if conv_summaries_path.exists():
+                    with open(conv_summaries_path, 'r', encoding='utf-8') as f:
+                        conv_data = json.load(f)
+                    conversation_summaries = [ConversationSummary.from_dict(d) for d in conv_data]
+                else:
+                    conversation_summaries = []
+
+                if period_summaries_path.exists():
+                    with open(period_summaries_path, 'r', encoding='utf-8') as f:
+                        period_data = json.load(f)
+                    period_summaries = [PeriodSummary.from_dict(d) for d in period_data]
+                else:
+                    period_summaries = []
+
+            if conversation_summaries or period_summaries:
+                # Réutiliser le modèle d'embeddings
+                if 'embedding_model' not in dir():
+                    embedding_model = EmbeddingModel(config)
+
+                summary_store = SummaryStore(config, embedding_model)
+                summary_store.build_indexes(conversation_summaries, period_summaries)
+                summary_store.save()
+                print("✅ Index des résumés construit et sauvegardé.")
+            else:
+                print("⚠️  Aucun résumé à indexer.")
+    else:
+        print("⏩ Étapes 7-8/8: Résumés hiérarchiques sautés (--skip-summary)")
 
     print()
 
@@ -552,7 +586,10 @@ def main():
     print("✅ INDEXATION TERMINÉE - RAG AVANCÉ")
     print("=" * 60)
     print(f"📝 Chunks indexés: {len(chunks)}")
-    print(f"🧠 Embeddings: {embeddings.shape}")
+    if embeddings is not None:
+        print(f"🧠 Embeddings: {embeddings.shape}")
+    else:
+        print(f"🧠 Embeddings: (Ignorés)")
     print(f"🗃️  Index FAISS: {config.vector_store_path}")
     print(f"📚 Index BM25: {config.index_dir / 'bm25_index.pkl'}")
     print(f"📋 Index métadonnées: {config.index_dir / 'metadata.db'}")
