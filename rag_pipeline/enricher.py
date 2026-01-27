@@ -9,13 +9,18 @@ from .config import Config, default_config
 from .chunker import Chunk
 
 ENRICH_PROMPT = """Tu es un expert en analyse de conversations.
-Analyse l'extrait de conversation Instagram ci-dessous et génère cinq éléments :
+Analyse l'extrait de conversation Instagram ci-dessous et génère six éléments :
 
 1. RÉSUMÉ NARRATIF : Une seule phrase qui décrit l'action principale, l'intention et le résultat de l'échange.
 2. QUESTIONS HYPOTHÉTIQUES : Liste 3 questions précises auxquelles cet extrait de conversation répond exactement. Ces questions doivent ressembler à ce qu'un utilisateur pourrait demander à un assistant.
 3. INTENTIONS DES PARTICIPANTS : Pour chaque participant actif, décris en quelques mots son intention ou objectif principal dans cet échange.
 4. CONTEXTE TEMPOREL : Décris le moment ou la période de cet échange de manière sémantique (ex: "avant l'obtention du visa", "pendant les vacances d'été", "après la rupture").
-5. ÉMOTIONS : Analyse l'ambiance émotionnelle globale de l'échange avec trois dimensions :
+5. ENTITÉS NOMMÉES : Extrais les éléments importants mentionnés :
+   - locations : villes, pays, restaurants, lieux spécifiques
+   - people : personnes mentionnées (hors participants)
+   - media : films, séries, livres, jeux, chansons
+   - events : fêtes, concerts, réunions, voyages
+6. ÉMOTIONS : Analyse l'ambiance émotionnelle globale de l'échange avec trois dimensions :
    - dominant : l'émotion principale (joie, tristesse, colère, peur, surprise, excitation, frustration, affection, inquiétude, soulagement, etc.)
    - tone : le ton général (léger, sérieux, playful, tendu, intime, formel, sarcastique, etc.)
    - tension_level : niveau de tension (low, medium, high)
@@ -36,6 +41,12 @@ RÉPONDS STRICTEMENT AU FORMAT JSON SUIVANT :
     "Participant2": "son intention principale"
   }},
   "temporal_context": "description sémantique du moment",
+  "entities": {{
+    "locations": ["Paris", "McDo"],
+    "people": ["Sarah", "Thomas"],
+    "media": ["Inception", "GTA VI"],
+    "events": ["Anniversaire", "Noël"]
+  }},
   "emotions": {{
     "dominant": "émotion principale",
     "tone": "ton général",
@@ -52,12 +63,12 @@ class ChunkEnricher:
         # Modèle léger recommandé pour l'indexation de masse
         self.model = self.config.llm_model 
         
-    def enrich_chunk(self, chunk: Chunk) -> Tuple[str, List[str], Dict[str, str], str, Dict[str, str]]:
+    def enrich_chunk(self, chunk: Chunk) -> Tuple[str, List[str], Dict[str, str], str, Dict[str, List[str]], Dict[str, str]]:
         """
-        Génère un résumé narratif, des questions, les intentions, le contexte temporel et les émotions pour un chunk.
+        Génère un résumé narratif, des questions, les intentions, le contexte temporel, les entités et les émotions pour un chunk.
 
         Returns:
-            (narrative_summary, hypothetical_questions, speaker_intents, temporal_context, emotions)
+            (narrative_summary, hypothetical_questions, speaker_intents, temporal_context, entities, emotions)
         """
         # Limiter la taille du texte pour éviter de saturer le context window du petit modèle
         content_preview = chunk.content[:4000]
@@ -71,7 +82,7 @@ class ChunkEnricher:
             "format": "json", # Demander du JSON à Ollama
             "options": {
                 "temperature": 0.1,
-                "num_predict": 1024,  # Augmenté pour accommoder les émotions
+                "num_predict": 1024,  # Augmenté pour accommoder les émotions et entités
             }
         }
 
@@ -90,14 +101,15 @@ class ChunkEnricher:
             questions = data.get("questions", [])
             speaker_intents = data.get("speaker_intents", {})
             temporal_context = data.get("temporal_context", "")
+            entities = data.get("entities", {})
             emotions = data.get("emotions", {})
 
-            return summary, questions, speaker_intents, temporal_context, emotions
+            return summary, questions, speaker_intents, temporal_context, entities, emotions
 
         except Exception as e:
             # En cas d'erreur, on retourne des valeurs vides (fallback sur le résumé statistique)
             print(f"⚠️ Erreur enrichissement chunk {chunk.chunk_id}: {e}")
-            return "", [], {}, "", {}
+            return "", [], {}, "", {}, {}
 
     def enrich_batch(
         self, 
@@ -119,16 +131,19 @@ class ChunkEnricher:
         
         for i, chunk in enumerate(chunks):
             # Si déjà enrichi (reprise), on saute
-            if chunk.narrative_summary and chunk.hypothetical_questions:
+            # Note: Si on ajoute de nouveaux champs (comme entities), il faudrait idéalement forcer la réindexation
+            # ou vérifier si le champ est manquant. Ici on assume que l'utilisateur fera --reset s'il veut les nouveaux champs.
+            if chunk.narrative_summary and chunk.hypothetical_questions and chunk.entities:
                 if progress_callback:
                     progress_callback(i + 1, len(chunks))
                 continue
 
-            summary, questions, speaker_intents, temporal_context, emotions = self.enrich_chunk(chunk)
+            summary, questions, speaker_intents, temporal_context, entities, emotions = self.enrich_chunk(chunk)
             chunk.narrative_summary = summary
             chunk.hypothetical_questions = questions
             chunk.speaker_intents = speaker_intents
             chunk.temporal_context = temporal_context
+            chunk.entities = entities
             chunk.emotions = emotions
             
             # Callback de progrès

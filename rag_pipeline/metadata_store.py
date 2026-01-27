@@ -61,11 +61,20 @@ class MetadataStore:
                 PRIMARY KEY (chunk_idx, participant)
             );
 
+            -- Table des entités nommées
+            CREATE TABLE IF NOT EXISTS chunk_entities (
+                chunk_idx INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                value TEXT NOT NULL,
+                PRIMARY KEY (chunk_idx, category, value)
+            );
+
             -- Index pour les recherches rapides
             CREATE INDEX IF NOT EXISTS idx_conversation ON chunks(conversation_id);
             CREATE INDEX IF NOT EXISTS idx_date_start ON chunks(date_start);
             CREATE INDEX IF NOT EXISTS idx_year_start ON chunks(year_start);
             CREATE INDEX IF NOT EXISTS idx_participant ON chunk_participants(participant);
+            CREATE INDEX IF NOT EXISTS idx_entity_value ON chunk_entities(value);
         """)
 
         self.conn.commit()
@@ -85,6 +94,7 @@ class MetadataStore:
         # Vider les tables existantes
         self.conn.execute("DELETE FROM chunk_participants")
         self.conn.execute("DELETE FROM chunks")
+        self.conn.execute("DELETE FROM chunk_entities")
 
         # Insérer les chunks
         for idx, chunk in enumerate(chunks):
@@ -115,6 +125,15 @@ class MetadataStore:
                     VALUES (?, ?)
                 """, (idx, participant.lower()))
 
+            # Insérer les entités
+            if chunk.entities:
+                for category, values in chunk.entities.items():
+                    for value in values:
+                        self.conn.execute("""
+                            INSERT OR IGNORE INTO chunk_entities (chunk_idx, category, value)
+                            VALUES (?, ?, ?)
+                        """, (idx, category.lower(), value.lower()))
+
         self.conn.commit()
         print(f"✅ Index métadonnées construit")
 
@@ -140,6 +159,45 @@ class MetadataStore:
             WHERE participant LIKE ?
         """
         cursor = self.conn.execute(query, (f"%{participant.lower()}%",))
+        result = {row[0] for row in cursor.fetchall()}
+
+        if chunk_indices is not None:
+            return result.intersection(chunk_indices)
+        return result
+
+    def filter_by_entity(
+        self,
+        value: str,
+        category: Optional[str] = None,
+        chunk_indices: Optional[Set[int]] = None
+    ) -> Set[int]:
+        """
+        Filtre les chunks par entité nommée.
+        
+        Args:
+            value: Valeur de l'entité (ex: "Paris")
+            category: Catégorie optionnelle (ex: "locations")
+            chunk_indices: Ensemble de départ
+            
+        Returns:
+            Ensemble d'indices de chunks
+        """
+        self._connect()
+        
+        if category:
+            query = """
+                SELECT DISTINCT chunk_idx FROM chunk_entities
+                WHERE category = ? AND value LIKE ?
+            """
+            params = (category.lower(), f"%{value.lower()}%")
+        else:
+            query = """
+                SELECT DISTINCT chunk_idx FROM chunk_entities
+                WHERE value LIKE ?
+            """
+            params = (f"%{value.lower()}%",)
+            
+        cursor = self.conn.execute(query, params)
         result = {row[0] for row in cursor.fetchall()}
 
         if chunk_indices is not None:
