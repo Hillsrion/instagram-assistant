@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
 Convertit les conversations Instagram exportées en documents texte optimisés pour le RAG.
+Se concentre sur une seule source de données (idéalement fusionnée via merge_instagram_exports.py).
 """
 import json
 import os
+import glob
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Set, Optional
+from collections import defaultdict
 from dotenv import load_dotenv
 
 # Charger les variables d'environnement
@@ -16,7 +19,7 @@ def decode_instagram_text(text: str) -> str:
     """Décode le texte Instagram avec encodage spécial."""
     if not text:
         return ""
-    # Instagram encode en UTF-8 puis représente les bytes
+    # Instagram encode en UTF-8 puis représente les bytes en latin1
     try:
         return text.encode('latin1').decode('utf-8')
     except:
@@ -28,63 +31,133 @@ def format_timestamp(timestamp_ms: int) -> str:
 
 def extract_conversation_name(participants: List[Dict]) -> str:
     """Extrait le nom de la conversation."""
+    user_name = os.getenv('USER_NAME', 'Ismaël')
     names = [decode_instagram_text(p.get('name', '')) for p in participants]
-    # Filtrer le nom de l'utilisateur (Ismaël) pour garder le(s) autre(s)
-    other_names = [n for n in names if n and n != 'Ismaël']
+    # Filtrer le nom de l'utilisateur pour garder le(s) autre(s)
+    other_names = [n for n in names if n and user_name not in n]
     if other_names:
         return ' & '.join(other_names)
     return ' & '.join(names)
 
-def convert_conversation(conversation_path: Path, output_dir: Path) -> None:
-    """Convertit une conversation Instagram en fichier texte."""
-    message_file = conversation_path / "message_1.json"
+def get_input_dir() -> Optional[Path]:
+    """
+    Trouve le meilleur dossier d'entrée (priorité au dossier fusionné).
+    """
+    project_root = Path(__file__).parent
     
-    if not message_file.exists():
-        return
+    # 1. Vérifier l'environnement (Priorité absolue si défini)
+    env_dir = os.getenv('INSTAGRAM_EXPORT_DIR')
+    if env_dir:
+        p = Path(env_dir)
+        if p.exists():
+             # Logique de découverte intelligente
+            if p.name == "inbox" and p.is_dir():
+                return p
+            elif (p / "your_instagram_activity" / "messages" / "inbox").exists():
+                return p / "your_instagram_activity" / "messages" / "inbox"
+            elif (p / "messages" / "inbox").exists():
+                return p / "messages" / "inbox"
+            return p
+
+    # 2. Chercher dans merged_instagram_export (Standard recommandé)
+    merged_dir = project_root / "merged_instagram_export"
+    if merged_dir.exists() and merged_dir.is_dir():
+        if (merged_dir / "messages" / "inbox").exists():
+            return merged_dir / "messages" / "inbox"
+
+    # 3. Fallback: Chercher dans original_import_folders (Prendre le premier trouvé)
+    import_base = project_root / "original_import_folders"
+    if import_base.exists() and import_base.is_dir():
+        for export_dir in import_base.iterdir():
+            if export_dir.is_dir():
+                potential_inbox = export_dir / "your_instagram_activity" / "messages" / "inbox"
+                if potential_inbox.exists():
+                    return potential_inbox
+                potential_inbox = export_dir / "messages" / "inbox"
+                if potential_inbox.exists():
+                    return potential_inbox
+
+    # 4. Fallback: Chercher dans le dossier courant les dossiers instagram-*
+    for export_dir in project_root.glob("instagram-*"):
+        if export_dir.is_dir():
+            potential_inbox = export_dir / "your_instagram_activity" / "messages" / "inbox"
+            if potential_inbox.exists():
+                return potential_inbox
+            potential_inbox = export_dir / "messages" / "inbox"
+            if potential_inbox.exists():
+                return potential_inbox
     
-    try:
-        with open(message_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-    except Exception as e:
-        print(f"Erreur lecture {message_file}: {e}")
-        return
+    return None
+
+def load_conversation_messages(conv_id: str, inbox_dir: Path) -> Dict:
+    """
+    Charge les messages d'une conversation depuis un dossier unique.
+    Gère les fichiers splittés (message_1.json, message_2.json...). 
+    """
+    conv_path = inbox_dir / conv_id
+    if not conv_path.exists():
+        return None
+        
+    all_messages = []
+    merged_data = {}
     
+    # Trouver tous les message_*.json dans ce dossier
+    json_files = sorted(conv_path.glob("message_*.json"))
+    for json_file in json_files:
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                
+                # Initialiser les métadonnées avec le premier fichier
+                if not merged_data or 'participants' not in merged_data:
+                    for k, v in data.items():
+                        if k != 'messages':
+                            merged_data[k] = v
+                
+                if 'messages' in data:
+                    all_messages.extend(data['messages'])
+        except Exception as e:
+            print(f"  ⚠️  Erreur lecture {json_file.name}: {e}")
+                
+    if not all_messages:
+        return None
+        
+    # Trier par ordre chronologique
+    sorted_messages = sorted(all_messages, key=lambda m: m.get('timestamp_ms', 0))
+    merged_data['messages'] = sorted_messages
+    
+    return merged_data
+
+def convert_to_text(data: Dict, conv_id: str, output_dir: Path) -> None:
+    """Génère le fichier texte à partir des données."""
     participants = data.get('participants', [])
     messages = data.get('messages', [])
     
     if not messages:
         return
     
-    # Nom de la conversation
     conv_name = extract_conversation_name(participants)
-    conv_id = conversation_path.name
     
-    # Trier les messages par ordre chronologique (du plus ancien au plus récent)
-    messages.sort(key=lambda m: m.get('timestamp_ms', 0))
-    
-    # Calculer des statistiques enrichies
+    # Calculer des statistiques
     media_count = sum(1 for m in messages if 'photos' in m or 'videos' in m or 'audio_files' in m)
     link_count = sum(1 for m in messages if 'share' in m)
     reaction_count = sum(len(m.get('reactions', [])) for m in messages)
     call_count = sum(1 for m in messages if 'call_duration' in m)
 
-    # Créer le document texte
     output_file = output_dir / f"{conv_id}.txt"
 
     with open(output_file, 'w', encoding='utf-8') as f:
-        # En-tête enrichi
+        # En-tête
         f.write(f"# Conversation Instagram avec {conv_name}\n")
         f.write(f"ID: {conv_id}\n")
         f.write(f"Nombre de messages: {len(messages)}\n")
 
-        if messages:
-            first_msg_date = format_timestamp(messages[0].get('timestamp_ms', 0))
-            last_msg_date = format_timestamp(messages[-1].get('timestamp_ms', 0))
-            f.write(f"Période: du {first_msg_date} au {last_msg_date}\n")
+        first_msg_date = format_timestamp(messages[0].get('timestamp_ms', 0))
+        last_msg_date = format_timestamp(messages[-1].get('timestamp_ms', 0))
+        f.write(f"Période: du {first_msg_date} au {last_msg_date}\n")
 
         f.write(f"\nParticipants: {', '.join([decode_instagram_text(p.get('name', '')) for p in participants])}\n")
 
-        # Statistiques enrichies
         f.write(f"\nStatistiques:\n")
         f.write(f"  • Médias partagés: {media_count}\n")
         if link_count > 0:
@@ -104,88 +177,32 @@ def convert_conversation(conversation_path: Path, output_dir: Path) -> None:
 
             f.write(f"[{timestamp}] {sender}:\n")
 
-            # Contenu du message (ou action spéciale)
             if content:
-                # Détecter les actions spéciales Instagram
-                if content == "A aimé un message":
-                    f.write(f"👍 {content}\n")
-                elif content == "A réagi à votre message":
+                if content in ["A aimé un message", "A réagi à votre message"]:
                     f.write(f"👍 {content}\n")
                 else:
                     f.write(f"{content}\n")
 
-            # Photos avec URIs si disponibles
+            # Médias
             if 'photos' in msg:
-                photo_count = len(msg['photos'])
-                f.write(f"📷 [{photo_count} photo(s)]")
-                # Ajouter les URIs si disponibles (pour contexte)
-                photo_uris = [p.get('uri', '') for p in msg['photos'] if p.get('uri')]
-                if photo_uris:
-                    f.write(f" - Fichiers: {', '.join([Path(uri).name for uri in photo_uris])}")
-                f.write("\n")
-
-            # Vidéos avec URIs si disponibles
+                f.write(f"📷 [{len(msg['photos'])} photo(s)]\n")
             if 'videos' in msg:
-                video_count = len(msg['videos'])
-                f.write(f"🎥 [{video_count} vidéo(s)]")
-                video_uris = [v.get('uri', '') for v in msg['videos'] if v.get('uri')]
-                if video_uris:
-                    f.write(f" - Fichiers: {', '.join([Path(uri).name for uri in video_uris])}")
-                f.write("\n")
-
-            # Audio avec URI si disponible
+                f.write(f"🎥 [{len(msg['videos'])} vidéo(s)]\n")
             if 'audio_files' in msg:
-                f.write(f"🎵 [Message vocal]")
-                if msg['audio_files']:
-                    audio_uri = msg['audio_files'][0].get('uri', '')
-                    if audio_uri:
-                        f.write(f" - Fichier: {Path(audio_uri).name}")
-                f.write("\n")
+                f.write(f"🎵 [Message vocal]\n")
 
-            # Partage de lien avec contexte enrichi
+            # Partage
             if 'share' in msg:
                 share = msg['share']
                 link = share.get('link', '')
-                share_text = decode_instagram_text(share.get('share_text', ''))
-                original_content_owner = decode_instagram_text(share.get('original_content_owner', ''))
+                if link: f.write(f"🔗 Lien: {link}\n")
 
-                if link:
-                    f.write(f"🔗 Lien partagé: {link}\n")
-                # Afficher le texte du share seulement s'il est différent du contenu déjà affiché
-                if share_text and share_text.strip() != content.strip():
-                    f.write(f"   Texte: {share_text}\n")
-                if original_content_owner:
-                    f.write(f"   Auteur original: {original_content_owner}\n")
-
-            # Réactions avec emojis exacts
+            # Réactions
             if 'reactions' in msg:
-                reactions = msg['reactions']
-                if reactions:
-                    reaction_list = []
-                    for r in reactions:
-                        actor = decode_instagram_text(r.get('actor', ''))
-                        reaction = decode_instagram_text(r.get('reaction', ''))
-                        if actor and reaction:
-                            reaction_list.append(f"{actor} {reaction}")
+                reacs = [f"{decode_instagram_text(r.get('actor',''))} {decode_instagram_text(r.get('reaction',''))}" 
+                        for r in msg['reactions']]
+                f.write(f"💬 Réactions: {', '.join(reacs)}\n")
 
-                    if reaction_list:
-                        f.write(f"💬 Réactions: {', '.join(reaction_list)}\n")
-
-            # Stickers/GIFs
-            if 'sticker' in msg:
-                f.write(f"🎨 [Sticker/GIF partagé]\n")
-
-            # Appels
-            if 'call_duration' in msg:
-                duration = msg.get('call_duration', 0)
-                if duration > 0:
-                    minutes = duration // 60
-                    seconds = duration % 60
-                    f.write(f"📞 [Appel - Durée: {minutes}m {seconds}s]\n")
-                else:
-                    f.write(f"📞 [Appel manqué]\n")
-
-            # Messages annulés/supprimés (unsent)
             if msg.get('is_unsent', False):
                 f.write(f"🗑️ [Message supprimé]\n")
 
@@ -194,31 +211,42 @@ def convert_conversation(conversation_path: Path, output_dir: Path) -> None:
     print(f"✓ Converti: {conv_name} ({len(messages)} messages)")
 
 def main():
-    """Convertit toutes les conversations Instagram."""
-    # Récupérer les chemins depuis les variables d'environnement
-    instagram_dir = Path(os.getenv('INSTAGRAM_EXPORT_DIR', '/Users/ismaelsebbane/Documents/your_instagram_activity/messages/inbox'))
+    """Point d'entrée principal."""
+    inbox_dir = get_input_dir()
+    
+    if not inbox_dir:
+        print("❌ Aucun dossier d'export Instagram trouvé.")
+        print("Veuillez utiliser merge_instagram_exports.py d'abord ou configurer INSTAGRAM_EXPORT_DIR.")
+        return
 
     # Base directory du projet
-    base_dir = Path(os.getenv('BASE_DIR', Path(__file__).parent))
-    conversations_dir = os.getenv('CONVERSATIONS_DIR', 'instagram_conversations')
-    output_dir = base_dir / conversations_dir if not Path(conversations_dir).is_absolute() else Path(conversations_dir)
-
-    # Créer le dossier de sortie
+    base_dir = Path(__file__).parent
+    conversations_dir = os.getenv('CONVERSATIONS_DIR', 'rag_data/conversations')
+    output_dir = base_dir / conversations_dir
     output_dir.mkdir(exist_ok=True)
     
-    print(f"🔄 Conversion des conversations Instagram...")
-    print(f"📂 Source: {instagram_dir}")
+    print(f"🔄 Conversion des conversations en texte...")
+    print(f"📂 Source: {inbox_dir}")
     print(f"📁 Destination: {output_dir}\n")
     
-    # Parcourir toutes les conversations
-    conversation_dirs = [d for d in instagram_dir.iterdir() if d.is_dir()]
+    # Collecter tous les IDs de conversation
+    conv_dirs = [d for d in inbox_dir.iterdir() if d.is_dir()]
+    sorted_ids = sorted([d.name for d in conv_dirs])
+    total = len(sorted_ids)
     
-    for i, conv_dir in enumerate(conversation_dirs, 1):
-        print(f"[{i}/{len(conversation_dirs)}] ", end='')
-        convert_conversation(conv_dir, output_dir)
+    if total == 0:
+        print("⚠️ Aucune conversation trouvée dans ce dossier.")
+        return
+
+    for i, conv_id in enumerate(sorted_ids, 1):
+        print(f"[{i}/{total}] {conv_id}... ", end='', flush=True)
+        data = load_conversation_messages(conv_id, inbox_dir)
+        if data:
+            convert_to_text(data, conv_id, output_dir)
+        else:
+            print("⚠️ Vide ou illisible")
     
-    print(f"\n✅ Conversion terminée ! {len(conversation_dirs)} conversations traitées.")
-    print(f"📁 Fichiers disponibles dans: {output_dir}")
+    print(f"\n✅ Terminé ! {total} conversations traitées.")
 
 if __name__ == "__main__":
     main()

@@ -6,13 +6,20 @@ Permet de combiner plusieurs exports Instagram (ancien + nouveau) pour conserver
 tous les messages historiques, même avec la limite des 10k messages par export.
 
 Usage:
-    python3 merge_instagram_exports.py <export1_dir> <export2_dir> [export3_dir...] -o <output_dir>
+    python3 merge_instagram_exports.py [export1_dir export2_dir ...] [-o <output_dir>]
+
+    Si aucun dossier d'export n'est spécifié, le script cherchera automatiquement
+    dans le dossier 'original_import_folders/'.
+    La sortie par défaut est 'merged_instagram_export/'.
 
 Exemple:
+    # Scan automatique et sortie par défaut
+    python3 merge_instagram_exports.py
+
+    # Manuel avec sortie spécifique
     python3 merge_instagram_exports.py \
-        ~/Documents/instagram_export_2024_06/messages/inbox \
-        ~/Documents/instagram_export_2024_12/messages/inbox \
-        -o ~/Documents/instagram_merged/messages/inbox
+        ~/Documents/export_2024_06/messages/inbox \
+        -o ~/Documents/merged_inbox
 """
 
 import json
@@ -157,18 +164,31 @@ def copy_media_files(conversation_id: str, export_dirs: List[Path], output_dir: 
         if not conv_dir.exists():
             continue
 
-        # Copier tous les fichiers sauf message_1.json
-        for file_path in conv_dir.iterdir():
-            if file_path.is_file() and file_path.name != "message_1.json":
-                dest_path = output_conv_dir / file_path.name
-
-                # Éviter de copier plusieurs fois le même fichier
-                if file_path.name not in copied_files:
-                    try:
-                        shutil.copy2(file_path, dest_path)
-                        copied_files.add(file_path.name)
-                    except Exception as e:
-                        print(f"    ⚠️  Erreur copie {file_path.name}: {e}")
+        # Parcourir tous les éléments du dossier source
+        for item in conv_dir.iterdir():
+            # Si c'est un fichier (sauf les JSON de messages déjà traités)
+            if item.is_file():
+                if not item.name.startswith("message_") or not item.name.endswith(".json"):
+                    dest_path = output_conv_dir / item.name
+                    if item.name not in copied_files:
+                        try:
+                            shutil.copy2(item, dest_path)
+                            copied_files.add(item.name)
+                        except Exception as e:
+                            print(f"    ⚠️  Erreur copie fichier {item.name}: {e}")
+            
+            # Si c'est un dossier (photos, videos, audio, etc.)
+            elif item.is_dir():
+                dest_dir = output_conv_dir / item.name
+                dest_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Copier le contenu du dossier récursivement
+                try:
+                    # On utilise copytree avec dirs_exist_ok=True pour merger les contenus
+                    # Note: dirs_exist_ok est dispo depuis Python 3.8
+                    shutil.copytree(item, dest_dir, dirs_exist_ok=True)
+                except Exception as e:
+                    print(f"    ⚠️  Erreur copie dossier {item.name}: {e}")
 
 
 def main():
@@ -177,32 +197,32 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Merge deux exports
+  # Scan automatique et sortie par défaut (merged_instagram_export)
+  python3 merge_instagram_exports.py
+
+  # Scan automatique avec sortie spécifique
+  python3 merge_instagram_exports.py -o merged_output
+
+  # Merge deux exports spécifiques
   python3 merge_instagram_exports.py \
       ~/Documents/export1/messages/inbox \
       ~/Documents/export2/messages/inbox \
       -o ~/Documents/merged/messages/inbox
-
-  # Voir les statistiques sans merger
-  python3 merge_instagram_exports.py \
-      ~/Documents/export1/messages/inbox \
-      ~/Documents/export2/messages/inbox \
-      --dry-run
         """
     )
 
     parser.add_argument(
         'export_dirs',
-        nargs='+',
+        nargs='*',
         type=Path,
-        help='Directories containing Instagram exports (inbox folders)'
+        help='Directories containing Instagram exports (inbox folders). If empty, scans original_import_folders/'
     )
 
     parser.add_argument(
         '-o', '--output',
         type=Path,
-        required=True,
-        help='Output directory for merged conversations'
+        default=Path('merged_instagram_export'),
+        help='Output directory for merged conversations (default: merged_instagram_export)'
     )
 
     parser.add_argument(
@@ -219,16 +239,35 @@ Examples:
 
     args = parser.parse_args()
 
-    # Valider les dossiers d'entrée
+    # Si aucun dossier fourni, scanner original_import_folders
     export_dirs = []
-    for export_dir in args.export_dirs:
-        if not export_dir.exists():
-            print(f"❌ Dossier inexistant: {export_dir}")
+    if not args.export_dirs:
+        base_import_dir = Path("original_import_folders")
+        if base_import_dir.exists() and base_import_dir.is_dir():
+            print(f"🔍 Aucun dossier fourni, recherche dans {base_import_dir}...")
+            for item in base_import_dir.iterdir():
+                if item.is_dir():
+                    # Chercher le dossier inbox dans la structure standard
+                    inbox_path = item / "your_instagram_activity" / "messages" / "inbox"
+                    if inbox_path.exists() and inbox_path.is_dir():
+                        export_dirs.append(inbox_path)
+            
+            if not export_dirs:
+                print(f"❌ Aucune exportation valide trouvée dans {base_import_dir}")
+                return 1
+        else:
+            print(f"❌ Dossier {base_import_dir} introuvable et aucun argument fourni")
             return 1
-        if not export_dir.is_dir():
-            print(f"❌ Pas un dossier: {export_dir}")
-            return 1
-        export_dirs.append(export_dir)
+    else:
+        # Valider les dossiers fournis manuellement
+        for export_dir in args.export_dirs:
+            if not export_dir.exists():
+                print(f"❌ Dossier inexistant: {export_dir}")
+                return 1
+            if not export_dir.is_dir():
+                print(f"❌ Pas un dossier: {export_dir}")
+                return 1
+            export_dirs.append(export_dir)
 
     print("=" * 80)
     print("📦 Merge d'exports Instagram multiples")
