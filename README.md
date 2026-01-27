@@ -12,16 +12,22 @@ A production-ready local AI assistant to explore and query your exported Instagr
 ## Quick Start
 
 ```bash
+# 0. Configure environment (first time only)
+python3 setup_env.py
+
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Index conversations (first time only)
+# 2. Convert Instagram conversations
+python3 instagram_to_text.py
+
+# 3. Index conversations
 python3 setup_rag_batch.py
 
-# 3. Launch web application
+# 4. Launch web application
 python3 app.py
 
-# 4. Open http://localhost:8000
+# 5. Open http://localhost:8000
 ```
 
 ## Architecture
@@ -40,9 +46,29 @@ web/                        # Web interface
 app.py                      # FastAPI server
 ```
 
+## Configuration
+
+All paths are now configurable via environment variables:
+
+```bash
+# Interactive setup (recommended for first time)
+python3 setup_env.py
+
+# Or copy and edit manually
+cp .env.example .env
+```
+
+See [Configuration Guide](docs/CONFIGURATION.md) for details.
+
 ## Key Commands
 
 ```bash
+# Merge multiple Instagram exports (preserves all messages)
+python3 merge_instagram_exports.py export1/ export2/ -o merged/
+
+# Convert Instagram JSON to text
+python3 instagram_to_text.py
+
 # View indexing status
 python3 setup_rag_batch.py --status
 
@@ -68,8 +94,35 @@ python -m eval.run_eval --benchmark
 - **Backend**: FastAPI
 - **Frontend**: Vanilla JS
 
+## Merging Multiple Exports
+
+Instagram limits exports to ~10k messages. To preserve all history when re-exporting:
+
+```bash
+# Merge old and new exports
+python3 merge_instagram_exports.py \
+    ~/Documents/old_export/messages/inbox \
+    ~/Documents/new_export/messages/inbox \
+    -o ~/Documents/merged/messages/inbox
+
+# Preview without merging
+python3 merge_instagram_exports.py old/ new/ -o merged/ --dry-run
+
+# Update your .env to point to merged directory
+# Then convert and reindex
+python3 instagram_to_text.py
+python3 update_index.py
+```
+
+The merge script:
+- Deduplicates messages by timestamp
+- Preserves all media files
+- Keeps the most complete version of each message
+- Shows statistics on duplicates removed
+
 ## Documentation
 
+- [Configuration Guide](docs/CONFIGURATION.md)
 - [Quick Start Guide](docs/QUICKSTART.md)
 - [Features Documentation](docs/FEATURES.md)
 - [API Reference](docs/API.md)

@@ -7,6 +7,10 @@ import os
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement
+load_dotenv()
 
 def decode_instagram_text(text: str) -> str:
     """Décode le texte Instagram avec encodage spécial."""
@@ -191,9 +195,14 @@ def convert_conversation(conversation_path: Path, output_dir: Path) -> None:
 
 def main():
     """Convertit toutes les conversations Instagram."""
-    instagram_dir = Path("/Users/ismaelsebbane/Documents/your_instagram_activity/messages/inbox")
-    output_dir = Path("/Users/ismaelsebbane/dev/lab/instagram-assistant/instagram_conversations")
-    
+    # Récupérer les chemins depuis les variables d'environnement
+    instagram_dir = Path(os.getenv('INSTAGRAM_EXPORT_DIR', '/Users/ismaelsebbane/Documents/your_instagram_activity/messages/inbox'))
+
+    # Base directory du projet
+    base_dir = Path(os.getenv('BASE_DIR', Path(__file__).parent))
+    conversations_dir = os.getenv('CONVERSATIONS_DIR', 'instagram_conversations')
+    output_dir = base_dir / conversations_dir if not Path(conversations_dir).is_absolute() else Path(conversations_dir)
+
     # Créer le dossier de sortie
     output_dir.mkdir(exist_ok=True)
     
