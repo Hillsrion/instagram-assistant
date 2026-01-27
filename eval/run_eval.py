@@ -29,10 +29,17 @@ def generate_dataset(n_samples: int, config: Config):
     # Load chunks
     vector_store = VectorStore(config)
     if not vector_store.load():
-        print("Error: FAISS index not found. Run setup_rag_batch.py first.")
-        return
-
-    print(f"Loaded {len(vector_store.chunks)} chunks")
+        print("⚠️ FAISS index not found. Trying to load chunks from cache...")
+        from rag_pipeline.chunker import ConversationChunker
+        chunker = ConversationChunker(config)
+        chunks = chunker.load_chunks()
+        if not chunks:
+            print("Error: No chunks found in cache either. Run setup_rag_batch.py first.")
+            return
+        vector_store.chunks = chunks
+        print(f"✅ Loaded {len(chunks)} chunks from cache")
+    else:
+        print(f"✅ Loaded {len(vector_store.chunks)} chunks from FAISS index")
 
     # Generate
     generator = SyntheticDataGenerator(config)
