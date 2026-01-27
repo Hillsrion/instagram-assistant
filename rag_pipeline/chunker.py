@@ -40,6 +40,7 @@ class Chunk:
     hypothetical_questions: Optional[List[str]] = None
     speaker_intents: Optional[Dict[str, str]] = None
     temporal_context: Optional[str] = None
+    emotions: Optional[Dict[str, Any]] = None  # {dominant, tone, tension_level}
     
     def to_dict(self) -> dict:
         return asdict(self)
@@ -73,15 +74,28 @@ class Chunk:
                 text_parts.append(f"  - {participant} : {intent}")
             text_parts.append("")
 
-        # 4. Résumé narratif (Contexte sémantique)
+        # 4. Émotions (Contexte émotionnel)
+        if self.emotions:
+            emotion_parts = []
+            if self.emotions.get("dominant"):
+                emotion_parts.append(f"émotion dominante: {self.emotions['dominant']}")
+            if self.emotions.get("tone"):
+                emotion_parts.append(f"ton: {self.emotions['tone']}")
+            if self.emotions.get("tension_level"):
+                emotion_parts.append(f"tension: {self.emotions['tension_level']}")
+            if emotion_parts:
+                text_parts.append(f"Ambiance : {', '.join(emotion_parts)}")
+                text_parts.append("")
+
+        # 5. Résumé narratif (Contexte sémantique)
         if self.narrative_summary:
             text_parts.append(f"Résumé : {self.narrative_summary}")
         else:
             text_parts.append(f"Résumé statistique : {self.summary}")
-            
+
         text_parts.append("")
 
-        # 5. Contenu brut (Détails)
+        # 6. Contenu brut (Détails)
         text_parts.append("Contenu de la conversation :")
         text_parts.append(self.content)
         

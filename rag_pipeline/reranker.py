@@ -108,13 +108,25 @@ class CrossEncoderReranker:
                 intents_str = ", ".join(f"{p}: {i}" for p, i in chunk.speaker_intents.items())
                 text_parts.append(f"Intentions: {intents_str}")
 
-            # 4. Résumé Narratif (Contexte fort)
+            # 4. Émotions (Contexte émotionnel)
+            if chunk.emotions:
+                emotion_parts = []
+                if chunk.emotions.get("dominant"):
+                    emotion_parts.append(chunk.emotions["dominant"])
+                if chunk.emotions.get("tone"):
+                    emotion_parts.append(f"ton {chunk.emotions['tone']}")
+                if chunk.emotions.get("tension_level"):
+                    emotion_parts.append(f"tension {chunk.emotions['tension_level']}")
+                if emotion_parts:
+                    text_parts.append(f"Ambiance: {', '.join(emotion_parts)}")
+
+            # 5. Résumé Narratif (Contexte fort)
             if chunk.narrative_summary:
                 text_parts.append(f"Résumé: {chunk.narrative_summary}")
             else:
                 text_parts.append(f"Résumé: {chunk.summary}")
 
-            # 5. Contenu (Preuve)
+            # 6. Contenu (Preuve)
             # On garde un extrait significatif (900 chars) pour compenser les nouveaux champs
             text_parts.append(chunk.content[:900])
             
