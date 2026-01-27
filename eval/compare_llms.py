@@ -181,6 +181,52 @@ def load_qa_dataset(config: Config):
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
+def check_ollama_models_available(config: Config, models: List[str]) -> Tuple[List[str], List[str]]:
+    """Check which models are available on Ollama.
+
+    Returns:
+        (available_models, missing_models)
+    """
+    try:
+        response = requests.get(f"{config.ollama_url}/api/tags", timeout=10)
+        if response.status_code != 200:
+            print(f"⚠️ Could not connect to Ollama at {config.ollama_url}")
+            return models, []
+
+        available = response.json().get('models', [])
+        available_names = {m['name'] for m in available}
+
+        available_models = []
+        missing_models = []
+
+        for model in models:
+            if model in available_names or any(model in m for m in available_names):
+                available_models.append(model)
+            else:
+                missing_models.append(model)
+
+        return available_models, missing_models
+
+    except Exception as e:
+        print(f"⚠️ Error checking Ollama models: {e}")
+        return models, []
+
+def display_missing_models_help(missing_models: List[str]):
+    """Display help message for installing missing models."""
+    if not missing_models:
+        return
+
+    print("\n⚠️  The following models are not installed on Ollama:")
+    for model in missing_models:
+        print(f"  • {model}")
+
+    print("\n📦 To install them, run:")
+    for model in missing_models:
+        print(f"  ollama pull {model}")
+
+    print("\n💡 Note: Make sure Ollama is running before installing models.")
+    print("   Run 'ollama serve' in another terminal if needed.\n")
+
 def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_synthesis: str, chunks_map: Dict[str, Chunk] = None):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     chunks_map = chunks_map or {}
@@ -388,13 +434,75 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
     return report_path
 
 def run_comparison():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("models", nargs="+")
-    parser.add_argument("--trials", type=int, default=10)
-    parser.add_argument("--html", action="store_true")
+    parser = argparse.ArgumentParser(
+        description="Compare generation quality of different LLMs",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    python eval/compare_llms.py mistral neural-chat
+    python eval/compare_llms.py mistral neural-chat --trials 20 --html
+    python eval/compare_llms.py --models mistral,neural-chat --trials 10
+        """
+    )
+    parser.add_argument(
+        "models",
+        nargs="*",
+        help="Model names to compare (space-separated)"
+    )
+    parser.add_argument(
+        "--models",
+        type=str,
+        dest="models_option",
+        metavar="MODEL[,MODEL...]",
+        help="Models to compare (comma-separated alternative syntax)"
+    )
+    parser.add_argument(
+        "--trials",
+        type=int,
+        default=10,
+        help="Number of trials per model (default: 10)"
+    )
+    parser.add_argument(
+        "--html",
+        action="store_true",
+        help="Generate HTML report"
+    )
     args = parser.parse_args()
 
+    # Parse models from either positional or --models argument
+    models = args.models if args.models else []
+    if args.models_option:
+        models = args.models_option.split(',')
+
+    if not models:
+        parser.print_help()
+        print("\nError: Please specify at least one model")
+        return
+
+    # Clean up model names (remove whitespace)
+    models = [m.strip() for m in models if m.strip()]
+
+    print("=" * 60)
+    print("LLM Comparison Pipeline")
+    print("=" * 60)
+    print()
+
+    # Check Ollama models
+    print(f"Checking Ollama models at {Config().ollama_url}...")
     config = Config()
+    available, missing = check_ollama_models_available(config, models)
+
+    if missing:
+        display_missing_models_help(missing)
+        if not available:
+            print("Error: No models available. Please install at least one model.")
+            return
+        print(f"Continuing with available models: {', '.join(available)}\n")
+        models = available
+
+    print(f"Using models: {', '.join(models)}")
+    print()
+
     judge = AdvancedJudge(config)
     chunker = ConversationChunker(config)
     chunks = chunker.load_chunks()
@@ -402,11 +510,11 @@ def run_comparison():
 
     dataset = load_qa_dataset(config)
     if not dataset:
-        print("Erreur: Dataset non trouvé.")
+        print("Error: Dataset not found. Run: python -m eval.run_eval --generate 10")
         return
 
     qa_pairs = dataset['qa_pairs'][:args.trials]
-    results = {m: {"trials": [], "avg_speed": 0} for m in args.models}
+    results = {m: {"trials": [], "avg_speed": 0} for m in models}
 
     for i, qa in enumerate(qa_pairs):
         print(f"\n[{i+1}/{len(qa_pairs)}] Question: {qa['question']}")
@@ -415,7 +523,7 @@ def run_comparison():
         chunk = chunks_map.get(qa['source_chunk_id'])
         content = chunk.content if chunk else ""
 
-        for model in args.models:
+        for model in models:
             print(f"  🤖 {model}...", end="", flush=True)
 
             start = time.time()
@@ -455,8 +563,8 @@ def run_comparison():
             print(f" Done ({wps:.1f} words/s)")
 
     # Final Synthesis
-    print("\n✍️ Génération de la synthèse finale...")
-    synth_prompt = f"Tu es un juge expert. Compare ces résultats pour {args.models} et donne une conclusion humaine et détaillée sur leurs forces et faiblesses respectives basées sur ces tests.\n\nDonnées: {json.dumps(results)}"
+    print("\n✍️ Generating final synthesis...")
+    synth_prompt = f"You are an expert judge. Compare these results for {models} and provide a detailed human conclusion on their respective strengths and weaknesses based on these tests.\n\nData: {json.dumps(results)}"
     synth_resp = requests.post(f"{config.ollama_url}/api/chat", json={
         "model": "qwen3:latest",
         "messages": [{"role": "user", "content": synth_prompt}],
@@ -464,7 +572,7 @@ def run_comparison():
     }).json()["message"]["content"]
 
     # Calculate avg speed
-    for m in args.models:
+    for m in models:
         results[m]["avg_speed"] = sum(t["words_per_sec"] for t in results[m]["trials"]) / len(qa_pairs)
 
     if args.html:
