@@ -70,6 +70,34 @@ nano .env  # ou vim, code, etc.
 | `CHUNK_MAX_DAYS` | Durée max d'un chunk (jours) | `3` |
 | `CHUNK_OVERLAP` | Chevauchement entre chunks | `5` |
 
+## Outils d'analyse et statistiques
+
+Le projet inclut désormais des outils d'analyse dans le dossier `utils/` :
+
+| Script | Description |
+|--------|-------------|
+| `python3 utils/rag_stats.py` | Analyse statistique détaillée (conversations, messages, chunks) |
+| `python3 utils/top_20_messages.py` | Affiche les 20 conversations les plus volumineuses |
+
+## Scripts d'indexation avancés
+
+### setup_rag_batch.py
+
+Le script d'indexation principal supporte de nouveaux flags :
+
+| Flag | Description |
+|------|-------------|
+| `--limit N` | Limite l'indexation aux N premières conversations (utile pour tester rapidement) |
+| `--import-test` | Importe automatiquement le dataset de test depuis `test_conversations/` |
+| `--reset` | Supprime tout l'index et recommence à zéro |
+| `--status` | Affiche l'état actuel de l'indexation |
+
+Exemple :
+```bash
+# Importer les données de test et indexer seulement 5 conversations
+python3 setup_rag_batch.py --import-test --limit 5 --reset
+```
+
 ## Workflow complet
 
 ### Première utilisation
@@ -177,6 +205,17 @@ pip install python-dotenv
 ```bash
 pip install --upgrade python-dotenv
 ```
+
+## Logique d'import automatique
+
+Le script `instagram_to_text.py` a été amélioré pour détecter automatiquement vos exports Instagram. Il cherche dans l'ordre de priorité suivant :
+
+1. La variable d'environnement `INSTAGRAM_EXPORT_DIR` (si définie)
+2. Le dossier `merged_instagram_export/` (créé par `merge_instagram_exports.py`)
+3. Les dossiers dans `original_import_folders/`
+4. Tout dossier commençant par `instagram-` dans la racine
+
+Cette logique permet de gérer facilement des exports multiples ou fusionnés sans reconfiguration constante.
 
 ## Migration depuis l'ancienne version
 

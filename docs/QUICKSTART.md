@@ -44,25 +44,37 @@ confidence_threshold: float = 0.25
 enable_pii_filter: bool = True
 ```
 
-## Initial Indexing
+## Data Pipeline & Initial Indexing
 
-### 1. Prepare Conversations
+The system requires two steps to process your data:
+1. **Conversion**: Instagram JSON export -> Text files
+2. **Indexing**: Text files -> RAG Vector Index
 
-Place your `.txt` files in `instagram_conversations/`.
+### 1. Prepare your Instagram Export
 
-Expected format:
-```
-# Instagram Conversation with Alice
-ID: conversation_123
-Participants: YourName, Alice
-============================================================
+1. Request your data export from Instagram (JSON format).
+2. Download and unzip the export.
+3. Configure the path in `.env` (or use `setup_env.py`):
 
-[2024-01-15 10:00:00] Alice: Hi!
-[2024-01-15 10:01:00] YourName: Hey, how are you?
-...
+```bash
+INSTAGRAM_EXPORT_DIR=/path/to/your/instagram_export/messages/inbox
 ```
 
-### 2. Run Indexing
+*Note: You can also simply place your `inbox` folder inside `merged_instagram_export/` in the project root.*
+
+### 2. Convert to Text
+
+Run the conversion script to parse JSON files and generate optimized text files:
+
+```bash
+python instagram_to_text.py
+```
+
+This will populate `instagram_conversations/` with `.txt` files.
+
+### 3. Run Indexing
+
+Build the RAG index from the text files:
 
 ```bash
 python setup_rag_batch.py
@@ -70,11 +82,11 @@ python setup_rag_batch.py
 
 This will:
 1. Split conversations into chunks
-2. Enrich chunks with summaries and hypothetical questions
+2. Enrich chunks with summaries and hypothetical questions (via LLM)
 3. Generate embeddings
 4. Build FAISS, BM25, and metadata indexes
 
-**Duration**: ~1-2 minutes for 50 conversations
+**Duration**: ~1-2 minutes for 50 conversations depending on your hardware.
 
 ## Usage
 
@@ -136,6 +148,8 @@ python -m eval.run_eval --compare
 | `python update_index.py` | Incremental update |
 | `python update_index.py --status` | View changes |
 | `python update_index.py --full` | Force full rebuild |
+| `python utils/rag_stats.py` | View dataset statistics |
+| `python utils/top_20_messages.py` | List top conversations by size |
 | `python -m eval.run_eval --generate N` | Generate N QA pairs |
 | `python -m eval.run_eval --benchmark` | Run benchmark |
 | `python -m eval.run_eval --compare` | Compare configs |
