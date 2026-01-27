@@ -1,36 +1,44 @@
-# Instagram Assistant - Documentation des Fonctionnalités
+# Instagram Assistant - Features Documentation
 
-Ce document décrit les fonctionnalités avancées du système RAG Instagram Assistant.
-
----
-
-## Table des matières
-
-1. [Pipeline d'Évaluation](#1-pipeline-dévaluation)
-2. [Robustesse et Confiance](#2-robustesse-et-confiance)
-3. [Mises à jour Incrémentales](#3-mises-à-jour-incrémentales)
-4. [Expérience Utilisateur](#4-expérience-utilisateur)
+This document describes the advanced features of the Instagram Assistant RAG system.
 
 ---
 
-## 1. Pipeline d'Évaluation
+## Table of Contents
 
-Le pipeline d'évaluation permet de mesurer et comparer les performances du système RAG de manière automatisée.
+1. [Evaluation Pipeline](#1-evaluation-pipeline)
+2. [Robustness & Confidence](#2-robustness--confidence)
+3. [Incremental Updates](#3-incremental-updates)
+4. [User Experience](#4-user-experience)
 
-### 1.1 Génération de données synthétiques
+---
 
-Le module `eval/synthetic_generator.py` génère automatiquement des paires question-réponse à partir des chunks indexés.
+## 1. Evaluation Pipeline
 
-#### Types de questions générées
+The evaluation pipeline enables automated measurement and comparison of RAG system performance.
 
-| Type | Description | Exemple |
+### 1.1 Synthetic Data Generation
+
+Module: `eval/synthetic_generator.py`
+
+Automatically generates question-answer pairs from indexed chunks using an LLM.
+
+#### Question Types
+
+| Type | Description | Example |
 |------|-------------|---------|
-| `factual` | Extraction directe d'information | "Quand avez-vous parlé de X ?" |
-| `summary` | Question de synthèse | "De quoi avez-vous discuté en janvier ?" |
-| `implicit` | Inférence légère | "Quelle était l'ambiance de cette conversation ?" |
-| `temporal` | Questions temporelles | "À quelle période avez-vous planifié Y ?" |
+| `factual` | Direct information extraction | "When did you discuss X?" |
+| `summary` | Synthesis question | "What did you discuss in January?" |
+| `implicit` | Light inference | "What was the mood of this conversation?" |
+| `temporal` | Time-based questions | "When did you plan Y?" |
 
-#### Utilisation
+#### Difficulty Levels
+
+- `EASY`: Simple fact retrieval
+- `MEDIUM`: Requires connecting information
+- `HARD`: Requires inference or synthesis
+
+#### Usage
 
 ```python
 from eval.synthetic_generator import SyntheticDataGenerator
@@ -40,27 +48,32 @@ qa_pairs = generator.generate_dataset(chunks, target_size=50)
 generator.save_dataset(qa_pairs)
 ```
 
-### 1.2 Métriques RAGAS
+### 1.2 RAGAS Metrics
 
-Le module `eval/metrics.py` implémente des métriques inspirées de RAGAS :
+Module: `eval/metrics.py`
 
-| Métrique | Description | Plage |
-|----------|-------------|-------|
-| **Retrieval Accuracy** | Le bon document est-il dans le top-k ? | 0-100% |
-| **MRR** (Mean Reciprocal Rank) | Rang moyen du bon document | 0-1 |
-| **Faithfulness** | La réponse est-elle fidèle aux sources ? | 0-1 |
-| **Answer Relevance** | La réponse répond-elle à la question ? | 0-1 |
+Implements RAGAS-inspired metrics for RAG evaluation:
+
+| Metric | Description | Range |
+|--------|-------------|-------|
+| **Retrieval Accuracy** | Is correct chunk in top-k? | 0-100% |
+| **MRR** (Mean Reciprocal Rank) | Average reciprocal rank | 0-1 |
+| **Faithfulness** | Is answer faithful to sources? (LLM-as-judge) | 0-1 |
+| **Answer Relevance** | Does answer address the question? (LLM-as-judge) | 0-1 |
+
+Metrics are broken down by question type and difficulty level.
 
 ### 1.3 Benchmark Runner
 
-Le module `eval/benchmark.py` permet de comparer différentes configurations :
+Module: `eval/benchmark.py`
+
+Compare different RAG configurations:
 
 ```python
 from eval.benchmark import BenchmarkRunner, BenchmarkConfig
 
 runner = BenchmarkRunner()
 
-# Définir une configuration
 config = BenchmarkConfig(
     name="full_pipeline",
     use_query_rewriting=True,
@@ -70,25 +83,24 @@ config = BenchmarkConfig(
     top_k=5
 )
 
-# Lancer le benchmark
 report = runner.run_benchmark(qa_pairs, config)
 print(report.summary())
 ```
 
-### 1.4 CLI d'évaluation
+### 1.4 CLI Evaluation
 
 ```bash
-# Générer un dataset de 50 paires QA
+# Generate 50 QA pairs
 python -m eval.run_eval --generate 50
 
-# Lancer un benchmark
+# Run benchmark
 python -m eval.run_eval --benchmark
 
-# Comparer les configurations (full, no_reranking, no_hybrid, minimal)
+# Compare configurations (full, no_reranking, no_hybrid, minimal)
 python -m eval.run_eval --compare
 ```
 
-#### Exemple de sortie
+#### Example Output
 
 ```
 === Benchmark Report: full ===
@@ -106,99 +118,103 @@ Generation Metrics:
 
 ---
 
-## 2. Robustesse et Confiance
+## 2. Robustness & Confidence
 
-### 2.1 Seuil de confiance
+### 2.1 Confidence Thresholds
 
-Le système refuse de répondre si le score de confiance est trop bas.
+The system can refuse to answer if confidence is too low.
 
 #### Configuration
 
 ```python
-# Dans rag_pipeline/config.py
-confidence_threshold: float = 0.25  # Score minimum requis
+# In rag_pipeline/config.py
+confidence_threshold: float = 0.25  # Minimum required score
 ```
 
-#### Comportement
+#### Behavior
 
-- Si `max_score < confidence_threshold` : retourne un message de refus
-- Le flag `low_confidence` est ajouté au contexte de retrieval
-- L'interface web affiche un badge d'avertissement
+- If `max_score < confidence_threshold`: Returns refusal message
+- `low_confidence` flag added to retrieval context
+- Web interface displays warning badge
 
-### 2.2 Prompt anti-hallucination
+### 2.2 Anti-Hallucination Prompt
 
-Le prompt système a été renforcé avec des règles strictes :
+The system prompt enforces strict truthfulness rules:
 
 ```
-RÈGLES STRICTES DE VÉRACITÉ :
+STRICT TRUTH RULES:
 
-1. VÉRACITÉ ABSOLUE - Réponds UNIQUEMENT à partir des documents fournis
-2. Formules de refus obligatoires :
-   - "Je n'ai pas trouvé cette information..."
-   - "Les documents fournis ne contiennent pas..."
-3. Citation des sources avec numéro et date
-4. Protection des données personnelles
-5. Questions hors-sujet : refus poli
+1. ABSOLUTE TRUTHFULNESS - Answer ONLY from provided documents
+2. Mandatory refusal formulas:
+   - "I did not find this information..."
+   - "The provided documents do not contain..."
+3. Cite sources with number and date
+4. Protect personal data
+5. Off-topic questions: polite refusal
 ```
 
-### 2.3 Filtrage PII
+### 2.3 PII Filtering
 
-Le module `rag_pipeline/pii_filter.py` détecte et masque les informations personnelles.
+Module: `rag_pipeline/pii_filter.py`
 
-#### Types de PII détectés
+Detects and masks personal information in responses.
 
-| Type | Pattern | Masque |
-|------|---------|--------|
-| Téléphone FR | `06 12 34 56 78`, `+33...` | `[TELEPHONE MASQUE]` |
-| Email | `user@domain.com` | `[EMAIL MASQUE]` |
-| IBAN | `FR76 3000 6000...` | `[IBAN MASQUE]` |
-| Carte bancaire | `4111 1111 1111 1111` | `[CARTE MASQUEE]` |
-| Adresse | `12 rue de Paris, 75001` | `[ADRESSE MASQUEE]` |
-| N° Sécu (FR) | `1 85 12 75 115...` | `[NSS MASQUE]` |
+#### Detected PII Types
 
-#### Utilisation
+| Type | Pattern | Mask |
+|------|---------|------|
+| French Phone | `06 12 34 56 78`, `+33...` | `[PHONE MASKED]` |
+| Email | `user@domain.com` | `[EMAIL MASKED]` |
+| IBAN | `FR76 3000 6000...` | `[IBAN MASKED]` |
+| Credit Card | `4111 1111 1111 1111` | `[CARD MASKED]` |
+| Address | `12 rue de Paris, 75001` | `[ADDRESS MASKED]` |
+| French SSN | `1 85 12 75 115...` | `[SSN MASKED]` |
+
+#### Usage
 
 ```python
 from rag_pipeline.pii_filter import PIIFilter
 
 filter = PIIFilter()
 
-# Détecter les PII
+# Detect PII
 matches = filter.detect(text)
 
-# Masquer les PII
+# Mask PII
 masked_text, matches = filter.mask(text)
 
-# Vérifier la présence de PII
+# Check for PII
 has_pii = filter.has_pii(text)
 ```
 
-#### Activation
+#### Enable/Disable
 
 ```python
-# Dans rag_pipeline/config.py
+# In rag_pipeline/config.py
 enable_pii_filter: bool = True
 ```
 
 ---
 
-## 3. Mises à jour Incrémentales
+## 3. Incremental Updates
 
 ### 3.1 Delta Tracker
 
-Le module `rag_pipeline/delta_tracker.py` suit les modifications de fichiers.
+Module: `rag_pipeline/delta_tracker.py`
 
-#### Fonctionnement
+Tracks file changes using SHA256 hashing.
 
-1. **Hash SHA256** de chaque fichier indexé
-2. **Détection des changements** :
-   - Nouveaux fichiers (non trackés)
-   - Fichiers modifiés (hash différent)
-   - Fichiers supprimés (trackés mais absents)
+#### How It Works
 
-#### État persistant
+1. **SHA256 hash** of each indexed file
+2. **Change detection**:
+   - New files (not tracked)
+   - Modified files (hash changed)
+   - Deleted files (tracked but missing)
 
-L'état est sauvegardé dans `rag_data/file_state.json` :
+#### Persistent State
+
+State saved in `rag_data/file_state.json`:
 
 ```json
 {
@@ -216,18 +232,20 @@ L'état est sauvegardé dans `rag_data/file_state.json` :
 }
 ```
 
-### 3.2 Vector Store incrémental
+### 3.2 Incremental Vector Store
 
-Nouvelles méthodes dans `rag_pipeline/vector_store.py` :
+Module: `rag_pipeline/vector_store.py`
+
+New methods for incremental updates:
 
 ```python
-# Ajouter des vecteurs
+# Add vectors
 vector_store.add_vectors(new_chunks, new_embeddings)
 
-# Supprimer des vecteurs par chunk_id
+# Remove vectors by chunk_id
 vector_store.remove_vectors(["chunk_001", "chunk_002"])
 
-# Mise à jour combinée (suppression + ajout)
+# Combined update (remove + add)
 removed, added = vector_store.update_vectors(
     chunk_ids_to_remove=["old_chunk"],
     new_chunks=[new_chunk],
@@ -235,20 +253,20 @@ removed, added = vector_store.update_vectors(
 )
 ```
 
-### 3.3 Script de mise à jour
+### 3.3 Update Script
 
 ```bash
-# Afficher le statut (changements détectés)
+# Show status (detected changes)
 python update_index.py --status
 
-# Lancer une mise à jour incrémentale
+# Run incremental update
 python update_index.py
 
-# Forcer une reconstruction complète
+# Force full rebuild
 python update_index.py --full
 ```
 
-#### Exemple de sortie
+#### Example Output
 
 ```
 ============================================================
@@ -284,11 +302,11 @@ Tracked files: 44
 
 ---
 
-## 4. Expérience Utilisateur
+## 4. User Experience
 
-### 4.1 Citations interactives
+### 4.1 Interactive Citations
 
-Les sources sont maintenant cliquables et affichent un modal avec le contenu complet.
+Sources are clickable and display a modal with full content.
 
 #### API Endpoint
 
@@ -296,7 +314,7 @@ Les sources sont maintenant cliquables et affichent un modal avec le contenu com
 GET /api/chunks/{chunk_id}
 ```
 
-**Réponse** :
+**Response**:
 ```json
 {
   "chunk_id": "conv_chunk_001",
@@ -308,7 +326,7 @@ GET /api/chunks/{chunk_id}
   "file_source": "conversation_alice.txt",
   "message_count": 45,
   "hypothetical_questions": [
-    "Quand Alice et Bob ont-ils parlé de X ?",
+    "When did Alice and Bob discuss X?",
     "..."
   ]
 }
@@ -316,124 +334,114 @@ GET /api/chunks/{chunk_id}
 
 #### Interface
 
-- Clic sur une source → Modal avec contenu complet
-- Affichage du résumé, métadonnées, questions hypothétiques
-- Contenu brut de la conversation
+- Click on source → Modal with full content
+- Display: summary, metadata, hypothetical questions
+- Raw conversation content
 
-### 4.2 Questions de suivi
+### 4.2 Follow-up Questions
 
-Le système génère automatiquement 3 questions de suivi après chaque réponse.
+System automatically generates 3 follow-up questions after each answer.
 
-#### Événement SSE
+#### SSE Event
 
 ```json
 {"type": "followups", "questions": [
-  "Avez-vous d'autres conversations sur ce sujet ?",
-  "Quand avez-vous reparlé de X ?",
-  "Qui d'autre a participé à cette discussion ?"
+  "Do you have other conversations on this topic?",
+  "When did you discuss X again?",
+  "Who else participated in this discussion?"
 ]}
 ```
 
 #### Interface
 
-- Boutons cliquables sous la réponse
-- Clic → Remplit le champ et envoie automatiquement
+- Clickable buttons below answer
+- Click → Fills input field and submits automatically
 
-### 4.3 Indicateurs de progression
+### 4.3 Progress Indicators
 
-Le streaming inclut maintenant des événements de progression :
+Streaming now includes progress events:
 
-| Étape | Message |
-|-------|---------|
-| `search` | "Recherche en cours..." |
-| `documents` | "Lecture de N documents..." |
-| `generating` | "Génération de la réponse..." |
-| `followups` | "Préparation des suggestions..." |
+| Step | Message |
+|------|---------|
+| `search` | "Searching..." |
+| `documents` | "Reading N documents..." |
+| `generating` | "Generating response..." |
+| `followups` | "Preparing suggestions..." |
 
-#### Événement SSE
+#### SSE Event
 
 ```json
-{"type": "progress", "step": "documents", "message": "Lecture de 5 documents...", "count": 5}
+{"type": "progress", "step": "documents", "message": "Reading 5 documents...", "count": 5}
 ```
 
-### 4.4 Gestion de la faible confiance
+### 4.4 Low Confidence Handling
 
-Quand le score de confiance est trop bas :
+When confidence score is too low:
 
-1. Pas d'appel au LLM
-2. Message immédiat : "Je n'ai pas trouvé d'information pertinente..."
-3. Badge `low_confidence` dans les métadonnées de la réponse
+1. No LLM call made
+2. Immediate message: "I did not find relevant information..."
+3. `low_confidence` badge in response metadata
 
 ---
 
-## Architecture des fichiers
+## Architecture
 
 ```
 instagram-assistant/
 ├── eval/
-│   ├── __init__.py
-│   ├── synthetic_generator.py   # Génération QA
-│   ├── metrics.py               # Métriques RAGAS
-│   ├── benchmark.py             # Runner de benchmark
+│   ├── synthetic_generator.py   # QA generation
+│   ├── metrics.py               # RAGAS metrics
+│   ├── benchmark.py             # Benchmark runner
 │   └── run_eval.py              # CLI
 ├── rag_pipeline/
 │   ├── config.py                # + confidence_threshold, enable_pii_filter
 │   ├── advanced_retriever.py    # + low_confidence, max_confidence_score
 │   ├── chat.py                  # + followup, PII filter
 │   ├── vector_store.py          # + add/remove/update vectors
-│   ├── pii_filter.py            # NEW: Filtrage PII
-│   └── delta_tracker.py         # NEW: Suivi des fichiers
+│   ├── pii_filter.py            # NEW: PII filtering
+│   └── delta_tracker.py         # NEW: File tracking
 ├── web/
-│   ├── index.html               # + Modal source
+│   ├── index.html               # + Source modal
 │   └── static/
 │       ├── app.js               # + Progress, followups, modal
-│       └── style.css            # + Styles nouveaux composants
-├── update_index.py              # NEW: Script mise à jour incrémentale
+│       └── style.css            # + New component styles
+├── update_index.py              # NEW: Incremental update script
 └── docs/
-    └── FEATURES.md              # Cette documentation
+    └── FEATURES.md              # This documentation
 ```
-
----
-
-## Dépendances
-
-Aucune nouvelle dépendance n'est requise. Les fonctionnalités utilisent :
-- `hashlib` (stdlib) pour le hashing
-- `re` (stdlib) pour les regex PII
-- Les modèles Ollama existants pour la génération
 
 ---
 
 ## FAQ
 
-### Q: Comment désactiver le filtrage PII ?
+### How to disable PII filtering?
 
 ```python
-# Dans config.py ou à l'instanciation
+# In config.py or at instantiation
 config.enable_pii_filter = False
 ```
 
-### Q: Comment ajuster le seuil de confiance ?
+### How to adjust confidence threshold?
 
 ```python
-# Plus strict (refuse plus souvent)
+# Stricter (refuses more often)
 config.confidence_threshold = 0.4
 
-# Plus permissif
+# More permissive
 config.confidence_threshold = 0.15
 ```
 
-### Q: La mise à jour incrémentale ne détecte pas mes changements ?
+### Incremental update doesn't detect changes?
 
-Vérifiez que :
-1. Les fichiers sont dans `instagram_conversations/`
-2. L'extension est `.txt`
-3. Le contenu a réellement changé (pas juste la date)
+Verify:
+1. Files are in `instagram_conversations/`
+2. Extension is `.txt`
+3. Content actually changed (not just date)
 
-### Q: Comment forcer une reconstruction complète ?
+### How to force full rebuild?
 
 ```bash
 python update_index.py --full
 ```
 
-Ou supprimez `rag_data/file_state.json` puis relancez `update_index.py`.
+Or delete `rag_data/file_state.json` then run `update_index.py`.

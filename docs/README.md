@@ -1,16 +1,16 @@
-# Documentation Instagram Assistant
+# Instagram Assistant Documentation
 
-Bienvenue dans la documentation de l'Instagram Assistant, un système RAG (Retrieval-Augmented Generation) pour analyser vos conversations Instagram.
+Welcome to the Instagram Assistant documentation, a production-ready RAG (Retrieval-Augmented Generation) system for analyzing Instagram conversations.
 
-## Documents
+## Documentation Index
 
 | Document | Description |
 |----------|-------------|
-| [Guide de démarrage rapide](QUICKSTART.md) | Installation et premiers pas |
-| [Fonctionnalités](FEATURES.md) | Documentation complète des fonctionnalités |
-| [Référence API](API.md) | Endpoints REST et événements SSE |
+| [Quick Start Guide](QUICKSTART.md) | Installation and first steps |
+| [Features Documentation](FEATURES.md) | Comprehensive feature guide |
+| [API Reference](API.md) | REST endpoints and SSE events |
 
-## Vue d'ensemble
+## System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -47,7 +47,7 @@ Bienvenue dans la documentation de l'Instagram Assistant, un système RAG (Retri
 │  └─────────────────────────────────────────┘                     │
 │                                                                  │
 ├─────────────────────────────────────────────────────────────────┤
-│                     Outils auxiliaires                           │
+│                     Auxiliary Tools                              │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐             │
 │  │ Delta Tracker│ │  Evaluator   │ │   Enricher   │             │
 │  │              │ │  (RAGAS)     │ │   (LLM)      │             │
@@ -55,46 +55,83 @@ Bienvenue dans la documentation de l'Instagram Assistant, un système RAG (Retri
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Fonctionnalités principales
+## Core Features
 
-### 1. Recherche hybride
-- Recherche dense (embeddings FAISS)
-- Recherche lexicale (BM25)
-- Reranking cross-encoder
-- Expansion de contexte
+### 1. Hybrid Search
+- Dense search (FAISS embeddings)
+- Lexical search (BM25)
+- Cross-encoder reranking
+- Context expansion with adjacent chunks
 
-### 2. Robustesse
-- Seuil de confiance configurable
-- Filtrage PII automatique
-- Prompts anti-hallucination
+### 2. Robustness
+- Configurable confidence thresholds
+- Automatic PII filtering (7 types detected)
+- Anti-hallucination prompts
+- Strict source citation requirements
 
-### 3. Mises à jour incrémentales
-- Détection automatique des changements
-- Indexation partielle (ajout/modification/suppression)
-- État persistant
+### 3. Incremental Updates
+- Automatic change detection (SHA256 hashing)
+- Partial indexing (add/modify/delete)
+- Persistent state tracking
+- No full reindex needed
 
-### 4. Évaluation automatisée
-- Génération de données synthétiques
-- Métriques RAGAS (Accuracy, MRR, Faithfulness)
-- Comparaison de configurations
+### 4. Automated Evaluation
+- Synthetic QA pair generation
+- RAGAS metrics (Accuracy, MRR, Faithfulness, Relevance)
+- Configuration comparison
+- Benchmark reports
 
-### 5. UX avancée
-- Streaming avec indicateurs de progression
-- Citations interactives (modal de détail)
-- Questions de suivi générées
+### 5. Enhanced UX
+- Streaming with progress indicators
+- Interactive citations (clickable sources)
+- Auto-generated follow-up questions
+- Real-time updates via SSE
 
-## Technologies
+## Technology Stack
 
-| Composant | Technologie |
-|-----------|-------------|
+| Component | Technology |
+|-----------|------------|
 | Backend | FastAPI, Python 3.10+ |
 | LLM | Ollama (local) |
 | Embeddings | BGE-M3 (multilingual) |
 | Vector Store | FAISS |
-| BM25 | rank_bm25 |
+| Lexical Search | rank_bm25 |
 | Reranker | BGE-reranker-base |
 | Frontend | Vanilla JS, CSS |
 
-## Licence
+## Getting Started
+
+1. **Install dependencies**: `pip install -r requirements.txt`
+2. **Index conversations**: `python setup_rag_batch.py`
+3. **Launch app**: `python app.py`
+4. **Open browser**: http://localhost:8000
+
+## Project Structure
+
+```
+instagram-assistant/
+├── app.py                  # FastAPI server
+├── cli.py                  # CLI interface
+├── setup_rag_batch.py      # Initial indexing
+├── update_index.py         # Incremental updates
+├── rag_pipeline/           # Core RAG components
+│   ├── config.py
+│   ├── chunker.py
+│   ├── embeddings.py
+│   ├── vector_store.py
+│   ├── advanced_retriever.py
+│   ├── chat.py
+│   ├── pii_filter.py
+│   └── delta_tracker.py
+├── eval/                   # Evaluation pipeline
+│   ├── synthetic_generator.py
+│   ├── metrics.py
+│   ├── benchmark.py
+│   └── run_eval.py
+├── web/                    # Web interface
+└── docs/                   # Documentation
+```
+
+## License
 
 MIT

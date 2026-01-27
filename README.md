@@ -1,77 +1,82 @@
 # Instagram Conversations Assistant
 
-Assistant IA local pour explorer et interroger vos conversations Instagram exportées.
+A production-ready local AI assistant to explore and query your exported Instagram conversations using advanced RAG (Retrieval-Augmented Generation).
 
-## Fonctionnalités
+## Features
 
-- **RAG avancé** : Recherche hybride (dense + BM25), reranking cross-encoder, context expansion
-- **Interface web moderne** : Conversations multiples, filtres, streaming
-- **100% local** : Aucune donnée envoyée sur Internet
-- **562k+ messages** indexés et recherchables
+- **Advanced RAG Pipeline**: Hybrid search (dense + BM25), cross-encoder reranking, context expansion
+- **Modern Web Interface**: Multiple conversations, filters, real-time streaming
+- **100% Local & Private**: No data sent to external servers
+- **Production-Ready**: Evaluation pipeline, incremental updates, PII filtering, robustness features
 
-## Quickstart
+## Quick Start
 
 ```bash
-# 1. Installer les dépendances
+# 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Indexer les conversations (première fois uniquement)
+# 2. Index conversations (first time only)
 python3 setup_rag_batch.py
 
-# 3. Lancer l'application web
+# 3. Launch web application
 python3 app.py
 
-# 4. Ouvrir http://localhost:8000
+# 4. Open http://localhost:8000
 ```
 
 ## Architecture
 
 ```
-instagram_conversations/     # 1218 conversations exportées
+instagram_conversations/     # Exported Instagram conversations
 rag_data/
-  ├── chunks.json           # 43k chunks avec métadonnées
-  ├── faiss_index/          # Index vectoriel (dense search)
-  ├── bm25_index.pkl        # Index lexical (keyword search)
-  └── metadata.db           # SQLite (filtrage rapide)
-rag_pipeline/               # Modules du pipeline RAG
-web/                        # Interface web
-app.py                      # Serveur FastAPI
+  ├── faiss_index/          # Vector store (dense search)
+  ├── bm25_index.pkl        # Lexical index (keyword search)
+  ├── metadata.db           # SQLite (metadata filtering)
+  ├── file_state.json       # Delta tracker for incremental updates
+  └── eval_dataset.json     # Evaluation dataset
+rag_pipeline/               # Core RAG components
+eval/                       # Evaluation pipeline (RAGAS metrics)
+web/                        # Web interface
+app.py                      # FastAPI server
 ```
 
-## Commandes utiles
+## Key Commands
 
 ```bash
-# Voir l'état de l'indexation
+# View indexing status
 python3 setup_rag_batch.py --status
 
-# Réindexer depuis zéro
+# Incremental update (after adding/modifying files)
+python3 update_index.py
+
+# Full reindex from scratch
 python3 setup_rag_batch.py --reset
 
-# Chat CLI (sans interface web)
-python3 chat_instagram_advanced.py
+# CLI chat interface
+python3 cli.py
+
+# Run evaluation benchmark
+python -m eval.run_eval --benchmark
 ```
 
-## Filtres disponibles
+## Tech Stack
 
-Dans l'interface ou le CLI, vous pouvez filtrer par :
-- `@nom` : Participant
-- `#2023` : Année
-- `[2023-01:2023-06]` : Période
+- **Embeddings**: BGE-M3 (multilingual FR/EN)
+- **Vector Store**: FAISS
+- **Reranker**: BGE-reranker-base
+- **LLM**: Ollama (local)
+- **Backend**: FastAPI
+- **Frontend**: Vanilla JS
 
-Exemple : "de quoi on a parlé @pauline #2023 ?"
+## Documentation
 
-## Stack technique
+- [Quick Start Guide](docs/QUICKSTART.md)
+- [Features Documentation](docs/FEATURES.md)
+- [API Reference](docs/API.md)
 
-- **Embeddings** : BGE-M3 (multilingue FR/EN)
-- **Vector Store** : FAISS
-- **Reranker** : BGE-reranker-base
-- **LLM** : Ollama (Qwen3)
-- **Backend** : FastAPI
-- **Frontend** : HTML/CSS/JS (Vanilla)
+## Privacy
 
-## Confidentialité
-
-Tout fonctionne en local :
-- Modèles téléchargés une seule fois
-- Aucune API externe
-- Données stockées uniquement sur votre machine
+Everything runs locally:
+- Models downloaded once
+- No external APIs
+- Data stored only on your machine

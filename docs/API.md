@@ -1,6 +1,6 @@
 # Instagram Assistant - API Reference
 
-Documentation de l'API REST du serveur FastAPI.
+FastAPI REST API documentation.
 
 ---
 
@@ -18,9 +18,9 @@ http://localhost:8000
 
 #### `GET /api/status`
 
-Retourne l'état du système.
+Returns system status.
 
-**Réponse** :
+**Response**:
 ```json
 {
   "ready": true,
@@ -37,14 +37,14 @@ Retourne l'état du système.
 
 #### `GET /api/conversations`
 
-Liste toutes les conversations.
+List all conversations.
 
-**Réponse** :
+**Response**:
 ```json
 [
   {
     "id": "abc123",
-    "title": "Discussion sur le projet",
+    "title": "Project Discussion",
     "created_at": "2024-01-15T10:30:00",
     "updated_at": "2024-01-15T11:45:00",
     "message_count": 4
@@ -54,20 +54,20 @@ Liste toutes les conversations.
 
 #### `POST /api/conversations`
 
-Crée une nouvelle conversation.
+Create a new conversation.
 
-**Body** :
+**Body**:
 ```json
 {
-  "title": "Ma nouvelle conversation"  // optionnel
+  "title": "My new conversation"  // optional
 }
 ```
 
-**Réponse** :
+**Response**:
 ```json
 {
   "id": "def456",
-  "title": "Ma nouvelle conversation",
+  "title": "My new conversation",
   "created_at": "2024-01-15T12:00:00",
   "updated_at": "2024-01-15T12:00:00",
   "messages": []
@@ -76,24 +76,24 @@ Crée une nouvelle conversation.
 
 #### `GET /api/conversations/{conv_id}`
 
-Récupère une conversation avec tous ses messages.
+Retrieve a conversation with all messages.
 
-**Réponse** :
+**Response**:
 ```json
 {
   "id": "abc123",
-  "title": "Discussion sur le projet",
+  "title": "Project Discussion",
   "created_at": "2024-01-15T10:30:00",
   "updated_at": "2024-01-15T11:45:00",
   "messages": [
     {
       "role": "user",
-      "content": "Quand ai-je parlé de vacances ?",
+      "content": "When did I talk about vacation?",
       "timestamp": "2024-01-15T10:30:00"
     },
     {
       "role": "assistant",
-      "content": "D'après les conversations...",
+      "content": "According to the conversations...",
       "timestamp": "2024-01-15T10:30:15",
       "sources": [...],
       "low_confidence": false,
@@ -105,9 +105,9 @@ Récupère une conversation avec tous ses messages.
 
 #### `DELETE /api/conversations/{conv_id}`
 
-Supprime une conversation.
+Delete a conversation.
 
-**Réponse** :
+**Response**:
 ```json
 {
   "status": "deleted"
@@ -116,12 +116,12 @@ Supprime une conversation.
 
 #### `PATCH /api/conversations/{conv_id}`
 
-Met à jour le titre d'une conversation.
+Update conversation title.
 
-**Body** :
+**Body**:
 ```json
 {
-  "title": "Nouveau titre"
+  "title": "New title"
 }
 ```
 
@@ -131,9 +131,9 @@ Met à jour le titre d'une conversation.
 
 #### `GET /api/participants`
 
-Liste tous les participants pour le filtrage.
+List all participants for filtering.
 
-**Réponse** :
+**Response**:
 ```json
 [
   {"name": "Alice", "count": 150},
@@ -148,23 +148,23 @@ Liste tous les participants pour le filtrage.
 
 #### `GET /api/chunks/{chunk_id}`
 
-Récupère le contenu complet d'un chunk (pour le modal de détail).
+Retrieve full chunk content (for detail modal).
 
-**Réponse** :
+**Response**:
 ```json
 {
   "chunk_id": "conversation_alice_chunk_005",
-  "content": "[2024-01-15 10:00] Alice: Salut !\n[2024-01-15 10:01] Bob: Hey !...",
-  "summary": "Discussion entre Alice et Bob sur le projet X. Période: 15/01/2024. 45 messages échangés.",
+  "content": "[2024-01-15 10:00] Alice: Hi!\n[2024-01-15 10:01] Bob: Hey!...",
+  "summary": "Discussion between Alice and Bob about project X. Period: 01/15/2024. 45 messages exchanged.",
   "participants": ["Alice", "Bob"],
   "date_start": "2024-01-15 10:00:00",
   "date_end": "2024-01-15 12:30:00",
   "file_source": "conversation_alice.txt",
   "message_count": 45,
   "hypothetical_questions": [
-    "Quand Alice et Bob ont-ils parlé du projet X ?",
-    "Qu'ont décidé Alice et Bob concernant la deadline ?",
-    "Quel était le sujet principal de cette discussion ?"
+    "When did Alice and Bob discuss project X?",
+    "What did Alice and Bob decide about the deadline?",
+    "What was the main topic of this discussion?"
   ]
 }
 ```
@@ -175,30 +175,30 @@ Récupère le contenu complet d'un chunk (pour le modal de détail).
 
 #### `POST /api/chat`
 
-Envoie un message et reçoit une réponse (non-streaming).
+Send a message and receive a response (non-streaming).
 
-**Body** :
+**Body**:
 ```json
 {
-  "message": "Quand ai-je parlé de vacances avec Marie ?",
-  "conversation_id": "abc123",  // optionnel, crée une nouvelle conv si absent
-  "participant_filter": "Marie",  // optionnel
-  "year_filter": 2023,  // optionnel
-  "date_start": "2023-01-01",  // optionnel
-  "date_end": "2023-12-31",  // optionnel
+  "message": "When did I talk about vacation with Marie?",
+  "conversation_id": "abc123",  // optional, creates new conv if absent
+  "participant_filter": "Marie",  // optional
+  "year_filter": 2023,  // optional
+  "date_start": "2023-01-01",  // optional
+  "date_end": "2023-12-31",  // optional
   "use_reranking": true,
   "use_hybrid": true,
   "expand_context": true
 }
 ```
 
-**Réponse** :
+**Response**:
 ```json
 {
   "conversation_id": "abc123",
   "message": {
     "role": "assistant",
-    "content": "D'après les conversations avec Marie...",
+    "content": "According to conversations with Marie...",
     "timestamp": "2024-01-15T10:30:15",
     "sources": [...]
   },
@@ -207,12 +207,12 @@ Envoie un message et reçoit une réponse (non-streaming).
       "rank": 1,
       "chunk_id": "conv_marie_chunk_012",
       "file": "conversation_marie.txt",
-      "participants": ["Ismaël", "Marie"],
+      "participants": ["User", "Marie"],
       "date_start": "2023-07-15",
       "date_end": "2023-07-15",
       "score": 0.85,
       "expanded": false,
-      "preview": "Discussion sur les vacances d'été..."
+      "preview": "Discussion about summer vacation..."
     }
   ]
 }
@@ -220,76 +220,76 @@ Envoie un message et reçoit une réponse (non-streaming).
 
 #### `POST /api/chat/stream`
 
-Envoie un message et reçoit une réponse en streaming (SSE).
+Send a message and receive a streaming response (SSE).
 
-**Body** : Identique à `/api/chat`
+**Body**: Same as `/api/chat`
 
-**Réponse** : Server-Sent Events (SSE)
+**Response**: Server-Sent Events (SSE)
 
 ```
 Content-Type: text/event-stream
 
 data: {"type": "conversation_id", "id": "abc123"}
 
-data: {"type": "progress", "step": "search", "message": "Recherche en cours..."}
+data: {"type": "progress", "step": "search", "message": "Searching..."}
 
-data: {"type": "progress", "step": "documents", "message": "Lecture de 5 documents...", "count": 5}
+data: {"type": "progress", "step": "documents", "message": "Reading 5 documents...", "count": 5}
 
 data: {"type": "sources", "sources": [...]}
 
-data: {"type": "progress", "step": "generating", "message": "Génération de la réponse..."}
+data: {"type": "progress", "step": "generating", "message": "Generating response..."}
 
-data: {"type": "chunk", "content": "D'après "}
-data: {"type": "chunk", "content": "les conversations "}
-data: {"type": "chunk", "content": "avec Marie..."}
+data: {"type": "chunk", "content": "According "}
+data: {"type": "chunk", "content": "to conversations "}
+data: {"type": "chunk", "content": "with Marie..."}
 
-data: {"type": "progress", "step": "followups", "message": "Préparation des suggestions..."}
+data: {"type": "progress", "step": "followups", "message": "Preparing suggestions..."}
 
-data: {"type": "followups", "questions": ["Avez-vous d'autres discussions avec Marie ?", "Quand êtes-vous partis en vacances ?", "Qui d'autre était présent ?"]}
+data: {"type": "followups", "questions": ["Do you have other discussions with Marie?", "When did you go on vacation?", "Who else was present?"]}
 
 data: {"type": "done"}
 ```
 
 ---
 
-## Types d'événements SSE
+## SSE Event Types
 
-| Type | Description | Données |
-|------|-------------|---------|
-| `conversation_id` | ID de la conversation | `{id: string}` |
-| `progress` | Étape de traitement | `{step: string, message: string, count?: number}` |
-| `sources` | Sources trouvées | `{sources: Source[]}` |
-| `chunk` | Token de réponse | `{content: string}` |
-| `followups` | Questions de suivi | `{questions: string[]}` |
-| `done` | Fin du stream | `{}` |
-| `error` | Erreur | `{message: string}` |
+| Type | Description | Data |
+|------|-------------|------|
+| `conversation_id` | Conversation ID | `{id: string}` |
+| `progress` | Processing step | `{step: string, message: string, count?: number}` |
+| `sources` | Found sources | `{sources: Source[]}` |
+| `chunk` | Response token | `{content: string}` |
+| `followups` | Follow-up questions | `{questions: string[]}` |
+| `done` | Stream end | `{}` |
+| `error` | Error | `{message: string}` |
 
-### Étapes de progression
+### Progress Steps
 
 | Step | Description |
 |------|-------------|
-| `search` | Recherche dans l'index |
-| `documents` | Lecture des documents |
-| `generating` | Génération de la réponse |
-| `followups` | Génération des suggestions |
+| `search` | Searching index |
+| `documents` | Reading documents |
+| `generating` | Generating response |
+| `followups` | Generating suggestions |
 
 ---
 
-## Modèles de données
+## Data Models
 
 ### Source
 
 ```typescript
 interface Source {
-  rank: number;           // Position dans les résultats (1-indexed)
-  chunk_id: string;       // ID unique du chunk
-  file: string;           // Nom du fichier source
-  participants: string[]; // Liste des participants
-  date_start: string;     // Date de début (YYYY-MM-DD)
-  date_end: string;       // Date de fin (YYYY-MM-DD)
-  score: number;          // Score de pertinence (0-1)
-  expanded: boolean;      // True si ajouté par context expansion
-  preview: string;        // Aperçu du contenu (200 chars max)
+  rank: number;           // Position in results (1-indexed)
+  chunk_id: string;       // Unique chunk ID
+  file: string;           // Source file name
+  participants: string[]; // Participant list
+  date_start: string;     // Start date (YYYY-MM-DD)
+  date_end: string;       // End date (YYYY-MM-DD)
+  score: number;          // Relevance score (0-1)
+  expanded: boolean;      // True if added by context expansion
+  preview: string;        // Content preview (max 200 chars)
 }
 ```
 
@@ -300,7 +300,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;       // ISO 8601
-  sources?: Source[];      // Seulement pour assistant
+  sources?: Source[];      // Only for assistant
   low_confidence?: boolean;
   confidence_score?: number;
 }
@@ -320,52 +320,52 @@ interface Conversation {
 
 ---
 
-## Codes d'erreur
+## Error Codes
 
 | Code | Description |
 |------|-------------|
-| 400 | Requête invalide |
-| 404 | Ressource non trouvée |
-| 503 | RAG non initialisé (index manquant) |
+| 400 | Invalid request |
+| 404 | Resource not found |
+| 503 | RAG not initialized (missing index) |
 
-**Format d'erreur** :
+**Error format**:
 ```json
 {
-  "detail": "Description de l'erreur"
+  "detail": "Error description"
 }
 ```
 
 ---
 
-## Exemples cURL
+## cURL Examples
 
-### Vérifier le statut
+### Check status
 
 ```bash
 curl http://localhost:8000/api/status
 ```
 
-### Envoyer un message
+### Send a message
 
 ```bash
 curl -X POST http://localhost:8000/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "De quoi ai-je parlé hier ?"}'
+  -d '{"message": "What did I discuss yesterday?"}'
 ```
 
-### Streaming avec filtres
+### Streaming with filters
 
 ```bash
 curl -X POST http://localhost:8000/api/chat/stream \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "Résume mes conversations avec Alice",
+    "message": "Summarize my conversations with Alice",
     "participant_filter": "Alice",
     "year_filter": 2023
   }'
 ```
 
-### Récupérer un chunk
+### Retrieve a chunk
 
 ```bash
 curl http://localhost:8000/api/chunks/conversation_alice_chunk_005
