@@ -137,3 +137,6 @@ coverage.xml
 
 # Distribution
 *.whl
+
+# AI
+.claude
