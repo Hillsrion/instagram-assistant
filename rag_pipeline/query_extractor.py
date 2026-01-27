@@ -56,7 +56,7 @@ class QueryDateExtractor:
                         "num_predict": 128
                     }
                 },
-                timeout=2.0  # Timeout court pour ne pas ralentir la recherche
+                timeout=10.0  # Timeout court pour ne pas ralentir la recherche
             )
             
             if response.status_code == 200:

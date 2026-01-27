@@ -66,7 +66,7 @@ class QueryRewriter:
                         "num_predict": 64
                     }
                 },
-                timeout=2.0  # Timeout court
+                timeout=10.0  # Timeout court
             )
             
             if response.status_code == 200:
