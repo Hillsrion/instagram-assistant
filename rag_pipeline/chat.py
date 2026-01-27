@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from .config import Config, default_config
 from .retriever import Retriever, RetrievalContext
 from .pii_filter import PIIFilter
+from .query_rewriter import QueryRewriter
 
 
 # Prompt système strict pour éviter les hallucinations
@@ -69,21 +70,6 @@ Les questions doivent:
 Réponds UNIQUEMENT avec les 3 questions, une par ligne, sans numérotation ni tirets."""
 
 
-# Prompt pour la réécriture de requête (Query Rewriting)
-REWRITE_PROMPT = """Tu es un expert en analyse de conversations Instagram. 
-Ta tâche est de transformer une question utilisateur en une liste de mots-clés et de phrases courtes qui sont plus susceptibles d'apparaître dans une conversation Instagram réelle (style informel, abréviations, slang).
-
-Question originale : {query}
-
-RÈGLES :
-1. Imagine comment les gens en parlent naturellement par message (ex: "anniversaire" -> "anniv", "restaurant" -> "resto", "est-ce que" -> "tu veux/on va").
-2. Inclus des variations de vocabulaire.
-3. Retourne uniquement la liste de termes optimisés pour la recherche, séparés par des virgules.
-4. Ne réponds pas à la question, réécris-la pour la recherche uniquement.
-
-Requête optimisée :"""
-
-
 @dataclass
 class ChatResponse:
     """Réponse du chatbot."""
@@ -101,36 +87,8 @@ class ChatBot:
         self.retriever = retriever
         self.conversation_history: List[dict] = []
         self.pii_filter = PIIFilter() if self.config.enable_pii_filter else None
+        self.rewriter = QueryRewriter(self.config)
     
-    def _rewrite_query(self, query: str) -> str:
-        """Réécrit la requête pour améliorer le retrieval."""
-        prompt = REWRITE_PROMPT.format(query=query)
-        
-        payload = {
-            "model": self.config.llm_model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "options": {
-                "temperature": 0.3,
-                "top_p": 0.9,
-                "num_predict": 100,
-            }
-        }
-        
-        try:
-            response = requests.post(
-                f"{self.config.ollama_url}/api/chat",
-                json=payload,
-                timeout=30
-            )
-            response.raise_for_status()
-            rewritten = response.json()["message"]["content"].strip()
-            # Combiner l'originale et la réécrite pour ne rien perdre
-            return f"{query} {rewritten}"
-        except Exception as e:
-            print(f"⚠️ Échec de la réécriture de requête: {e}")
-            return query
-
     def _build_prompt(self, query: str, context: RetrievalContext) -> str:
         """Construit le prompt complet pour le LLM."""
         if context.has_results:
@@ -241,8 +199,10 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         rewritten_query = None
         
         if use_rewriting:
-            rewritten_query = self._rewrite_query(query)
+            # On passe l'historique pour une réécriture contextuelle
+            rewritten_query = self.rewriter.rewrite(query, self.conversation_history)
             search_query = rewritten_query
+            print(f"🔄 Rewritten: {query} -> {rewritten_query}")
 
         # Retrieval
         context = self.retriever.retrieve(search_query, top_k=top_k)
