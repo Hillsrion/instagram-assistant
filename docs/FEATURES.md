@@ -6,14 +6,129 @@ This document describes the advanced features of the Instagram Assistant RAG sys
 
 ## Table of Contents
 
-1. [Evaluation Pipeline](#1-evaluation-pipeline)
-2. [Robustness & Confidence](#2-robustness--confidence)
-3. [Incremental Updates](#3-incremental-updates)
-4. [User Experience](#4-user-experience)
+1. [LLM Enrichment](#1-llm-enrichment)
+2. [Evaluation Pipeline](#2-evaluation-pipeline)
+3. [Robustness & Confidence](#3-robustness--confidence)
+4. [Incremental Updates](#4-incremental-updates)
+5. [User Experience](#5-user-experience)
 
 ---
 
-## 1. Evaluation Pipeline
+## 1. LLM Enrichment
+
+The enrichment pipeline uses a local LLM (via Ollama) to generate semantic metadata for each chunk, dramatically improving retrieval quality.
+
+### 1.1 Enriched Fields
+
+Each chunk is enriched with 5 semantic fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `narrative_summary` | `string` | One-sentence summary of the exchange (action, intention, outcome) |
+| `hypothetical_questions` | `string[]` | 3 questions this chunk directly answers (user-like phrasing) |
+| `speaker_intents` | `Dict[str, str]` | Per-participant goals/objectives |
+| `temporal_context` | `string` | Semantic period description (e.g., "during visa application") |
+| `emotions` | `Dict` | Emotional analysis of the exchange |
+
+### 1.2 Emotions Structure
+
+The `emotions` field captures the emotional context with three dimensions:
+
+```json
+{
+  "dominant": "joy|sadness|anger|fear|surprise|excitement|frustration|affection|worry|relief|...",
+  "tone": "light|serious|playful|tense|intimate|formal|sarcastic|...",
+  "tension_level": "low|medium|high"
+}
+```
+
+**Use cases:**
+- Query: "When were we arguing?" → matches chunks with `tension_level: high`
+- Query: "Happy moments with X" → matches chunks with `dominant: joy`
+- Query: "Serious discussions" → matches chunks with `tone: serious`
+
+### 1.3 How Enrichment Works
+
+Module: `rag_pipeline/enricher.py`
+
+```python
+from rag_pipeline.enricher import ChunkEnricher
+
+enricher = ChunkEnricher()
+
+# Single chunk
+summary, questions, intents, temporal, emotions = enricher.enrich_chunk(chunk)
+
+# Batch with progress
+enricher.enrich_batch(
+    chunks,
+    progress_callback=lambda curr, total: print(f"{curr}/{total}"),
+    save_callback=save_fn,
+    save_interval=20
+)
+```
+
+### 1.4 Embedding Priority
+
+Enriched fields are prioritized in embeddings (`get_embedding_text()`):
+
+1. **Hypothetical questions** (highest priority - semantic matching)
+2. **Temporal context**
+3. **Speaker intents**
+4. **Emotions** (ambiance)
+5. **Narrative summary**
+6. **Raw content** (lowest priority)
+
+This ordering ensures the embedding model focuses on semantic enrichments first.
+
+### 1.5 Reranking Integration
+
+The cross-encoder reranker uses all enriched fields for scoring:
+
+```
+Questions abordées: [hypothetical questions]
+Période: [temporal context]
+Intentions: [speaker intents]
+Ambiance: [emotions summary]
+Résumé: [narrative summary]
+[content excerpt]
+```
+
+### 1.6 Configuration
+
+```python
+# In rag_pipeline/config.py or .env
+LLM_MODEL=qwen3:latest      # Ollama model for enrichment
+OLLAMA_URL=http://localhost:11434
+```
+
+**LLM Parameters:**
+- Temperature: `0.1` (low variance for factual extraction)
+- Max tokens: `1024`
+- Format: JSON (enforced via Ollama API)
+- Content limit: `4000` chars per chunk
+
+### 1.7 Re-enriching Existing Data
+
+To add emotions to already-enriched chunks:
+
+```python
+# Force re-enrichment by clearing the emotions field
+for chunk in chunks:
+    chunk.emotions = None
+    chunk.narrative_summary = None  # Reset to trigger re-enrichment
+
+enricher.enrich_batch(chunks, ...)
+```
+
+Or run a full reindex:
+```bash
+python setup_rag_batch.py
+```
+
+---
+
+## 2. Evaluation Pipeline
 
 The evaluation pipeline enables automated measurement and comparison of RAG system performance.
 
@@ -118,7 +233,7 @@ Generation Metrics:
 
 ---
 
-## 2. Robustness & Confidence
+## 3. Robustness & Confidence
 
 ### 2.1 Confidence Thresholds
 
@@ -196,7 +311,7 @@ enable_pii_filter: bool = True
 
 ---
 
-## 3. Incremental Updates
+## 4. Incremental Updates
 
 ### 3.1 Delta Tracker
 
@@ -302,7 +417,7 @@ Tracked files: 44
 
 ---
 
-## 4. User Experience
+## 5. User Experience
 
 ### 4.1 Interactive Citations
 

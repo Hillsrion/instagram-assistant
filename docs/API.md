@@ -156,6 +156,7 @@ Retrieve full chunk content (for detail modal).
   "chunk_id": "conversation_alice_chunk_005",
   "content": "[2024-01-15 10:00] Alice: Hi!\n[2024-01-15 10:01] Bob: Hey!...",
   "summary": "Discussion between Alice and Bob about project X. Period: 01/15/2024. 45 messages exchanged.",
+  "narrative_summary": "Alice and Bob finalize project X deadline with mutual agreement.",
   "participants": ["Alice", "Bob"],
   "date_start": "2024-01-15 10:00:00",
   "date_end": "2024-01-15 12:30:00",
@@ -165,7 +166,17 @@ Retrieve full chunk content (for detail modal).
     "When did Alice and Bob discuss project X?",
     "What did Alice and Bob decide about the deadline?",
     "What was the main topic of this discussion?"
-  ]
+  ],
+  "speaker_intents": {
+    "Alice": "seeking deadline confirmation",
+    "Bob": "proposing timeline and getting approval"
+  },
+  "temporal_context": "during project X planning phase",
+  "emotions": {
+    "dominant": "focus",
+    "tone": "professional",
+    "tension_level": "low"
+  }
 }
 ```
 

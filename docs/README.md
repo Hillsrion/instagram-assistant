@@ -57,31 +57,37 @@ Welcome to the Instagram Assistant documentation, a production-ready RAG (Retrie
 
 ## Core Features
 
-### 1. Hybrid Search
+### 1. LLM Enrichment
+- Semantic metadata generation via local LLM
+- 5 enriched fields: narrative summary, hypothetical questions, speaker intents, temporal context, emotions
+- Emotion analysis (dominant emotion, tone, tension level)
+- Dramatically improves retrieval quality
+
+### 2. Hybrid Search
 - Dense search (FAISS embeddings)
 - Lexical search (BM25)
 - Cross-encoder reranking
 - Context expansion with adjacent chunks
 
-### 2. Robustness
+### 3. Robustness
 - Configurable confidence thresholds
 - Automatic PII filtering (7 types detected)
 - Anti-hallucination prompts
 - Strict source citation requirements
 
-### 3. Incremental Updates
+### 4. Incremental Updates
 - Automatic change detection (SHA256 hashing)
 - Partial indexing (add/modify/delete)
 - Persistent state tracking
 - No full reindex needed
 
-### 4. Automated Evaluation
+### 5. Automated Evaluation
 - Synthetic QA pair generation
 - RAGAS metrics (Accuracy, MRR, Faithfulness, Relevance)
 - Configuration comparison
 - Benchmark reports
 
-### 5. Enhanced UX
+### 6. Enhanced UX
 - Streaming with progress indicators
 - Interactive citations (clickable sources)
 - Auto-generated follow-up questions
@@ -117,8 +123,10 @@ instagram-assistant/
 ├── rag_pipeline/           # Core RAG components
 │   ├── config.py
 │   ├── chunker.py
+│   ├── enricher.py         # LLM enrichment
 │   ├── embeddings.py
 │   ├── vector_store.py
+│   ├── reranker.py         # Cross-encoder reranking
 │   ├── advanced_retriever.py
 │   ├── chat.py
 │   ├── pii_filter.py
