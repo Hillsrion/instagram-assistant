@@ -337,11 +337,15 @@ class ConversationChunker:
             file_source=file_path.name
         )
     
-    def chunk_all_conversations(self, progress_callback=None) -> List[Chunk]:
+    def chunk_all_conversations(self, progress_callback=None, limit: int = None) -> List[Chunk]:
         """Découpe toutes les conversations du dossier."""
         all_chunks = []
         files = list(self.config.conversations_dir.glob('*.txt'))
         
+        if limit:
+            files = files[:limit]
+            print(f"⚠️  Limite activée: traitement de {len(files)} conversations seulement")
+
         for i, file_path in enumerate(files):
             try:
                 chunks = self.chunk_conversation(file_path)

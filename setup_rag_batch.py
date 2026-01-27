@@ -130,6 +130,8 @@ def main():
     parser.add_argument("--reset", action="store_true", help="Repart de zéro")
     parser.add_argument("--status", action="store_true", help="Affiche l'état actuel")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE, help=f"Taille des batches (défaut: {BATCH_SIZE})")
+    parser.add_argument("--limit", type=int, help="Limite le nombre de conversations à traiter")
+    parser.add_argument("--import-test", action="store_true", help="Importe les conversations de test depuis test_conversations/")
     args = parser.parse_args()
 
     config = Config()
@@ -149,10 +151,34 @@ def main():
 
     batch_size = args.batch_size
 
+    if args.import_test:
+        import shutil
+        test_dir = Path("test_conversations")
+        target_dir = config.conversations_dir
+        # Ensure target dir exists
+        target_dir.mkdir(parents=True, exist_ok=True)
+        
+        print("=" * 40)
+        print(f"📦 Importation des conversations de test")
+        print("=" * 40)
+        
+        if test_dir.exists():
+            count = 0
+            for f in test_dir.glob("*.txt"):
+                shutil.copy2(f, target_dir)
+                print(f"   ✓ Copié: {f.name}")
+                count += 1
+            print(f"✅ {count} conversations importées dans {target_dir}")
+        else:
+            print(f"⚠️  Dossier de test introuvable: {test_dir}")
+        print()
+
     print("=" * 60)
     print("🚀 RAG Pipeline - Indexation avec BATCHING")
     print("=" * 60)
     print()
+    if args.limit:
+        print(f"⚠️  Limite activée: {args.limit} conversations max")
     print(f"📦 Batch size: {batch_size}")
     print(f"💾 Checkpoints: {CHECKPOINT_DIR}")
     print()
@@ -167,18 +193,24 @@ def main():
     chunker = ConversationChunker(config)
 
     # Vérifier si les chunks existent
-    if config.chunks_cache_path.exists():
+    if config.chunks_cache_path.exists() and not args.reset:
         print(f"📂 Chargement depuis {config.chunks_cache_path}...")
         chunks = chunker.load_chunks()
         print(f"✅ {len(chunks)} chunks chargés")
     else:
-        print("⚠️  Pas de chunks en cache, génération en cours...")
+        if args.reset and config.chunks_cache_path.exists():
+             print("🔄 Reset demandé : régénération des chunks...")
+        else:
+             print("⚠️  Pas de chunks en cache, génération en cours...")
 
         def progress_callback(current, total, filename, num_chunks):
             if current % 100 == 0 or current == total:
                 print(f"   [{current}/{total}] {filename} → {num_chunks} chunks")
 
-        chunks = chunker.chunk_all_conversations(progress_callback=progress_callback)
+        chunks = chunker.chunk_all_conversations(
+            progress_callback=progress_callback,
+            limit=args.limit
+        )
         chunker.save_chunks(chunks)
         print(f"✅ {len(chunks)} chunks créés et sauvegardés")
 
