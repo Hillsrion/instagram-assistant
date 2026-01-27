@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from collections import defaultdict
 
 from .config import Config, default_config
@@ -38,6 +38,8 @@ class Chunk:
     # Nouveaux champs pour le RAG "Gold Standard"
     narrative_summary: Optional[str] = None
     hypothetical_questions: Optional[List[str]] = None
+    speaker_intents: Optional[Dict[str, str]] = None
+    temporal_context: Optional[str] = None
     
     def to_dict(self) -> dict:
         return asdict(self)
@@ -58,16 +60,28 @@ class Chunk:
             text_parts.append("Questions auxquelles ce document répond :")
             text_parts.extend(self.hypothetical_questions)
             text_parts.append("")
-            
-        # 2. Résumé narratif (Contexte sémantique)
+
+        # 2. Contexte temporel sémantique
+        if self.temporal_context:
+            text_parts.append(f"Période : {self.temporal_context}")
+            text_parts.append("")
+
+        # 3. Intentions des participants
+        if self.speaker_intents:
+            text_parts.append("Intentions des participants :")
+            for participant, intent in self.speaker_intents.items():
+                text_parts.append(f"  - {participant} : {intent}")
+            text_parts.append("")
+
+        # 4. Résumé narratif (Contexte sémantique)
         if self.narrative_summary:
             text_parts.append(f"Résumé : {self.narrative_summary}")
         else:
             text_parts.append(f"Résumé statistique : {self.summary}")
             
         text_parts.append("")
-        
-        # 3. Contenu brut (Détails)
+
+        # 5. Contenu brut (Détails)
         text_parts.append("Contenu de la conversation :")
         text_parts.append(self.content)
         

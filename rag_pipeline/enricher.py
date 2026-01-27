@@ -4,15 +4,17 @@ et des questions hypothétiques (techniques avancées de RAG).
 """
 import json
 import requests
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from .config import Config, default_config
 from .chunker import Chunk
 
 ENRICH_PROMPT = """Tu es un expert en analyse de conversations.
-Analyse l'extrait de conversation Instagram ci-dessous et génère deux éléments :
+Analyse l'extrait de conversation Instagram ci-dessous et génère quatre éléments :
 
 1. RÉSUMÉ NARRATIF : Une seule phrase qui décrit l'action principale, l'intention et le résultat de l'échange.
 2. QUESTIONS HYPOTHÉTIQUES : Liste 3 questions précises auxquelles cet extrait de conversation répond exactement. Ces questions doivent ressembler à ce qu'un utilisateur pourrait demander à un assistant.
+3. INTENTIONS DES PARTICIPANTS : Pour chaque participant actif, décris en quelques mots son intention ou objectif principal dans cet échange.
+4. CONTEXTE TEMPOREL : Décris le moment ou la période de cet échange de manière sémantique (ex: "avant l'obtention du visa", "pendant les vacances d'été", "après la rupture").
 
 CONVERSATION :
 {content}
@@ -24,7 +26,12 @@ RÉPONDS STRICTEMENT AU FORMAT JSON SUIVANT :
     "Question 1 ?",
     "Question 2 ?",
     "Question 3 ?"
-  ]
+  ],
+  "speaker_intents": {{
+    "Participant1": "son intention principale",
+    "Participant2": "son intention principale"
+  }},
+  "temporal_context": "description sémantique du moment"
 }}
 """
 
@@ -36,18 +43,18 @@ class ChunkEnricher:
         # Modèle léger recommandé pour l'indexation de masse
         self.model = self.config.llm_model 
         
-    def enrich_chunk(self, chunk: Chunk) -> Tuple[str, List[str]]:
+    def enrich_chunk(self, chunk: Chunk) -> Tuple[str, List[str], Dict[str, str], str]:
         """
-        Génère un résumé narratif et des questions pour un chunk.
-        
+        Génère un résumé narratif, des questions, les intentions et le contexte temporel pour un chunk.
+
         Returns:
-            (narrative_summary, hypothetical_questions)
+            (narrative_summary, hypothetical_questions, speaker_intents, temporal_context)
         """
         # Limiter la taille du texte pour éviter de saturer le context window du petit modèle
         content_preview = chunk.content[:4000]
-        
+
         prompt = ENRICH_PROMPT.format(content=content_preview)
-        
+
         payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
@@ -55,10 +62,10 @@ class ChunkEnricher:
             "format": "json", # Demander du JSON à Ollama
             "options": {
                 "temperature": 0.1,
-                "num_predict": 512,
+                "num_predict": 768,
             }
         }
-        
+
         try:
             response = requests.post(
                 f"{self.config.ollama_url}/api/chat",
@@ -67,18 +74,20 @@ class ChunkEnricher:
             )
             response.raise_for_status()
             result = response.json()["message"]["content"]
-            
+
             # Parser le JSON de réponse
             data = json.loads(result)
             summary = data.get("narrative_summary", "")
             questions = data.get("questions", [])
-            
-            return summary, questions
-            
+            speaker_intents = data.get("speaker_intents", {})
+            temporal_context = data.get("temporal_context", "")
+
+            return summary, questions, speaker_intents, temporal_context
+
         except Exception as e:
             # En cas d'erreur, on retourne des valeurs vides (fallback sur le résumé statistique)
             print(f"⚠️ Erreur enrichissement chunk {chunk.chunk_id}: {e}")
-            return "", []
+            return "", [], {}, ""
 
     def enrich_batch(
         self, 
@@ -104,10 +113,12 @@ class ChunkEnricher:
                 if progress_callback:
                     progress_callback(i + 1, len(chunks))
                 continue
-                
-            summary, questions = self.enrich_chunk(chunk)
+
+            summary, questions, speaker_intents, temporal_context = self.enrich_chunk(chunk)
             chunk.narrative_summary = summary
             chunk.hypothetical_questions = questions
+            chunk.speaker_intents = speaker_intents
+            chunk.temporal_context = temporal_context
             
             # Callback de progrès
             if progress_callback:

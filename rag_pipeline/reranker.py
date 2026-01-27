@@ -99,15 +99,24 @@ class CrossEncoderReranker:
                 # On concatène les questions pour que le reranker voie la similarité
                 text_parts.append("Questions abordées: " + " ".join(chunk.hypothetical_questions))
             
-            # 2. Résumé Narratif (Contexte fort)
+            # 2. Contexte temporel (Signal temporel)
+            if chunk.temporal_context:
+                text_parts.append(f"Période: {chunk.temporal_context}")
+
+            # 3. Intentions des participants
+            if chunk.speaker_intents:
+                intents_str = ", ".join(f"{p}: {i}" for p, i in chunk.speaker_intents.items())
+                text_parts.append(f"Intentions: {intents_str}")
+
+            # 4. Résumé Narratif (Contexte fort)
             if chunk.narrative_summary:
                 text_parts.append(f"Résumé: {chunk.narrative_summary}")
             else:
                 text_parts.append(f"Résumé: {chunk.summary}")
-            
-            # 3. Contenu (Preuve)
-            # On garde un extrait significatif (1000 chars) pour ne pas tronquer les autres signaux
-            text_parts.append(chunk.content[:1000])
+
+            # 5. Contenu (Preuve)
+            # On garde un extrait significatif (900 chars) pour compenser les nouveaux champs
+            text_parts.append(chunk.content[:900])
             
             doc_text = "\n".join(text_parts)
             pairs.append([query, doc_text])
