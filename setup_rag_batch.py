@@ -70,6 +70,28 @@ def load_all_checkpoints() -> np.ndarray:
     return np.vstack(embeddings_list)
 
 
+def format_duration(seconds: float) -> str:
+    """Formate une durée en j h m s."""
+    if seconds is None or seconds < 0:
+        return "0s"
+    
+    seconds = int(seconds)
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    
+    parts = []
+    if days > 0:
+        parts.append(f"{days}j")
+    if hours > 0:
+        parts.append(f"{hours}h")
+    if minutes > 0:
+        parts.append(f"{minutes}m")
+    parts.append(f"{seconds}s")
+    
+    return " ".join(parts)
+
+
 def show_status(config: Config):
     """Affiche l'état actuel de l'indexation."""
     print("=" * 60)
@@ -245,8 +267,7 @@ def main():
                     speed = current / elapsed if elapsed > 0 else 0
                     remaining = (total - current) / speed if speed > 0 else 0
                     
-                    # Formatter le temps restant
-                    rem_str = f"{int(remaining // 60)}m {int(remaining % 60)}s"
+                    rem_str = format_duration(remaining)
                     
                     sys.stdout.write(f"\r   ✨ [{current}/{total}] chunks | Vitesse: {speed:.1f} ch/s | Reste: {rem_str}   ")
                     sys.stdout.flush()
@@ -445,7 +466,7 @@ def main():
                 elapsed = time.time() - summary_start_time
                 speed = current / elapsed if elapsed > 0 else 0
                 remaining = (total - current) / speed if speed > 0 else 0
-                rem_str = f"{int(remaining // 60)}m {int(remaining % 60)}s"
+                rem_str = format_duration(remaining)
                 sys.stdout.write(f"\r   📝 [{current}/{total}] {desc[:40]:<40} | Reste: {rem_str}   ")
                 sys.stdout.flush()
 

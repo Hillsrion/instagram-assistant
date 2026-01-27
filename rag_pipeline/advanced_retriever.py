@@ -17,6 +17,7 @@ from .reranker import CrossEncoderReranker, RerankResult
 from .bm25_index import BM25Index
 from .metadata_store import MetadataStore
 from .summary_store import SummaryStore, SummarySearchResult
+from .query_extractor import QueryDateExtractor
 
 
 @dataclass
@@ -87,6 +88,7 @@ class AdvancedRetriever:
         self.metadata_store = metadata_store
         self.reranker = reranker
         self.summary_store = summary_store
+        self.date_extractor = QueryDateExtractor(self.config)
 
         # Configuration par défaut
         self.default_top_k = 5
@@ -135,6 +137,17 @@ class AdvancedRetriever:
         min_score = min_score or self.config.min_similarity
 
         filters_applied = {}
+
+        # ========================================
+        # Étape 0: Extraction temporelle automatique
+        # ========================================
+        # Si aucune date n'est fournie explicitement, on essaie de la deviner
+        if not date_start and not date_end and not year_filter:
+            extracted_start, extracted_end = self.date_extractor.extract_dates(query)
+            if extracted_start or extracted_end:
+                date_start = extracted_start
+                date_end = extracted_end
+                print(f"🕒 Période détectée: {date_start} -> {date_end}")
 
         # ========================================
         # Étape 1: Pre-filtering par métadonnées
