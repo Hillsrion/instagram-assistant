@@ -37,20 +37,33 @@ def markdown_to_html(text: str) -> str:
     # Escape HTML first
     text = escape_html(text)
 
+    # Headings: # → <h2>, ## → <h3>, etc.
+    text = re.sub(r'^### (.+)$', r'<h4 class="text-lg font-bold text-slate-900 mt-4 mb-2">\1</h4>', text, flags=re.MULTILINE)
+    text = re.sub(r'^## (.+)$', r'<h3 class="text-xl font-bold text-slate-900 mt-4 mb-2">\1</h3>', text, flags=re.MULTILINE)
+    text = re.sub(r'^# (.+)$', r'<h2 class="text-2xl font-bold text-slate-900 mt-4 mb-2">\1</h2>', text, flags=re.MULTILINE)
+
+    # Horizontal rule: --- or ***
+    text = re.sub(r'^[-\*]{3,}$', r'<hr class="my-4 border-slate-300">', text, flags=re.MULTILINE)
+
+    # Lists: - item → <ul><li>
+    text = re.sub(r'^\s*- (.+)$', r'<li class="ml-4 text-slate-700">\1</li>', text, flags=re.MULTILINE)
+    # Wrap consecutive <li> in <ul>
+    text = re.sub(r'(<li.+?</li>)', r'<ul class="list-disc mb-2">\1</ul>', text, flags=re.DOTALL)
+
     # Bold: **text** -> <strong>text</strong>
-    text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+    text = re.sub(r'\*\*(.+?)\*\*', r'<strong class="font-bold text-slate-900">\1</strong>', text)
 
     # Italic: *text* -> <em>text</em>
-    text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
+    text = re.sub(r'\*(.+?)\*', r'<em class="italic">\1</em>', text)
 
     # Inline code: `text` -> <code>text</code>
-    text = re.sub(r'`([^`]+)`', r'<code class="bg-gray-100 px-2 py-0.5 rounded">\1</code>', text)
+    text = re.sub(r'`([^`]+)`', r'<code class="bg-slate-200 px-2 py-0.5 rounded font-mono text-sm">\1</code>', text)
 
     # Code blocks: ```code``` -> <pre><code>code</code></pre>
-    text = re.sub(r'```(.+?)```', r'<pre class="bg-gray-100 p-3 rounded overflow-x-auto"><code>\1</code></pre>', text, flags=re.DOTALL)
+    text = re.sub(r'```(.+?)```', r'<pre class="bg-slate-100 p-3 rounded overflow-x-auto"><code class="text-xs">\1</code></pre>', text, flags=re.DOTALL)
 
     # Links: [text](url) -> <a>text</a>
-    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" class="text-indigo-600 hover:underline">\1</a>', text)
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" class="text-indigo-600 hover:underline font-medium">\1</a>', text)
 
     # Line breaks
     text = text.replace('\n', '<br>')
@@ -80,10 +93,10 @@ def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
             if line.strip():
                 messages.append((None, line.strip()))
 
-    # Get unique participants for color mapping
+    # Get unique participants for color mapping (darker shades for better text contrast)
     participants = [p for p in chunk.participants if p]
     participant_colors = {
-        p: ["bg-indigo-500", "bg-purple-500", "bg-cyan-500", "bg-rose-500"][i % 4]
+        p: ["bg-indigo-600", "bg-purple-600", "bg-cyan-600", "bg-rose-600"][i % 4]
         for i, p in enumerate(participants)
     }
 
@@ -101,11 +114,11 @@ def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
 
     for author, content in messages:
         if author is None:
-            # System message or info
+            # System message or info - treat as a neutral message
             html += f"""
-            <div class="flex justify-center my-2">
-                <div class="text-xs text-slate-500 italic bg-slate-100 px-2 py-1 rounded">
-                    {escape_html(content)}
+            <div class="flex justify-center my-3 px-2">
+                <div class="text-xs text-slate-600 italic bg-slate-200 px-3 py-2 rounded-lg max-w-sm text-center border border-slate-300">
+                    📌 {escape_html(content)}
                 </div>
             </div>
             """
@@ -113,16 +126,15 @@ def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
             # Find which side this message should be on (alternating or based on participant)
             is_first = participants and author == participants[0]
             align_class = "justify-start" if is_first else "justify-end"
-            bubble_class = "bg-indigo-500 text-white" if is_first else "bg-slate-300 text-slate-900"
             color = participant_colors.get(author, "bg-indigo-500")
 
             html += f"""
-            <div class="flex {align_class} mb-2">
+            <div class="flex {align_class} mb-3 px-2">
                 <div class="flex flex-col {'mr-2' if is_first else 'ml-2'} max-w-xs">
                     <span class="text-xs font-bold text-slate-700 mb-1 {'ml-2' if is_first else 'mr-2'}">
                         {escape_html(author)}
                     </span>
-                    <div class="rounded-xl px-4 py-2 {color} text-sm break-words">
+                    <div class="rounded-xl px-4 py-2 {color} text-white text-sm break-words shadow-sm">
                         {escape_html(content)}
                     </div>
                 </div>
@@ -489,19 +501,20 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
 
 def run_comparison():
     parser = argparse.ArgumentParser(
-        description="Compare generation quality of different LLMs",
+        description="Compare generation quality of different LLMs (requires at least 2 models)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+    python eval/compare_llms.py                           # Use defaults: qwen3:latest + qwen2.5:3b
     python eval/compare_llms.py mistral neural-chat
     python eval/compare_llms.py mistral neural-chat --trials 20 --html
-    python eval/compare_llms.py --models mistral,neural-chat --trials 10
+    python eval/compare_llms.py --models mistral,neural-chat --trials 10 --html
         """
     )
     parser.add_argument(
         "models",
         nargs="*",
-        help="Model names to compare (space-separated)"
+        help="Model names to compare (space-separated). Default: qwen3:latest qwen2.5:3b"
     )
     parser.add_argument(
         "--models",
@@ -513,8 +526,8 @@ Examples:
     parser.add_argument(
         "--trials",
         type=int,
-        default=10,
-        help="Number of trials per model (default: 10)"
+        default=3,
+        help="Number of trials per model (default: 3)"
     )
     parser.add_argument(
         "--html",
@@ -528,13 +541,21 @@ Examples:
     if args.models_option:
         models = args.models_option.split(',')
 
+    # Default models if none provided
     if not models:
-        parser.print_help()
-        print("\nError: Please specify at least one model")
-        return
+        models = ["qwen3:latest", "qwen2.5:3b"]
+        print("ℹ️  No models specified. Using defaults: qwen3:latest, qwen2.5:3b")
+        print()
 
     # Clean up model names (remove whitespace)
     models = [m.strip() for m in models if m.strip()]
+
+    # Check that we have at least 2 models
+    if len(models) < 2:
+        parser.print_help()
+        print("\n❌ Error: Must specify at least 2 models to compare")
+        print("   Example: python eval/compare_llms.py qwen3:latest mistral")
+        return
 
     print("=" * 60)
     print("LLM Comparison Pipeline")
