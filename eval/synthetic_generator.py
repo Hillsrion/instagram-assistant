@@ -40,6 +40,11 @@ class QAPair:
     question_type: QuestionType
     difficulty: Difficulty
     metadata: dict = None
+    tags: List[str] = None
+
+    def __post_init__(self):
+        if self.tags is None:
+            self.tags = []
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -51,6 +56,8 @@ class QAPair:
     def from_dict(cls, data: dict) -> "QAPair":
         data['question_type'] = QuestionType(data['question_type'])
         data['difficulty'] = Difficulty(data['difficulty'])
+        if 'tags' not in data:
+            data['tags'] = []
         return cls(**data)
 
 
@@ -304,3 +311,75 @@ class SyntheticDataGenerator:
             data = json.load(f)
 
         return [QAPair.from_dict(qa) for qa in data['qa_pairs']]
+
+
+class QuestionFilter:
+    """Filter QA pairs by various criteria."""
+
+    @staticmethod
+    def filter_by_type(qa_pairs: List[QAPair], question_types: List[str]) -> List[QAPair]:
+        """Filter by question type(s)."""
+        types = [QuestionType(t) for t in question_types]
+        return [qa for qa in qa_pairs if qa.question_type in types]
+
+    @staticmethod
+    def filter_by_difficulty(qa_pairs: List[QAPair], difficulties: List[str]) -> List[QAPair]:
+        """Filter by difficulty level(s)."""
+        diffs = [Difficulty(d) for d in difficulties]
+        return [qa for qa in qa_pairs if qa.difficulty in diffs]
+
+    @staticmethod
+    def filter_by_participant(qa_pairs: List[QAPair], participant: str) -> List[QAPair]:
+        """Filter by participant name (case-insensitive, partial match)."""
+        participant_lower = participant.lower()
+        return [
+            qa for qa in qa_pairs
+            if qa.metadata and any(
+                participant_lower in p.lower()
+                for p in qa.metadata.get('participants', [])
+            )
+        ]
+
+    @staticmethod
+    def filter_by_date_range(qa_pairs: List[QAPair], start_date: str, end_date: str) -> List[QAPair]:
+        """Filter by date range (ISO format: YYYY-MM-DD)."""
+        return [
+            qa for qa in qa_pairs
+            if qa.metadata and start_date <= qa.metadata.get('date_range', '').split(' - ')[0] <= end_date
+        ]
+
+    @staticmethod
+    def filter_by_tags(qa_pairs: List[QAPair], tags: List[str]) -> List[QAPair]:
+        """Filter by tags (all specified tags must be present)."""
+        tag_set = set(tags)
+        return [qa for qa in qa_pairs if tag_set.issubset(set(qa.tags or []))]
+
+    @staticmethod
+    def apply_filters(
+        qa_pairs: List[QAPair],
+        question_types: Optional[List[str]] = None,
+        difficulties: Optional[List[str]] = None,
+        participant: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        tags: Optional[List[str]] = None
+    ) -> List[QAPair]:
+        """Apply multiple filters to QA pairs."""
+        result = qa_pairs
+
+        if question_types:
+            result = QuestionFilter.filter_by_type(result, question_types)
+
+        if difficulties:
+            result = QuestionFilter.filter_by_difficulty(result, difficulties)
+
+        if participant:
+            result = QuestionFilter.filter_by_participant(result, participant)
+
+        if start_date and end_date:
+            result = QuestionFilter.filter_by_date_range(result, start_date, end_date)
+
+        if tags:
+            result = QuestionFilter.filter_by_tags(result, tags)
+
+        return result

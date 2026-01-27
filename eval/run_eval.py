@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from rag_pipeline.config import Config
 from rag_pipeline.vector_store import VectorStore
 
-from .synthetic_generator import SyntheticDataGenerator
+from .synthetic_generator import SyntheticDataGenerator, QuestionFilter, QuestionType, Difficulty
 from .benchmark import BenchmarkRunner, BenchmarkConfig
 
 
@@ -70,8 +70,8 @@ def generate_dataset(n_samples: int, config: Config):
         print(f"  {t}: {count}")
 
 
-def run_benchmark(config: Config):
-    """Run benchmark on existing dataset."""
+def run_benchmark(config: Config, filters: dict = None):
+    """Run benchmark on existing dataset with optional filters."""
     print("Running benchmark...")
     print()
 
@@ -84,6 +84,19 @@ def run_benchmark(config: Config):
         return
 
     print(f"Loaded {len(qa_pairs)} QA pairs")
+
+    # Apply filters if provided
+    if filters:
+        original_count = len(qa_pairs)
+        qa_pairs = QuestionFilter.apply_filters(qa_pairs, **filters)
+        print(f"After filtering: {len(qa_pairs)} QA pairs")
+        if not qa_pairs:
+            print("Error: No QA pairs left after filtering.")
+            return
+        if len(qa_pairs) < original_count:
+            print(f"  (filtered out {original_count - len(qa_pairs)} pairs)")
+
+    print()
 
     # Run benchmark
     runner = BenchmarkRunner(config)
@@ -109,8 +122,8 @@ def run_benchmark(config: Config):
     runner.save_report(report)
 
 
-def run_comparison(config: Config):
-    """Compare multiple configurations."""
+def run_comparison(config: Config, filters: dict = None):
+    """Compare multiple configurations with optional filters."""
     print("Running configuration comparison...")
     print()
 
@@ -123,6 +136,18 @@ def run_comparison(config: Config):
         return
 
     print(f"Loaded {len(qa_pairs)} QA pairs")
+
+    # Apply filters if provided
+    if filters:
+        original_count = len(qa_pairs)
+        qa_pairs = QuestionFilter.apply_filters(qa_pairs, **filters)
+        print(f"After filtering: {len(qa_pairs)} QA pairs")
+        if not qa_pairs:
+            print("Error: No QA pairs left after filtering.")
+            return
+        if len(qa_pairs) < original_count:
+            print(f"  (filtered out {original_count - len(qa_pairs)} pairs)")
+
     print()
 
     # Run comparison
@@ -154,6 +179,9 @@ Examples:
     python -m eval.run_eval --generate 50
     python -m eval.run_eval --benchmark
     python -m eval.run_eval --compare
+    python -m eval.run_eval --benchmark --question-type factual,summary
+    python -m eval.run_eval --benchmark --difficulty easy,medium
+    python -m eval.run_eval --benchmark --participant "Alice"
         """
     )
 
@@ -179,6 +207,44 @@ Examples:
         help='Path to custom evaluation dataset'
     )
 
+    # Filter options
+    parser.add_argument(
+        '--question-type',
+        type=str,
+        metavar='TYPE[,TYPE...]',
+        help=f'Filter by question type: {", ".join([t.value for t in QuestionType])}'
+    )
+    parser.add_argument(
+        '--difficulty',
+        type=str,
+        metavar='LEVEL[,LEVEL...]',
+        help=f'Filter by difficulty: {", ".join([d.value for d in Difficulty])}'
+    )
+    parser.add_argument(
+        '--participant',
+        type=str,
+        metavar='NAME',
+        help='Filter by participant name'
+    )
+    parser.add_argument(
+        '--date-start',
+        type=str,
+        metavar='YYYY-MM-DD',
+        help='Filter by date start (ISO format)'
+    )
+    parser.add_argument(
+        '--date-end',
+        type=str,
+        metavar='YYYY-MM-DD',
+        help='Filter by date end (ISO format)'
+    )
+    parser.add_argument(
+        '--tags',
+        type=str,
+        metavar='TAG[,TAG...]',
+        help='Filter by tags (comma-separated, must have all tags)'
+    )
+
     args = parser.parse_args()
 
     if not any([args.generate, args.benchmark, args.compare]):
@@ -192,12 +258,26 @@ Examples:
     print("=" * 60)
     print()
 
+    # Build filters dictionary
+    filters = {}
+    if args.question_type:
+        filters['question_types'] = args.question_type.split(',')
+    if args.difficulty:
+        filters['difficulties'] = args.difficulty.split(',')
+    if args.participant:
+        filters['participant'] = args.participant
+    if args.date_start and args.date_end:
+        filters['start_date'] = args.date_start
+        filters['end_date'] = args.date_end
+    if args.tags:
+        filters['tags'] = args.tags.split(',')
+
     if args.generate:
         generate_dataset(args.generate, config)
     elif args.benchmark:
-        run_benchmark(config)
+        run_benchmark(config, filters if filters else None)
     elif args.compare:
-        run_comparison(config)
+        run_comparison(config, filters if filters else None)
 
 
 if __name__ == "__main__":
