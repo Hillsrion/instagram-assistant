@@ -57,60 +57,75 @@ def markdown_to_html(text: str) -> str:
 
     return text
 
-def format_chunk_as_chat(chunk: Chunk) -> str:
-    """Format a chunk with its messages as a chat-like display."""
-    html = f"""
-    <div class="bg-slate-50 rounded-lg p-4 border border-slate-200 mb-4">
-        <div class="mb-3 pb-3 border-b border-slate-200">
-            <div class="text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">Source du Chunk</div>
-            <div class="flex flex-wrap gap-2">
-                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
-                    ID: {escape_html(chunk.chunk_id)}
-                </span>
-                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                    {', '.join(chunk.participants) if chunk.participants else 'N/A'}
-                </span>
-                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
-                    {chunk.date_start} → {chunk.date_end}
-                </span>
-            </div>
-        </div>
+def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
+    """Format a chunk with its messages as a chat-like display with left/right alignment."""
+    if not chunk_id:
+        chunk_id = f"source-{chunk.chunk_id.replace('_', '-')}"
 
-        <div class="space-y-2 max-h-96 overflow-y-auto">
-    """
-
-    # Parse the content to find messages in a structured way
-    # The content typically contains newlines with timestamp and author info
+    # Parse the content to find messages
     lines = chunk.content.split('\n')
+    messages = []
+    current_author = None
 
     for line in lines:
         if not line.strip():
             continue
 
-        # Try to identify message pattern (usually "Author: content" or just "content")
-        # Format a reasonable display for chat-like messages
         parts = line.split(':', 1)
-        if len(parts) == 2 and len(parts[0]) < 50:  # Likely author name
-            author = escape_html(parts[0].strip())
-            content = escape_html(parts[1].strip())
+        if len(parts) == 2 and len(parts[0]) < 50:
+            author = parts[0].strip()
+            content = parts[1].strip()
+            messages.append((author, content))
+        else:
+            if line.strip():
+                messages.append((None, line.strip()))
 
-            # Alternate colors for different participants
-            author_color = "bg-indigo-100 text-indigo-800" if author[0].isupper() else "bg-green-100 text-green-800"
+    # Get unique participants for color mapping
+    participants = [p for p in chunk.participants if p]
+    participant_colors = {
+        p: ["bg-indigo-500", "bg-purple-500", "bg-cyan-500", "bg-rose-500"][i % 4]
+        for i, p in enumerate(participants)
+    }
 
+    # Build HTML with chat interface
+    html = f"""
+    <div class="chat-container" data-chunk="{chunk_id}">
+        <div class="mb-3 pb-3 border-b border-slate-300">
+            <div class="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">
+                📌 Conversation • {', '.join(participants) if participants else 'N/A'} • {chunk.date_start[:10]} à {chunk.date_end[:10]}
+            </div>
+        </div>
+
+        <div class="space-y-3 max-h-80 overflow-y-auto chat-messages">
+    """
+
+    for author, content in messages:
+        if author is None:
+            # System message or info
             html += f"""
-            <div class="flex gap-2 mb-2">
-                <div class="text-xs font-bold {author_color} px-2 py-1 rounded whitespace-nowrap">
-                    {author}
-                </div>
-                <div class="text-sm text-slate-700 flex-1">
-                    {content}
+            <div class="flex justify-center my-2">
+                <div class="text-xs text-slate-500 italic bg-slate-100 px-2 py-1 rounded">
+                    {escape_html(content)}
                 </div>
             </div>
             """
         else:
+            # Find which side this message should be on (alternating or based on participant)
+            is_first = participants and author == participants[0]
+            align_class = "justify-start" if is_first else "justify-end"
+            bubble_class = "bg-indigo-500 text-white" if is_first else "bg-slate-300 text-slate-900"
+            color = participant_colors.get(author, "bg-indigo-500")
+
             html += f"""
-            <div class="text-sm text-slate-600 italic pl-2 border-l-2 border-slate-300">
-                {escape_html(line.strip())}
+            <div class="flex {align_class} mb-2">
+                <div class="flex flex-col {'mr-2' if is_first else 'ml-2'} max-w-xs">
+                    <span class="text-xs font-bold text-slate-700 mb-1 {'ml-2' if is_first else 'mr-2'}">
+                        {escape_html(author)}
+                    </span>
+                    <div class="rounded-xl px-4 py-2 {color} text-sm break-words">
+                        {escape_html(content)}
+                    </div>
+                </div>
             </div>
             """
 
@@ -244,6 +259,17 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
     <style>
         body {{ font-family: 'Inter', sans-serif; }}
         .prose-content {{ line-height: 1.6; }}
+        .prose-content strong {{ font-weight: 600; color: #334155; }}
+        .prose-content em {{ font-style: italic; color: #475569; }}
+        .prose-content code {{ background-color: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', monospace; }}
+        .prose-content a {{ color: #4f46e5; text-decoration: underline; }}
+        .prose-content a:hover {{ color: #4338ca; }}
+        .chat-messages {{ display: flex; flex-direction: column; }}
+        .chat-messages > div {{ animation: slideIn 0.3s ease-out; }}
+        @keyframes slideIn {{
+            from {{ opacity: 0; transform: translateY(10px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
     </style>
 </head>
 <body class="h-full">
@@ -265,7 +291,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
                     <span class="text-2xl mr-3">📑</span>
                     <h2 class="text-2xl font-bold text-indigo-900">Conclusion du Juge</h2>
                 </div>
-                <div class="prose-content text-indigo-800 leading-relaxed text-lg">
+                <div class="prose-content text-indigo-800 leading-relaxed text-base prose prose-indigo">
                     {markdown_to_html(summary_synthesis)}
                 </div>
             </div>
@@ -305,6 +331,10 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
     """
 
     for i, qa in enumerate(qa_pairs):
+        chunk_id = qa.get('source_chunk_id')
+        source_button_id = f"source-toggle-{i}"
+        source_content_id = f"source-content-{i}"
+
         html += f"""
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                         <div class="bg-slate-50 px-8 py-6 border-b border-slate-100">
@@ -316,17 +346,27 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
                                 <span class="font-bold text-slate-900 mr-2">Cible:</span>
                                 <span>{escape_html(qa['expected_answer'])}</span>
                             </div>
+        """
+
+        # Add source toggle button
+        if chunk_id and chunk_id in chunks_map:
+            html += f"""
+                            <button class="mt-4 px-3 py-1 text-xs font-medium bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition" onclick="toggleSource('{source_content_id}', this)">
+                                📌 Afficher source ({chunk_id[:20]}...)
+                            </button>
+            """
+
+        html += """
                         </div>
         """
 
-        # Add source context
-        chunk_id = qa.get('source_chunk_id')
+        # Add hidden source context
         if chunk_id and chunk_id in chunks_map:
             chunk = chunks_map[chunk_id]
             html += f"""
-                        <div class="px-8 py-4 bg-slate-100 border-b border-slate-200">
-                            <p class="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">📌 Source</p>
-                            {format_chunk_as_chat(chunk)}
+                        <div id="{source_content_id}" class="hidden px-8 py-4 bg-slate-100 border-b border-slate-200">
+                            <p class="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3">💬 Conversation Source</p>
+                            {format_chunk_as_chat(chunk, source_content_id)}
                         </div>
             """
 
@@ -390,6 +430,20 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
     </div>
 
     <script>
+        // Toggle source visibility
+        function toggleSource(elementId, button) {{
+            const element = document.getElementById(elementId);
+            const isHidden = element.classList.contains('hidden');
+
+            if (isHidden) {{
+                element.classList.remove('hidden');
+                button.textContent = button.textContent.replace('Afficher', 'Masquer');
+            }} else {{
+                element.classList.add('hidden');
+                button.textContent = button.textContent.replace('Masquer', 'Afficher');
+            }}
+        }}
+
         const models = {json.dumps(models)};
         const createChart = (id, label, data, color) => {{
             new Chart(document.getElementById(id), {{
