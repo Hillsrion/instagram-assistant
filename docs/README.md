@@ -18,8 +18,8 @@ Welcome to the Instagram Assistant documentation, a production-ready RAG (Retrie
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
-│  │   Web UI     │    │     CLI      │    │     API      │       │
-│  │  (index.html)│    │   (cli.py)   │    │   (app.py)   │       │
+│  │ React App    │    │     CLI      │    │     API      │       │
+│  │ (frontend/)  │    │   (cli.py)   │    │   (app.py)   │       │
 │  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘       │
 │         │                   │                   │                │
 │         └───────────────────┴───────────────────┘                │
@@ -103,14 +103,18 @@ Welcome to the Instagram Assistant documentation, a production-ready RAG (Retrie
 | Vector Store | FAISS |
 | Lexical Search | rank_bm25 |
 | Reranker | BGE-reranker-base |
-| Frontend | Vanilla JS, CSS |
+| Frontend | React 19, Vite, TanStack Router, Tailwind CSS v4 |
 
 ## Getting Started
 
 1. **Install dependencies**: `pip install -r requirements.txt`
 2. **Index conversations**: `python setup_rag_batch.py`
-3. **Launch app**: `python app.py`
-4. **Open browser**: http://localhost:8000
+3. **Launch API**: `python app.py`
+4. **Launch Frontend**:
+   ```bash
+   cd frontend
+   pnpm install && pnpm dev --open
+   ```
 
 ## Project Structure
 
@@ -118,6 +122,9 @@ Welcome to the Instagram Assistant documentation, a production-ready RAG (Retrie
 instagram-assistant/
 ├── app.py                  # FastAPI server
 ├── cli.py                  # CLI interface
+├── frontend/               # React web application
+│   ├── src/                # Frontend source code
+│   └── package.json        # Frontend dependencies
 ├── setup_rag_batch.py      # Initial indexing
 ├── update_index.py         # Incremental updates
 ├── rag_pipeline/           # Core RAG components

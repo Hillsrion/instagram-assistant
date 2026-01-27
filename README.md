@@ -24,10 +24,12 @@ python3 instagram_to_text.py
 # 3. Index conversations
 python3 setup_rag_batch.py
 
-# 4. Launch web application
+# 4. Launch web application (Backend)
 python3 app.py
 
-# 5. Open http://localhost:8000
+# 5. Launch web application (Frontend)
+cd frontend
+pnpm install && pnpm dev --open
 ```
 
 ## Architecture
@@ -41,8 +43,9 @@ rag_data/
   ├── file_state.json       # Delta tracker for incremental updates
   └── eval_dataset.json     # Evaluation dataset
 rag_pipeline/               # Core RAG components
+frontend/                   # React web interface (Vite + TanStack)
 eval/                       # Evaluation pipeline (RAGAS metrics)
-web/                        # Web interface
+web/                        # Legacy web interface
 app.py                      # FastAPI server
 ```
 
@@ -92,7 +95,7 @@ python -m eval.run_eval --benchmark
 - **Reranker**: BGE-reranker-base
 - **LLM**: Ollama (local)
 - **Backend**: FastAPI
-- **Frontend**: Vanilla JS
+- **Frontend**: React 19, Vite, TanStack Router, Tailwind CSS v4, Shadcn UI
 
 ## Merging Multiple Exports
 
