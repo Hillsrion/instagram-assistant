@@ -5,6 +5,7 @@ A production-ready local AI assistant to explore and query your exported Instagr
 ## Features
 
 - **Advanced RAG Pipeline**: Hybrid search (dense + BM25), cross-encoder reranking, context expansion
+- **Hierarchical Summaries**: Automatic fallback to conversation/period summaries for "big picture" queries
 - **Modern Web Interface**: Multiple conversations, filters, real-time streaming
 - **100% Local & Private**: No data sent to external servers
 - **Production-Ready**: Evaluation pipeline, incremental updates, PII filtering, robustness features
@@ -34,6 +35,40 @@ pnpm install && pnpm dev --open
 
 ## Architecture
 
+### High-Level Flow
+
+```mermaid
+flowchart LR
+    subgraph Input
+        A[Instagram<br/>Export JSON]
+    end
+
+    subgraph Indexing
+        B[Chunker] --> C[Enricher<br/>LLM]
+        C --> D[Embeddings<br/>BGE-M3]
+        D --> E[(FAISS +<br/>BM25 +<br/>Summaries)]
+    end
+
+    subgraph Query
+        F[User<br/>Question] --> G[Hybrid<br/>Search]
+        G --> H[Reranker]
+        H --> I{Confidence?}
+        I -->|Low| J[Summary<br/>Fallback]
+        I -->|High| K[LLM<br/>Response]
+        J --> K
+    end
+
+    A --> B
+    E --> G
+    K --> L[Answer +<br/>Sources]
+
+    style A fill:#e3f2fd
+    style E fill:#fff9c4
+    style L fill:#c8e6c9
+```
+
+### Directory Structure
+
 ```
 instagram_conversations/     # Exported Instagram conversations
 rag_data/
@@ -41,7 +76,10 @@ rag_data/
   ├── bm25_index.pkl        # Lexical index (keyword search)
   ├── metadata.db           # SQLite (metadata filtering)
   ├── file_state.json       # Delta tracker for incremental updates
-  └── eval_dataset.json     # Evaluation dataset
+  ├── eval_dataset.json     # Evaluation dataset
+  ├── conversation_summaries.json  # Hierarchical summaries (conversation level)
+  ├── period_summaries.json        # Hierarchical summaries (monthly)
+  └── summary_index/        # FAISS indexes for summary search
 rag_pipeline/               # Core RAG components
 frontend/                   # React web interface (Vite + TanStack)
 eval/                       # Evaluation pipeline (RAGAS metrics)

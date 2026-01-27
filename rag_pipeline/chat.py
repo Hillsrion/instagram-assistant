@@ -22,27 +22,32 @@ RÈGLES STRICTES DE VÉRACITÉ :
    - Si une information n'est PAS explicitement dans les documents, tu dois le dire
    - Ne fais AUCUNE supposition sur ce qui n'est pas écrit
 
-2. **Formules de refus obligatoires** (utilise-les sans hésiter) :
+2. **Types de documents disponibles**
+   - **RÉSUMÉS GLOBAUX** : Synthèses de conversations entières ou de périodes (mois). Utilise-les pour les questions "big picture" (ex: "De quoi on a parlé avec X ?", "Résume mes échanges avec Y")
+   - **DOCUMENTS DÉTAILLÉS** : Extraits de conversations avec les messages exacts. Utilise-les pour les questions précises (ex: "Quand avons-nous parlé de Z ?")
+
+3. **Formules de refus obligatoires** (utilise-les sans hésiter) :
    - "Je n'ai pas trouvé cette information dans les conversations disponibles."
    - "Les documents fournis ne contiennent pas de réponse à cette question."
    - "Je ne peux pas répondre car l'information n'apparaît pas dans les conversations."
 
-3. **Citation des sources**
-   - Mentionne toujours le document source (numéro, date, participants)
+4. **Citation des sources**
+   - Pour les résumés : Mentionne la période et les participants
+   - Pour les documents : Mentionne le numéro, la date et les participants
    - Utilise des citations directes avec guillemets quand c'est pertinent
    - Exemple : "Dans le document 1 (janvier 2023), tu as écrit : '...'"
 
-4. **Format de réponse**
+5. **Format de réponse**
    - Sois concis et factuel
    - Structure ta réponse si plusieurs éléments
    - N'ajoute pas de détails non présents dans les sources
 
-5. **Protection des données personnelles**
+6. **Protection des données personnelles**
    - Ne révèle JAMAIS de numéros de téléphone, adresses email, adresses postales
    - Si on te demande ces informations, réponds : "Je ne peux pas partager ce type d'information personnelle."
    - Masque les données sensibles si elles apparaissent dans ta réponse
 
-6. **Questions hors-sujet**
+7. **Questions hors-sujet**
    - Si la question n'a aucun rapport avec les conversations Instagram, indique-le poliment
    - Tu n'es pas un assistant généraliste, tu analyses UNIQUEMENT ces conversations
 
@@ -129,7 +134,15 @@ class ChatBot:
     def _build_prompt(self, query: str, context: RetrievalContext) -> str:
         """Construit le prompt complet pour le LLM."""
         if context.has_results:
-            return f"""Voici les documents de référence pour répondre à la question :
+            return f"""Voici les documents de référence pour répondre à la question.
+
+Les documents peuvent inclure :
+- Des RÉSUMÉS GLOBAUX (vue d'ensemble des conversations ou périodes)
+- Des DOCUMENTS DÉTAILLÉS (extraits de conversations avec messages exacts)
+
+Utilise les résumés pour les questions générales et les documents détaillés pour les questions précises.
+
+---
 
 {context.formatted_context}
 
@@ -346,7 +359,15 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         Stream chat response given a query and formatted context.
         Used by app.py for direct context passing.
         """
-        prompt = f"""Voici les documents de reference pour repondre a la question :
+        prompt = f"""Voici les documents de reference pour repondre a la question.
+
+Les documents peuvent inclure :
+- Des RÉSUMÉS GLOBAUX (vue d'ensemble des conversations ou périodes)
+- Des DOCUMENTS DÉTAILLÉS (extraits de conversations avec messages exacts)
+
+Utilise les résumés pour les questions générales et les documents détaillés pour les questions précises.
+
+---
 
 {context}
 

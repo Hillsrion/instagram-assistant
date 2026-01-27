@@ -64,6 +64,12 @@ class Config:
     confidence_threshold: float = 0.25
     # Activer le filtrage PII dans les réponses
     enable_pii_filter: bool = True
+
+    # === Summary Index (Hierarchical Summaries) ===
+    # Seuil pour déclencher le fallback vers les résumés
+    fallback_threshold: float = 0.35
+    # Pondération des résultats summary dans le score final
+    summary_boost: float = 0.8
     
     # === LLM ===
     # Modèle Ollama à utiliser

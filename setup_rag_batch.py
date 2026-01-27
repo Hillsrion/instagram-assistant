@@ -161,7 +161,7 @@ def main():
     # Étape 1: Charger les chunks
     # ========================================
     print("=" * 40)
-    print("📝 Étape 1/6: Chargement des chunks")
+    print("📝 Étape 1/8: Chargement des chunks")
     print("=" * 40)
 
     chunker = ConversationChunker(config)
@@ -188,7 +188,7 @@ def main():
     # Étape 2: Enrichissement LLM (Gold Standard RAG)
     # ========================================
     print("=" * 40)
-    print("✨ Étape 2/6: Enrichissement sémantique (LLM)")
+    print("✨ Étape 2/8: Enrichissement sémantique (LLM)")
     print("=" * 40)
     
     from rag_pipeline.enricher import ChunkEnricher
@@ -250,7 +250,7 @@ def main():
     # Étape 3: Génération des embeddings par batch
     # ========================================
     print("=" * 40)
-    print("🧠 Étape 3/6: Génération des embeddings (batched)")
+    print("🧠 Étape 3/8: Génération des embeddings (batched)")
     print("=" * 40)
 
 
@@ -333,7 +333,7 @@ def main():
     # Étape 3: Construction de l'index FAISS
     # ========================================
     print("=" * 40)
-    print("🗃️  Étape 4/6: Construction de l'index FAISS")
+    print("🗃️  Étape 4/8: Construction de l'index FAISS")
     print("=" * 40)
 
     vector_store = VectorStore(config)
@@ -346,7 +346,7 @@ def main():
     # Étape 4: Construction des index avancés
     # ========================================
     print("=" * 40)
-    print("📚 Étape 5/6: Index BM25 (recherche lexicale)")
+    print("📚 Étape 5/8: Index BM25 (recherche lexicale)")
     print("=" * 40)
 
     from rag_pipeline.bm25_index import BM25Index
@@ -361,7 +361,7 @@ def main():
     # Étape 5: Index métadonnées (pre-filtering)
     # ========================================
     print("=" * 40)
-    print("📋 Étape 6/6: Index métadonnées (SQLite)")
+    print("📋 Étape 6/8: Index métadonnées (SQLite)")
     print("=" * 40)
 
     from rag_pipeline.metadata_store import MetadataStore
@@ -378,6 +378,121 @@ def main():
     print()
 
     # ========================================
+    # Étape 7: Génération des résumés hiérarchiques
+    # ========================================
+    print("=" * 40)
+    print("📝 Étape 7/8: Génération des résumés hiérarchiques (LLM)")
+    print("=" * 40)
+
+    from rag_pipeline.summary_generator import SummaryGenerator
+    from rag_pipeline.summary_store import SummaryStore
+
+    # Vérifier si les résumés existent déjà
+    conv_summaries_path = config.index_dir / "conversation_summaries.json"
+    period_summaries_path = config.index_dir / "period_summaries.json"
+
+    if conv_summaries_path.exists() and period_summaries_path.exists():
+        print("✅ Résumés hiérarchiques déjà générés.")
+        import json
+        with open(conv_summaries_path, 'r', encoding='utf-8') as f:
+            conv_data = json.load(f)
+        with open(period_summaries_path, 'r', encoding='utf-8') as f:
+            period_data = json.load(f)
+        print(f"   • {len(conv_data)} résumés de conversation")
+        print(f"   • {len(period_data)} résumés de période")
+    else:
+        print(f"🧠 Génération via Ollama ({config.llm_model})...")
+        print("   Cette étape peut prendre du temps selon le nombre de conversations.")
+
+        summary_generator = SummaryGenerator(config)
+
+        try:
+            summary_start_time = time.time()
+
+            def summary_progress(current, total, desc=""):
+                elapsed = time.time() - summary_start_time
+                speed = current / elapsed if elapsed > 0 else 0
+                remaining = (total - current) / speed if speed > 0 else 0
+                rem_str = f"{int(remaining // 60)}m {int(remaining % 60)}s"
+                sys.stdout.write(f"\r   📝 [{current}/{total}] {desc[:40]:<40} | Reste: {rem_str}   ")
+                sys.stdout.flush()
+
+            def save_summaries(conv_summaries, period_summaries):
+                # Sauvegarder les résumés en JSON (sans index FAISS pour l'instant)
+                import json
+                with open(conv_summaries_path, 'w', encoding='utf-8') as f:
+                    json.dump([s.to_dict() for s in conv_summaries], f, ensure_ascii=False, indent=2)
+                with open(period_summaries_path, 'w', encoding='utf-8') as f:
+                    json.dump([s.to_dict() for s in period_summaries], f, ensure_ascii=False, indent=2)
+
+            conversation_summaries, period_summaries = summary_generator.generate_all_summaries(
+                chunks,
+                progress_callback=summary_progress,
+                save_callback=save_summaries
+            )
+
+            print(f"\n✅ Résumés générés: {len(conversation_summaries)} conversations, {len(period_summaries)} périodes")
+
+        except KeyboardInterrupt:
+            print("\n\n⚠️ Interruption : les résumés partiels ont été sauvegardés.")
+            print("   Relancez le script pour reprendre.")
+            sys.exit(0)
+        except Exception as e:
+            print(f"\n\n⚠️ Erreur pendant la génération des résumés: {e}")
+            print("   L'indexation continue sans résumés hiérarchiques.")
+            conversation_summaries = []
+            period_summaries = []
+
+    print()
+
+    # ========================================
+    # Étape 8: Construction de l'index des résumés
+    # ========================================
+    print("=" * 40)
+    print("🔍 Étape 8/8: Index FAISS pour les résumés")
+    print("=" * 40)
+
+    summary_index_path = config.index_dir / "summary_index"
+    conv_index_exists = (summary_index_path / "conversation_index.faiss").exists()
+    period_index_exists = (summary_index_path / "period_index.faiss").exists()
+
+    if conv_index_exists and period_index_exists:
+        print("✅ Index des résumés déjà construit.")
+    else:
+        # Charger les résumés si pas déjà en mémoire
+        if 'conversation_summaries' not in dir() or not conversation_summaries:
+            import json
+            from rag_pipeline.summary_models import ConversationSummary, PeriodSummary
+
+            if conv_summaries_path.exists():
+                with open(conv_summaries_path, 'r', encoding='utf-8') as f:
+                    conv_data = json.load(f)
+                conversation_summaries = [ConversationSummary.from_dict(d) for d in conv_data]
+            else:
+                conversation_summaries = []
+
+            if period_summaries_path.exists():
+                with open(period_summaries_path, 'r', encoding='utf-8') as f:
+                    period_data = json.load(f)
+                period_summaries = [PeriodSummary.from_dict(d) for d in period_data]
+            else:
+                period_summaries = []
+
+        if conversation_summaries or period_summaries:
+            # Réutiliser le modèle d'embeddings
+            if 'embedding_model' not in dir():
+                embedding_model = EmbeddingModel(config)
+
+            summary_store = SummaryStore(config, embedding_model)
+            summary_store.build_indexes(conversation_summaries, period_summaries)
+            summary_store.save()
+            print("✅ Index des résumés construit et sauvegardé.")
+        else:
+            print("⚠️  Aucun résumé à indexer.")
+
+    print()
+
+    # ========================================
     # Résumé final
     # ========================================
     print("=" * 60)
@@ -388,6 +503,7 @@ def main():
     print(f"🗃️  Index FAISS: {config.vector_store_path}")
     print(f"📚 Index BM25: {config.index_dir / 'bm25_index.pkl'}")
     print(f"📋 Index métadonnées: {config.index_dir / 'metadata.db'}")
+    print(f"📑 Index résumés: {config.index_dir / 'summary_index'}")
     print()
     print("🎉 Vous pouvez maintenant lancer le chat avancé avec:")
     print("   python3 chat_instagram_advanced.py")

@@ -144,7 +144,8 @@ async def lifespan(app: FastAPI):
             config,
             enable_reranking=True,
             enable_bm25=True,
-            enable_metadata=True
+            enable_metadata=True,
+            enable_summaries=True
         )
         chatbot = ChatBot(config)
         print(f"Index chargé: {components['vector_store'].size} chunks")
@@ -196,6 +197,7 @@ async def get_status():
         "has_bm25": components and 'bm25_index' in components,
         "has_reranker": components and 'reranker' in components,
         "has_metadata": components and 'metadata_store' in components,
+        "has_summaries": components and 'summary_store' in components,
     }
 
 
@@ -442,6 +444,8 @@ async def chat_stream(request: ChatRequest):
 
         # Send sources with chunk_id and preview
         sources = []
+        summary_sources = []
+
         if context.results:
             yield f"data: {json.dumps({'type': 'progress', 'step': 'documents', 'message': f'Lecture de {len(context.results)} documents...', 'count': len(context.results)})}\n\n"
 
@@ -457,10 +461,26 @@ async def chat_stream(request: ChatRequest):
                     "expanded": r.is_expanded,
                     "preview": (r.chunk.narrative_summary or r.chunk.summary or r.chunk.content[:200])[:200]
                 })
-            yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
 
-        # Check for low confidence - skip LLM call if confidence is too low
-        if context.low_confidence or not context.has_results:
+        # Add summary sources if fallback was used
+        if context.used_summary_fallback and context.summary_results:
+            for sr in context.summary_results:
+                summary = sr.summary
+                summary_sources.append({
+                    "type": "summary",
+                    "level": sr.level,
+                    "summary_id": summary.summary_id,
+                    "participants": summary.participants,
+                    "period": getattr(summary, 'period', None) or f"{summary.date_start[:10]} - {summary.date_end[:10]}",
+                    "score": round(sr.score, 2),
+                    "preview": summary.summary[:200]
+                })
+
+        if sources or summary_sources:
+            yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'summary_sources': summary_sources})}\n\n"
+
+        # Check for low confidence - skip LLM call if confidence is too low AND no summaries
+        if (context.low_confidence and not context.used_summary_fallback) or not context.has_results:
             response_text = "Je n'ai pas trouve d'information pertinente dans les conversations pour repondre a cette question. Pouvez-vous reformuler ou preciser votre demande ?"
             yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
         else:
@@ -496,7 +516,9 @@ async def chat_stream(request: ChatRequest):
             "content": response_text,
             "timestamp": datetime.now().isoformat(),
             "sources": sources,
+            "summary_sources": summary_sources,
             "low_confidence": context.low_confidence,
+            "used_summary_fallback": context.used_summary_fallback,
             "confidence_score": round(context.max_confidence_score, 3)
         }
         conv['messages'].append(assistant_msg)

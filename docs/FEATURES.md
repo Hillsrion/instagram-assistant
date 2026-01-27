@@ -7,10 +7,11 @@ This document describes the advanced features of the Instagram Assistant RAG sys
 ## Table of Contents
 
 1. [LLM Enrichment](#1-llm-enrichment)
-2. [Evaluation Pipeline](#2-evaluation-pipeline)
-3. [Robustness & Confidence](#3-robustness--confidence)
-4. [Incremental Updates](#4-incremental-updates)
-5. [User Experience](#5-user-experience)
+2. [Hierarchical Summaries](#2-hierarchical-summaries)
+3. [Evaluation Pipeline](#3-evaluation-pipeline)
+4. [Robustness & Confidence](#4-robustness--confidence)
+5. [Incremental Updates](#5-incremental-updates)
+6. [User Experience](#6-user-experience)
 
 ---
 
@@ -128,11 +129,231 @@ python setup_rag_batch.py
 
 ---
 
-## 2. Evaluation Pipeline
+## 2. Hierarchical Summaries
+
+The hierarchical summaries feature adds a layer of abstraction above chunks to handle "big picture" queries like:
+- "De quoi a-t-on parlé avec Marie cet été ?"
+- "Résume mes conversations avec Paul"
+- "Quels sujets reviennent souvent avec ce groupe ?"
+
+### 2.1 Architecture
+
+```mermaid
+graph TB
+    subgraph "LEVEL 1: Conversation"
+        L1[ConversationSummary]
+        L1_desc["1 global summary per conversation<br/>All chunks aggregated"]
+    end
+
+    subgraph "LEVEL 2: Period"
+        L2[PeriodSummary]
+        L2_desc["Monthly summaries<br/>Per conversation"]
+    end
+
+    subgraph "LEVEL 3: Chunks"
+        L3[Chunk]
+        L3_desc["Message details<br/>50 messages max, 3 days max"]
+    end
+
+    L1 --> L2
+    L2 --> L3
+
+    style L1 fill:#e1f5fe
+    style L2 fill:#fff3e0
+    style L3 fill:#e8f5e9
+```
+
+### 2.2 Data Models
+
+Module: `rag_pipeline/summary_models.py`
+
+#### ConversationSummary
+
+Global summary of an entire conversation with a participant.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `summary_id` | `string` | `{conversation_id}_summary` |
+| `conversation_id` | `string` | Reference to the conversation |
+| `participants` | `string[]` | List of participants |
+| `date_start` | `string` | First message date (ISO) |
+| `date_end` | `string` | Last message date (ISO) |
+| `total_messages` | `int` | Total message count |
+| `total_chunks` | `int` | Total chunk count |
+| `summary` | `string` | Narrative summary (2-3 sentences) |
+| `main_topics` | `string[]` | 3-5 recurring topics |
+| `relationship_dynamic` | `string` | Type of relationship (friends, family, colleagues...) |
+| `notable_events` | `string[]` | Notable events mentioned |
+| `chunk_ids` | `string[]` | Linked chunk IDs |
+
+#### PeriodSummary
+
+Summary of a specific month for a conversation.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `summary_id` | `string` | `{conversation_id}_period_{YYYY-MM}` |
+| `conversation_id` | `string` | Reference to the conversation |
+| `participants` | `string[]` | List of participants |
+| `period` | `string` | Period in `YYYY-MM` format |
+| `date_start` | `string` | First message date of period |
+| `date_end` | `string` | Last message date of period |
+| `message_count` | `int` | Message count for this period |
+| `summary` | `string` | Period summary (1-2 sentences) |
+| `topics` | `string[]` | 2-3 topics discussed |
+| `mood` | `string` | General mood (light, serious, tense, joyful...) |
+| `chunk_ids` | `string[]` | Chunk IDs in this period |
+
+### 2.3 Retrieval with Automatic Fallback
+
+```mermaid
+flowchart TD
+    A[User Query] --> B[Search in CHUNKS<br/>Level 3]
+    B --> C{Confidence<br/>Score?}
+
+    C -->|"> 0.35<br/>HIGH"| D[Direct Response<br/>from Chunks]
+    C -->|"< 0.35<br/>LOW"| E[Search in SUMMARIES<br/>Levels 1 & 2]
+
+    E --> F{Match<br/>Found?}
+    F -->|Yes| G[Contextualized Response<br/>+ Drill-down possible]
+    F -->|No| H[Information<br/>Not Found]
+
+    D --> I[Generate LLM Response]
+    G --> I
+    H --> J[Return Refusal Message]
+    I --> K[Stream to User]
+    J --> K
+
+    style A fill:#e3f2fd
+    style D fill:#c8e6c9
+    style G fill:#fff9c4
+    style H fill:#ffcdd2
+    style K fill:#e1bee7
+```
+
+### 2.4 Usage
+
+#### Generating Summaries
+
+Summaries are generated automatically during indexing:
+
+```bash
+python setup_rag_batch.py
+```
+
+Steps 7 and 8 handle summary generation and indexing:
+- **Step 7**: Generate hierarchical summaries via LLM
+- **Step 8**: Build FAISS index for summaries
+
+#### Manual Generation
+
+```python
+from rag_pipeline.summary_generator import SummaryGenerator
+from rag_pipeline.summary_store import SummaryStore
+from rag_pipeline.chunker import ConversationChunker
+from rag_pipeline.config import Config
+
+config = Config()
+chunker = ConversationChunker(config)
+chunks = chunker.load_chunks()
+
+# Generate summaries
+generator = SummaryGenerator(config)
+conv_summaries, period_summaries = generator.generate_all_summaries(chunks)
+
+# Build and save index
+from rag_pipeline.embeddings import EmbeddingModel
+embedding_model = EmbeddingModel(config)
+store = SummaryStore(config, embedding_model)
+store.build_indexes(conv_summaries, period_summaries)
+store.save()
+```
+
+#### Searching Summaries Directly
+
+```python
+from rag_pipeline.summary_store import SummaryStore
+from rag_pipeline.embeddings import EmbeddingModel
+from rag_pipeline.config import Config
+
+config = Config()
+embedding_model = EmbeddingModel(config)
+
+store = SummaryStore(config, embedding_model)
+store.load()
+
+# Search all levels
+results = store.search("De quoi on a parlé avec Marie ?", level="all", top_k=3)
+
+# Search only conversation summaries
+results = store.search("Résume mes échanges avec Paul", level="conversation", top_k=3)
+
+# Search only period summaries
+results = store.search("Que s'est-il passé en juin ?", level="period", top_k=3)
+
+# Display results
+for result in results:
+    print(f"[{result.level}] Score: {result.score:.2f}")
+    print(f"  {result.summary.summary}")
+```
+
+### 2.5 Configuration
+
+```python
+# In rag_pipeline/config.py or .env
+
+# Threshold to trigger fallback to summaries
+fallback_threshold: float = 0.35
+
+# Weight for summary results in final score
+summary_boost: float = 0.8
+```
+
+### 2.6 Generated Files
+
+After running `setup_rag_batch.py`, the following files are created:
+
+```
+rag_data/
+├── conversation_summaries.json    # ConversationSummary data
+├── period_summaries.json          # PeriodSummary data
+└── summary_index/
+    ├── conversation_index.faiss   # FAISS index for conversations
+    └── period_index.faiss         # FAISS index for periods
+```
+
+### 2.7 Integration with Advanced Retriever
+
+The `AdvancedRetriever` automatically uses the summary store when configured:
+
+```python
+from rag_pipeline.advanced_retriever import create_advanced_retriever
+
+# Factory function now includes summary store
+retriever, components = create_advanced_retriever(
+    enable_reranking=True,
+    enable_bm25=True,
+    enable_metadata=True,
+    enable_summaries=True  # Enable hierarchical summaries fallback
+)
+
+# Retrieve with automatic fallback
+context = retriever.retrieve("De quoi a-t-on parlé avec Marie cet été ?")
+
+# Check if summary fallback was used
+if context.used_summary_fallback:
+    print("Summary fallback was triggered")
+    for sr in context.summary_results:
+        print(f"  [{sr.level}] {sr.summary.summary}")
+```
+
+---
+
+## 3. Evaluation Pipeline
 
 The evaluation pipeline enables automated measurement and comparison of RAG system performance.
 
-### 1.1 Synthetic Data Generation
+### 3.1 Synthetic Data Generation
 
 Module: `eval/synthetic_generator.py`
 
@@ -163,7 +384,7 @@ qa_pairs = generator.generate_dataset(chunks, target_size=50)
 generator.save_dataset(qa_pairs)
 ```
 
-### 1.2 RAGAS Metrics
+### 3.2 RAGAS Metrics
 
 Module: `eval/metrics.py`
 
@@ -178,7 +399,7 @@ Implements RAGAS-inspired metrics for RAG evaluation:
 
 Metrics are broken down by question type and difficulty level.
 
-### 1.3 Benchmark Runner
+### 3.3 Benchmark Runner
 
 Module: `eval/benchmark.py`
 
@@ -202,7 +423,7 @@ report = runner.run_benchmark(qa_pairs, config)
 print(report.summary())
 ```
 
-### 1.4 CLI Evaluation
+### 3.4 CLI Evaluation
 
 ```bash
 # Generate 50 QA pairs
@@ -233,9 +454,9 @@ Generation Metrics:
 
 ---
 
-## 3. Robustness & Confidence
+## 4. Robustness & Confidence
 
-### 2.1 Confidence Thresholds
+### 4.1 Confidence Thresholds
 
 The system can refuse to answer if confidence is too low.
 
@@ -252,7 +473,7 @@ confidence_threshold: float = 0.25  # Minimum required score
 - `low_confidence` flag added to retrieval context
 - Web interface displays warning badge
 
-### 2.2 Anti-Hallucination Prompt
+### 4.2 Anti-Hallucination Prompt
 
 The system prompt enforces strict truthfulness rules:
 
@@ -268,7 +489,7 @@ STRICT TRUTH RULES:
 5. Off-topic questions: polite refusal
 ```
 
-### 2.3 PII Filtering
+### 4.3 PII Filtering
 
 Module: `rag_pipeline/pii_filter.py`
 
@@ -311,9 +532,9 @@ enable_pii_filter: bool = True
 
 ---
 
-## 4. Incremental Updates
+## 5. Incremental Updates
 
-### 3.1 Delta Tracker
+### 5.1 Delta Tracker
 
 Module: `rag_pipeline/delta_tracker.py`
 
@@ -347,7 +568,7 @@ State saved in `rag_data/file_state.json`:
 }
 ```
 
-### 3.2 Incremental Vector Store
+### 5.2 Incremental Vector Store
 
 Module: `rag_pipeline/vector_store.py`
 
@@ -368,7 +589,7 @@ removed, added = vector_store.update_vectors(
 )
 ```
 
-### 3.3 Update Script
+### 5.3 Update Script
 
 ```bash
 # Show status (detected changes)
@@ -417,9 +638,9 @@ Tracked files: 44
 
 ---
 
-## 5. User Experience
+## 6. User Experience
 
-### 4.1 Interactive Citations
+### 6.1 Interactive Citations
 
 Sources are clickable and display a modal with full content.
 
@@ -453,7 +674,7 @@ GET /api/chunks/{chunk_id}
 - Display: summary, metadata, hypothetical questions
 - Raw conversation content
 
-### 4.2 Follow-up Questions
+### 6.2 Follow-up Questions
 
 System automatically generates 3 follow-up questions after each answer.
 
@@ -472,7 +693,7 @@ System automatically generates 3 follow-up questions after each answer.
 - Clickable buttons below answer
 - Click → Fills input field and submits automatically
 
-### 4.3 Progress Indicators
+### 6.3 Progress Indicators
 
 Streaming now includes progress events:
 
@@ -489,7 +710,7 @@ Streaming now includes progress events:
 {"type": "progress", "step": "documents", "message": "Reading 5 documents...", "count": 5}
 ```
 
-### 4.4 Low Confidence Handling
+### 6.4 Low Confidence Handling
 
 When confidence score is too low:
 
@@ -509,20 +730,192 @@ instagram-assistant/
 │   ├── benchmark.py             # Benchmark runner
 │   └── run_eval.py              # CLI
 ├── rag_pipeline/
-│   ├── config.py                # + confidence_threshold, enable_pii_filter
-│   ├── advanced_retriever.py    # + low_confidence, max_confidence_score
+│   ├── config.py                # + confidence_threshold, enable_pii_filter, fallback_threshold
+│   ├── advanced_retriever.py    # + low_confidence, max_confidence_score, summary fallback
 │   ├── chat.py                  # + followup, PII filter
 │   ├── vector_store.py          # + add/remove/update vectors
-│   ├── pii_filter.py            # NEW: PII filtering
-│   └── delta_tracker.py         # NEW: File tracking
+│   ├── pii_filter.py            # PII filtering
+│   ├── delta_tracker.py         # File tracking
+│   ├── summary_models.py        # NEW: ConversationSummary, PeriodSummary dataclasses
+│   ├── summary_generator.py     # NEW: LLM-based summary generation
+│   └── summary_store.py         # NEW: FAISS index for summaries
+├── rag_data/
+│   ├── faiss_index/             # Vector store (dense search)
+│   ├── bm25_index.pkl           # Lexical index (keyword search)
+│   ├── metadata.db              # SQLite (metadata filtering)
+│   ├── conversation_summaries.json  # NEW: Conversation summaries data
+│   ├── period_summaries.json    # NEW: Period summaries data
+│   └── summary_index/           # NEW: FAISS indexes for summaries
+│       ├── conversation_index.faiss
+│       └── period_index.faiss
 ├── web/
 │   ├── index.html               # + Source modal
 │   └── static/
 │       ├── app.js               # + Progress, followups, modal
 │       └── style.css            # + New component styles
-├── update_index.py              # NEW: Incremental update script
+├── update_index.py              # Incremental update script
 └── docs/
     └── FEATURES.md              # This documentation
+```
+
+---
+
+## RAG Pipeline Diagrams
+
+### Indexing Pipeline (setup_rag_batch.py)
+
+```mermaid
+flowchart TB
+    subgraph "Step 1-2: Data Preparation"
+        A[Instagram Conversations<br/>.txt files] --> B[ConversationChunker]
+        B --> C[Raw Chunks<br/>50 msgs max, 3 days max]
+        C --> D[ChunkEnricher<br/>via Ollama LLM]
+        D --> E[Enriched Chunks<br/>+ narrative_summary<br/>+ hypothetical_questions<br/>+ emotions]
+    end
+
+    subgraph "Step 3-4: Vector Index"
+        E --> F[EmbeddingModel<br/>BGE-M3]
+        F --> G[Embeddings<br/>1024 dimensions]
+        G --> H[FAISS Index<br/>IndexFlatIP]
+    end
+
+    subgraph "Step 5-6: Auxiliary Indexes"
+        E --> I[BM25Index<br/>Lexical Search]
+        E --> J[MetadataStore<br/>SQLite]
+    end
+
+    subgraph "Step 7-8: Hierarchical Summaries"
+        E --> K[SummaryGenerator<br/>via Ollama LLM]
+        K --> L[ConversationSummary<br/>+ PeriodSummary]
+        L --> M[Summary FAISS Index]
+    end
+
+    H --> N[(rag_data/)]
+    I --> N
+    J --> N
+    M --> N
+
+    style A fill:#e3f2fd
+    style E fill:#c8e6c9
+    style H fill:#fff9c4
+    style M fill:#f3e5f5
+    style N fill:#ffecb3
+```
+
+### Retrieval Pipeline (AdvancedRetriever)
+
+```mermaid
+flowchart TB
+    A[User Query] --> B[EmbeddingModel<br/>Encode Query]
+
+    subgraph "Stage 1: Pre-filtering"
+        B --> C{Filters<br/>Applied?}
+        C -->|Yes| D[MetadataStore<br/>Filter by participant/date/year]
+        C -->|No| E[All Chunks]
+        D --> F[Allowed Indices]
+        E --> F
+    end
+
+    subgraph "Stage 2: Search"
+        F --> G{Search<br/>Mode?}
+        G -->|Dense| H[FAISS Search<br/>Vector Similarity]
+        G -->|BM25| I[BM25 Search<br/>Keyword Matching]
+        G -->|Hybrid| J[Dense + BM25<br/>α=0.5 blend]
+        H --> K[Candidates]
+        I --> K
+        J --> K
+    end
+
+    subgraph "Stage 3: Reranking"
+        K --> L{Reranking<br/>Enabled?}
+        L -->|Yes| M[CrossEncoderReranker<br/>BGE-reranker-base]
+        L -->|No| N[Keep Top-K]
+        M --> O[Reranked Results]
+        N --> O
+    end
+
+    subgraph "Stage 4: Context Expansion"
+        O --> P{Expand<br/>Context?}
+        P -->|Yes| Q[Add Adjacent Chunks<br/>window=1]
+        P -->|No| R[Final Results]
+        Q --> R
+    end
+
+    subgraph "Stage 5: Summary Fallback"
+        R --> S{Confidence<br/>< 0.35?}
+        S -->|Yes| T[SummaryStore Search<br/>Conversation + Period]
+        S -->|No| U[Return Chunk Results]
+        T --> V[Merge Summaries<br/>+ Chunks]
+        V --> W[AdvancedRetrievalContext]
+        U --> W
+    end
+
+    style A fill:#e3f2fd
+    style W fill:#c8e6c9
+    style T fill:#fff9c4
+```
+
+### API Chat Flow (app.py /api/chat/stream)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant FastAPI
+    participant Retriever
+    participant SummaryStore
+    participant ChatBot
+    participant Ollama
+
+    Client->>FastAPI: POST /api/chat/stream
+    FastAPI->>FastAPI: Create/Load Conversation
+
+    Note over FastAPI: SSE: conversation_id
+
+    FastAPI->>Retriever: retrieve(query, filters)
+
+    Note over FastAPI: SSE: progress "Searching..."
+
+    Retriever->>Retriever: Pre-filter (MetadataStore)
+    Retriever->>Retriever: Hybrid Search (FAISS + BM25)
+    Retriever->>Retriever: Rerank (CrossEncoder)
+    Retriever->>Retriever: Context Expansion
+
+    alt Low Confidence (< 0.35)
+        Retriever->>SummaryStore: search_by_embedding()
+        SummaryStore-->>Retriever: Summary Results
+    end
+
+    Retriever-->>FastAPI: AdvancedRetrievalContext
+
+    Note over FastAPI: SSE: sources + summary_sources
+
+    alt Has Results OR Has Summaries
+        Note over FastAPI: SSE: progress "Generating..."
+
+        FastAPI->>ChatBot: chat_stream(query, context)
+        ChatBot->>Ollama: POST /api/chat (stream)
+
+        loop Token Streaming
+            Ollama-->>ChatBot: token
+            ChatBot-->>FastAPI: token
+            Note over FastAPI: SSE: chunk
+        end
+
+        FastAPI->>ChatBot: generate_followup_questions()
+        ChatBot->>Ollama: POST /api/chat
+        Ollama-->>ChatBot: questions
+        ChatBot-->>FastAPI: followups
+
+        Note over FastAPI: SSE: followups
+    else No Results
+        Note over FastAPI: SSE: chunk "Information not found"
+    end
+
+    FastAPI->>FastAPI: Save Conversation
+
+    Note over FastAPI: SSE: done
+
+    FastAPI-->>Client: Stream Complete
 ```
 
 ---
