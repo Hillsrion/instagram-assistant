@@ -2,6 +2,17 @@ import type { Conversation, ConversationListResponse } from "./types"
 
 const API_BASE = '/api'
 
+export async function getOllamaModels(): Promise<{ models: Array<{ name: string; size: number; modified_at: string }>; default_model: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/ollama/models`)
+    if (!res.ok) throw new Error('Failed to fetch models')
+    return res.json()
+  } catch (error) {
+    console.error('Error fetching Ollama models:', error)
+    return { models: [], default_model: '' }
+  }
+}
+
 export async function getConversations(): Promise<ConversationListResponse[]> {
   const res = await fetch(`${API_BASE}/conversations`)
   if (!res.ok) throw new Error('Failed to fetch conversations')

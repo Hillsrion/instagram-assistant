@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Send, StopCircle, User, Bot } from 'lucide-react'
+import { Send, StopCircle, User, Bot, ChevronDown } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { getConversation } from '@/lib/api'
+import { getConversation, getOllamaModels } from '@/lib/api'
 import { useChatStream } from '@/hooks/use-chat-stream'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,6 +18,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export const Route = createFileRoute('/chat/$chatId')({
   component: ChatRoute,
@@ -34,14 +41,23 @@ function ChatRoute() {
     refetchOnWindowFocus: false
   })
 
+  // Load available models
+  const { data: modelsData } = useQuery({
+    queryKey: ['ollama-models'],
+    queryFn: () => getOllamaModels(),
+    refetchOnWindowFocus: false
+  })
+
   // Chat hook
-  const { 
-    messages, 
-    setMessages, 
-    sendMessage, 
-    isStreaming, 
-    streamStatus, 
-    stopStream 
+  const {
+    messages,
+    setMessages,
+    sendMessage,
+    isStreaming,
+    streamStatus,
+    stopStream,
+    selectedModel,
+    setSelectedModel
   } = useChatStream({ chatId })
 
   // Sync with initial loaded messages
@@ -50,6 +66,13 @@ function ChatRoute() {
       setMessages(conversation.messages)
     }
   }, [conversation, setMessages])
+
+  // Set default model when models are loaded
+  useEffect(() => {
+    if (modelsData?.default_model && !selectedModel) {
+      setSelectedModel(modelsData.default_model)
+    }
+  }, [modelsData, selectedModel, setSelectedModel])
 
   // Auto-scroll
   useEffect(() => {
@@ -111,6 +134,23 @@ function ChatRoute() {
            <h2 className="font-semibold text-lg">{conversation?.title || 'Chat'}</h2>
            {isLoading && <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>}
          </div>
+
+         {/* Model Selector */}
+         {modelsData?.models && modelsData.models.length > 0 && (
+           <Select value={selectedModel || modelsData.default_model || ''} onValueChange={setSelectedModel}>
+             <SelectTrigger className="w-48">
+               <SelectValue placeholder="Select model..." />
+             </SelectTrigger>
+             <SelectContent>
+               {modelsData.models.map((model) => (
+                 <SelectItem key={model.name} value={model.name}>
+                   {model.name.includes(':') ? model.name : `${model.name}:latest`}
+                   {model.name === modelsData.default_model && ' (default)'}
+                 </SelectItem>
+               ))}
+             </SelectContent>
+           </Select>
+         )}
        </div>
 
        {/* Messages Area */}

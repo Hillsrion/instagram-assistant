@@ -13,6 +13,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamStatus, setStreamStatus] = useState<string>('')
+  const [selectedModel, setSelectedModel] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const abortController = useRef<AbortController | null>(null)
 
@@ -46,7 +47,8 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
         },
         body: JSON.stringify({
           message: content,
-          conversation_id: chatId
+          conversation_id: chatId,
+          model: selectedModel
         }),
         signal: abortController.current.signal,
         onmessage(ev) {
@@ -96,7 +98,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
       console.error('Fetch error:', error)
       setIsStreaming(false)
     }
-  }, [chatId, queryClient, onFinish])
+  }, [chatId, queryClient, onFinish, selectedModel])
 
   const stopStream = useCallback(() => {
     if (abortController.current) {
@@ -113,6 +115,8 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
     sendMessage,
     isStreaming,
     streamStatus,
-    stopStream
+    stopStream,
+    selectedModel,
+    setSelectedModel
   }
 }

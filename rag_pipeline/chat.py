@@ -117,26 +117,27 @@ Question : {query}
 Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante dans les conversations Instagram."""
     
     def _call_ollama(
-        self, 
-        prompt: str, 
-        stream: bool = False
+        self,
+        prompt: str,
+        stream: bool = False,
+        model: str = None
     ) -> Generator[str, None, None] | str:
         """Appelle l'API Ollama."""
         system_prompt = SYSTEM_PROMPT.format(user_name=self.config.user_name)
-        
+
         messages = [
             {"role": "system", "content": system_prompt}
         ]
-        
+
         # Ajouter l'historique de conversation (limité aux 4 derniers échanges)
         for msg in self.conversation_history[-8:]:
             messages.append(msg)
-        
+
         # Ajouter la question actuelle
         messages.append({"role": "user", "content": prompt})
-        
+
         payload = {
-            "model": self.config.llm_model,
+            "model": model or self.config.llm_model,
             "messages": messages,
             "stream": stream,
             "options": {
@@ -177,27 +178,29 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
                     yield data["message"]["content"]
     
     def chat(
-        self, 
+        self,
         query: str,
         stream: bool = True,
         top_k: int = None,
-        use_rewriting: bool = True
+        use_rewriting: bool = True,
+        model: str = None
     ) -> ChatResponse | Generator[str, None, ChatResponse]:
         """
         Pose une question et obtient une réponse basée sur les conversations.
-        
+
         Args:
             query: Question de l'utilisateur
             stream: Si True, retourne un générateur pour le streaming
             top_k: Nombre de documents à récupérer
             use_rewriting: Activer la réécriture de question
-            
+            model: Modèle Ollama à utiliser (optionnel)
+
         Returns:
             ChatResponse ou générateur de tokens + ChatResponse final
         """
         search_query = query
         rewritten_query = None
-        
+
         if use_rewriting:
             # On passe l'historique pour une réécriture contextuelle
             rewritten_query = self.rewriter.rewrite(query, self.conversation_history)
@@ -206,44 +209,45 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
 
         # Retrieval
         context = self.retriever.retrieve(search_query, top_k=top_k)
-        
+
         # Construire le prompt (avec la question ORIGINALE pour la réponse finale)
         prompt = self._build_prompt(query, context)
-        
+
         if stream:
-            return self._chat_stream(query, prompt, context, rewritten_query)
+            return self._chat_stream(query, prompt, context, rewritten_query, model)
         else:
-            answer = self._call_ollama(prompt, stream=False)
+            answer = self._call_ollama(prompt, stream=False, model=model)
             self._update_history(query, answer)
             return ChatResponse(
                 answer=answer,
                 context=context,
-                model=self.config.llm_model,
+                model=model or self.config.llm_model,
                 rewritten_query=rewritten_query
             )
     
     def _chat_stream(
-        self, 
-        query: str, 
-        prompt: str, 
+        self,
+        query: str,
+        prompt: str,
         context: RetrievalContext,
-        rewritten_query: Optional[str] = None
+        rewritten_query: Optional[str] = None,
+        model: str = None
     ) -> Generator[str, None, ChatResponse]:
         """Chat en mode streaming."""
         full_response = []
-        
-        for token in self._call_ollama(prompt, stream=True):
+
+        for token in self._call_ollama(prompt, stream=True, model=model):
             full_response.append(token)
             yield token
-        
+
         answer = "".join(full_response)
         self._update_history(query, answer)
-        
+
         # Le return final sera accessible via StopIteration.value
         return ChatResponse(
             answer=answer,
             context=context,
-            model=self.config.llm_model,
+            model=model or self.config.llm_model,
             rewritten_query=rewritten_query
         )
     
@@ -275,12 +279,12 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
             return filtered
         return text
 
-    def generate_followup_questions(self, query: str, answer: str) -> List[str]:
+    def generate_followup_questions(self, query: str, answer: str, model: str = None) -> List[str]:
         """Generate follow-up questions based on the conversation."""
         prompt = FOLLOWUP_PROMPT.format(query=query, answer=answer[:500])
 
         payload = {
-            "model": self.config.llm_model,
+            "model": model or self.config.llm_model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "options": {
@@ -314,7 +318,7 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
             print(f"Followup generation error: {e}")
             return []
 
-    def chat_stream(self, query: str, context: str) -> Generator[str, None, None]:
+    def chat_stream(self, query: str, context: str, model: str = None) -> Generator[str, None, None]:
         """
         Stream chat response given a query and formatted context.
         Used by app.py for direct context passing.
@@ -337,7 +341,7 @@ Question de l'utilisateur : {query}
 
 Reponds en te basant UNIQUEMENT sur les documents ci-dessus. Si tu ne trouves pas l'information, dis-le clairement."""
 
-        for token in self._call_ollama(prompt, stream=True):
+        for token in self._call_ollama(prompt, stream=True, model=model):
             # Filter PII from each token (less efficient but real-time)
             yield token
 
