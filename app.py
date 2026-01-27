@@ -47,6 +47,8 @@ class Conversation(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     conversation_id: Optional[str] = None
+    # Model selection
+    model: Optional[str] = None
     # Filters
     participant_filter: Optional[str] = None
     year_filter: Optional[int] = None
@@ -171,21 +173,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="web/static"), name="static")
-
-
 # ============================================================
 # API Routes
 # ============================================================
-
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    """Serve the main HTML page."""
-    html_path = Path("web/index.html")
-    if html_path.exists():
-        return HTMLResponse(content=html_path.read_text(encoding='utf-8'))
-    return HTMLResponse(content="<h1>Web interface not found</h1>")
 
 
 @app.get("/api/status")
@@ -199,6 +189,39 @@ async def get_status():
         "has_metadata": components and 'metadata_store' in components,
         "has_summaries": components and 'summary_store' in components,
     }
+
+
+@app.get("/api/ollama/models")
+async def list_ollama_models():
+    """List available Ollama models and return the default model."""
+    if not config:
+        raise HTTPException(status_code=503, detail="Config not initialized")
+
+    try:
+        import requests
+        response = requests.get(
+            f"{config.ollama_url}/api/tags",
+            timeout=10
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        models = []
+        for model in data.get("models", []):
+            models.append({
+                "name": model["name"],
+                "size": model.get("size", 0),
+                "modified_at": model.get("modified_at", "")
+            })
+
+        return {
+            "models": models,
+            "default_model": config.llm_model
+        }
+
+    except Exception as e:
+        print(f"Error listing Ollama models: {e}")
+        raise HTTPException(status_code=503, detail="Cannot reach Ollama")
 
 
 @app.get("/api/conversations")
@@ -356,7 +379,7 @@ async def chat(request: ChatRequest):
 
     # Generate response
     response_text = ""
-    for chunk in chatbot.chat_stream(request.message, context.formatted_context):
+    for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=request.model):
         response_text += chunk
 
     # Format sources
@@ -489,7 +512,7 @@ async def chat_stream(request: ChatRequest):
 
             # Stream response
             response_text = ""
-            for chunk in chatbot.chat_stream(request.message, context.formatted_context):
+            for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=request.model):
                 response_text += chunk
                 yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
                 await asyncio.sleep(0)  # Allow other tasks to run
@@ -503,7 +526,7 @@ async def chat_stream(request: ChatRequest):
         followups = []
         if response_text and not context.low_confidence:
             try:
-                followups = chatbot.generate_followup_questions(request.message, response_text)
+                followups = chatbot.generate_followup_questions(request.message, response_text, model=request.model)
             except Exception as e:
                 print(f"Followup generation error: {e}")
 
