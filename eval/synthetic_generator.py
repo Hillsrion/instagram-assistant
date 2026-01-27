@@ -120,9 +120,16 @@ class SyntheticDataGenerator:
         if not ensure_diversity:
             return random.sample(chunks, n_samples)
 
+        # Filter for "rich" chunks (more than 500 characters)
+        rich_chunks = [c for c in chunks if len(c.content) > 1000]
+        if len(rich_chunks) < n_samples:
+            rich_chunks = [c for c in chunks if len(c.content) > 500]
+        
+        target_pool = rich_chunks if len(rich_chunks) >= n_samples else chunks
+
         # Group by participant combination and year
         by_participants = {}
-        for chunk in chunks:
+        for chunk in target_pool:
             key = tuple(sorted(chunk.participants))
             if key not in by_participants:
                 by_participants[key] = []
