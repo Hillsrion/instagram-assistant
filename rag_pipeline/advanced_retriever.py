@@ -517,7 +517,6 @@ class AdvancedRetriever:
                 f"Source: {chunk.file_source}\n"
                 f"Participants: {', '.join(chunk.participants)}\n"
                 f"Période: {chunk.date_start[:10]} → {chunk.date_end[:10]}\n"
-                f"Résumé: {chunk.summary}\n"
                 f"Score: {result.final_score:.2f}\n"
                 f"---\n"
             )

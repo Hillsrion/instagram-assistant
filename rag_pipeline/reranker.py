@@ -174,7 +174,8 @@ class CrossEncoderReranker:
 
         pairs = []
         for chunk, _ in candidates:
-            doc_text = f"{chunk.summary}\n\n{chunk.content[:1500]}"
+            summary = chunk.narrative_summary if chunk.narrative_summary else chunk.summary
+            doc_text = f"{summary}\n\n{chunk.content[:1500]}"
             pairs.append([query, doc_text])
 
         rerank_scores = self.model.predict(pairs, show_progress_bar=False)
