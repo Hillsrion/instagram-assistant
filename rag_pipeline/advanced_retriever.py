@@ -440,18 +440,27 @@ class AdvancedRetriever:
         candidates: List[Tuple[int, float, float, float, bool]],
         top_k: int
     ) -> List[Tuple[int, float, float, float, bool]]:
-        """Applique le reranking cross-encoder."""
+        """Applique le reranking cross-encoder avec fusion des scores."""
         # Préparer les paires pour le reranker
+        # On passe le score combiné (hybrid) comme score de densité
         chunks_for_rerank = [(self.vector_store.chunks[idx], score) for idx, _, _, score, _ in candidates]
 
-        reranked = self.reranker.rerank(query, chunks_for_rerank, top_k=top_k)
+        # Utiliser rerank_with_fusion pour combiner les scores correctement
+        # (dense + rerank avec normalisation)
+        reranked = self.reranker.rerank_with_fusion(
+            query,
+            chunks_for_rerank,
+            top_k=top_k,
+            alpha=0.5  # Équilibre entre score hybride (50%) et reranker (50%)
+        )
 
-        # Reconstruire la liste avec les nouveaux scores
+        # Reconstruire la liste avec les nouveaux scores fusionnés
         result = []
         for rr in reranked:
             # Retrouver l'index
             for idx, dense, bm25, combined, expanded in candidates:
                 if self.vector_store.chunks[idx].chunk_id == rr.chunk.chunk_id:
+                    # rr.rerank_score contient maintenant le score fusionné normalisé
                     result.append((idx, dense, bm25, rr.rerank_score, expanded))
                     break
 
