@@ -11,8 +11,7 @@ from enum import Enum
 from .config import Config, default_config
 from .retriever import Retriever, RetrievalContext
 from .pii_filter import PIIFilter
-from .query_rewriter import QueryRewriter
-from .intent_detector import IntentDetector, SearchIntent
+from .query_analyzer import QueryAnalyzer, AnalysisResult
 
 
 # Prompt système strict pour éviter les hallucinations
@@ -146,8 +145,7 @@ class ChatBot:
         self.conversation_history: List[dict] = []
         self.history_summary: Optional[str] = None
         self.pii_filter = PIIFilter() if self.config.enable_pii_filter else None
-        self.rewriter = QueryRewriter(self.config)
-        self.intent_detector = IntentDetector(self.config)
+        self.query_analyzer = QueryAnalyzer(self.config)
     
     def _compact_history(self):
         """
@@ -188,13 +186,7 @@ Réponds avec un résumé d'un paragraphe maximum."""
         except Exception as e:
             print(f"⚠️ Failed to compact history: {e}")
 
-    def determine_search_params(self, query: str) -> dict:
-        """Détermine les paramètres de recherche via IntentDetector."""
-        return self.intent_detector.detect_intent(query)
-
     def _call_ollama_direct(self, system_prompt: str, user_prompt: str, model: str, max_tokens: int = 50) -> str:
-        # On garde cette méthode car elle peut être utile ailleurs
-        # Mais IntentDetector a sa propre implémentation pour être indépendant
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -314,7 +306,7 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
                     content = data["message"]["content"]
                     if content:  # Only yield non-empty content
                         yield content
-    
+
     def chat(
         self,
         query: str,
@@ -330,31 +322,35 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
             query: Question de l'utilisateur
             stream: Si True, retourne un générateur pour le streaming
             top_k: Nombre de documents à récupérer
-            use_rewriting: Activer la réécriture de question
+            use_rewriting: Activer la réécriture de question (via Analyzer)
             model: Modèle Ollama à utiliser (optionnel)
 
         Returns:
             ChatResponse ou générateur de tokens + ChatResponse final
         """
-        search_query = query
-        rewritten_query = None
-        search_intent = None
-
-        if use_rewriting:
-            # On passe l'historique pour une réécriture contextuelle
-            rewritten_query = self.rewriter.rewrite(query, self.conversation_history)
-            search_query = rewritten_query
-            print(f"🔄 Rewritten: {query} -> {rewritten_query}")
-
-        # Détermination dynamique des paramètres si top_k non fourni
+        # Omni-Prompt Analysis (Rewrite + Intent + Dates)
+        # Si use_rewriting est False, on pourrait limiter l'analyse, 
+        # mais l'Analyzer gère aussi l'intention et les dates.
+        analysis = self.query_analyzer.analyze(query, self.conversation_history)
+        
+        search_query = analysis.rewritten_query if use_rewriting else query
+        rewritten_query = analysis.rewritten_query
+        search_intent = analysis.intent
+        
         if top_k is None:
-            params = self.determine_search_params(search_query)
-            top_k = params["top_k"]
-            search_intent = params["intent"]
-            print(f"🎯 Intent analysis: {search_intent} -> top_k={top_k}")
+            top_k = analysis.top_k
+            
+        print(f"🔄 Omni-Analysis: {analysis.intent} | top_k={top_k} | dates={analysis.date_start}->{analysis.date_end}")
 
         # Retrieval
-        context = self.retriever.retrieve(search_query, top_k=top_k)
+        context = self.retriever.retrieve(
+            search_query, 
+            top_k=top_k,
+            date_start=analysis.date_start,
+            date_end=analysis.date_end,
+            use_reranking=analysis.use_reranking,
+            expand_context=analysis.expand_context
+        )
 
         # Construire le prompt (avec la question ORIGINALE pour la réponse finale)
         prompt = self._build_prompt(query, context)

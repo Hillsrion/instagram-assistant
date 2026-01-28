@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from rag_pipeline.config import Config
 from rag_pipeline.advanced_retriever import create_advanced_retriever
 from rag_pipeline.chat import ChatBot, QueryType, classify_query
-from rag_pipeline.intent_detector import IntentDetector
+from rag_pipeline.query_analyzer import QueryAnalyzer
 from rag_pipeline.analytics import ConversationAnalytics
 
 
@@ -120,13 +120,13 @@ chatbot = None
 config = None
 components = None
 analytics = None
-intent_detector = None
+query_analyzer = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize RAG components on startup."""
-    global retriever, chatbot, config, components, analytics, intent_detector
+    global retriever, chatbot, config, components, analytics, query_analyzer
 
     print("=" * 60)
     print("Instagram Conversations Assistant")
@@ -156,8 +156,8 @@ async def lifespan(app: FastAPI):
             enable_metadata=True,
             enable_summaries=True
         )
-        chatbot = ChatBot(config)
-        intent_detector = IntentDetector(config)
+        chatbot = ChatBot(retriever, config)
+        query_analyzer = QueryAnalyzer(config)
         print(f"Index chargé: {components['vector_store'].size} chunks")
         print()
         print(f"Application prête sur http://localhost:8000")
@@ -789,25 +789,35 @@ async def chat_stream(request: ChatRequest):
         # Progress: Search step
         yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Analyse de la question...'})}\n\n"
         
-        # Détection d'intention
-        intent_params = intent_detector.detect_intent(request.message)
-        dyn_top_k = intent_params.get("top_k", 5)
-        dyn_reranking = intent_params.get("use_reranking", request.use_reranking)
-        dyn_expand = intent_params.get("expand_context", request.expand_context)
+        # Omni-Analyse (Rewrite + Intent + Dates) en un seul appel LLM
+        analysis = query_analyzer.analyze(request.message, chatbot.conversation_history)
         
-        intent_label = intent_params.get('intent') or 'info'
+        dyn_top_k = analysis.top_k
+        dyn_reranking = analysis.use_reranking
+        dyn_expand = analysis.expand_context
+        
+        # On utilise la requête reformulée pour la recherche
+        search_query = analysis.rewritten_query
+        
+        intent_label = analysis.intent or 'info'
         yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': f'Recherche ({intent_label})...'})}\n\n"
 
+        # On utilise les dates extraites par l'analyzer si présentes
+        # Sinon on laisse le retriever essayer ses propres filtres (ou utiliser ceux de la requête)
+        final_date_start = request.date_start or analysis.date_start
+        final_date_end = request.date_end or analysis.date_end
+
         context = retriever.retrieve(
-            query=request.message,
+            query=search_query,
             participant_filter=request.participant_filter,
             year_filter=request.year_filter,
-            date_start=request.date_start,
-            date_end=request.date_end,
+            date_start=final_date_start,
+            date_end=final_date_end,
             top_k=dyn_top_k,
             use_reranking=dyn_reranking,
             use_hybrid=request.use_hybrid,
             expand_context=dyn_expand
+        )
         )
 
         # Send sources with chunk_id and preview

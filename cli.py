@@ -10,7 +10,7 @@ from pathlib import Path
 from rag_pipeline.config import Config
 from rag_pipeline.advanced_retriever import create_advanced_retriever
 from rag_pipeline.chat import ChatBot
-from rag_pipeline.intent_detector import IntentDetector
+from rag_pipeline.query_analyzer import QueryAnalyzer
 
 
 # Couleurs ANSI pour le terminal
@@ -134,7 +134,7 @@ def main():
 
         # Créer le chatbot
         chatbot = ChatBot(retriever, config)
-        intent_detector = IntentDetector(config)
+        query_analyzer = QueryAnalyzer(config)
 
         print(f"{Colors.GREEN}✅ Système chargé ({components['vector_store'].size} chunks){Colors.RESET}\n")
 
@@ -187,18 +187,21 @@ def main():
                     continue
 
                 # Recherche
-                print(f"\n{Colors.DIM}🔍 Analyse de l'intention...{Colors.RESET}", end='\r')
-                intent_params = intent_detector.detect_intent(query)
+                print(f"\n{Colors.DIM}🔍 Analyse de la question...{Colors.RESET}", end='\r')
+                analysis = query_analyzer.analyze(query, chatbot.conversation_history)
                 
-                dyn_top_k = intent_params.get("top_k", 5)
-                dyn_reranking = intent_params.get("use_reranking", use_reranking)
-                dyn_expand = intent_params.get("expand_context", expand_context)
+                dyn_top_k = analysis.top_k
+                dyn_reranking = analysis.use_reranking
+                dyn_expand = analysis.expand_context
+                search_query = analysis.rewritten_query
                 
-                print(f"{Colors.DIM}🔍 Recherche ({intent_params.get('intent', 'unknown')}, k={dyn_top_k})...{Colors.RESET}", end='\r')
+                print(f"{Colors.DIM}🔍 Recherche ({analysis.intent}, k={dyn_top_k})...{Colors.RESET}", end='\r')
 
                 context = retriever.retrieve(
-                    query=query,
+                    query=search_query,
                     top_k=dyn_top_k,
+                    date_start=analysis.date_start,
+                    date_end=analysis.date_end,
                     use_reranking=dyn_reranking,
                     use_hybrid=use_hybrid,
                     expand_context=dyn_expand
