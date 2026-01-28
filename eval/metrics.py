@@ -307,6 +307,42 @@ class RAGASMetrics:
 
         return self._llm_judge(prompt)
 
+    def _extract_score_from_response(self, content: str) -> tuple:
+        """
+        Extract score and explanation from LLM response robustly.
+        Handles malformed JSON with unescaped newlines.
+
+        Returns:
+            (score: float, explanation: str)
+        """
+        import re
+
+        # Try to extract score with regex first (most reliable)
+        score_match = re.search(r'"score"\s*:\s*([\d.]+)', content, re.IGNORECASE)
+        if not score_match:
+            # Fallback: look for just a number
+            score_match = re.search(r':\s*([\d.]+)\s*[,}]', content)
+
+        score = 0.5  # Default
+        if score_match:
+            try:
+                score = float(score_match.group(1))
+                score = max(0.0, min(1.0, score))
+            except (ValueError, IndexError):
+                pass
+
+        # Extract explanation: get everything between "explanation": "..." and the closing brace
+        explanation_match = re.search(r'"explanation"\s*:\s*"((?:[^"\\]|\\.)*?)"\s*[}]', content, re.IGNORECASE | re.DOTALL)
+        explanation = ""
+        if explanation_match:
+            explanation = explanation_match.group(1)
+            # Unescape common escapes
+            explanation = explanation.replace('\\n', '\n')
+            explanation = explanation.replace('\\t', '\t')
+            explanation = explanation.replace('\\"', '"')
+
+        return score, explanation
+
     def _llm_judge(self, prompt: str, return_explanation: bool = False) -> float | Dict[str, Any]:
         """
         Call LLM and extract score from response.
@@ -367,27 +403,18 @@ class RAGASMetrics:
             except json.JSONDecodeError:
                 pass  # Try regex method
 
-            # Last resort: find JSON in response using regex
-            import re
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                try:
-                    data = json.loads(json_match.group())
-                    score = float(data.get('score', 0.5))
-                    score = max(0.0, min(1.0, score))
-
-                    if return_explanation:
-                        return {
-                            "score": score,
-                            "explanation": data.get('explanation', '')
-                        }
-                    return score
-                except json.JSONDecodeError as je:
-                    print(f"[JUDGE LOG] Failed to parse JSON: {je}")
-                    print(f"[JUDGE LOG] Raw response content:\n{content}")
-                    if return_explanation:
-                        return {"score": 0.5, "explanation": "Could not parse judge response"}
-                    return 0.5
+            # Last resort: extract score/explanation with regex (handles malformed JSON)
+            try:
+                score, explanation = self._extract_score_from_response(content)
+                if return_explanation:
+                    return {"score": score, "explanation": explanation}
+                return score
+            except Exception as je:
+                print(f"[JUDGE LOG] Failed to extract score: {je}")
+                print(f"[JUDGE LOG] Raw response content:\n{content}")
+                if return_explanation:
+                    return {"score": 0.5, "explanation": "Could not parse judge response"}
+                return 0.5
 
             # Could not find JSON at all
             print(f"[JUDGE LOG] No JSON found in response")
