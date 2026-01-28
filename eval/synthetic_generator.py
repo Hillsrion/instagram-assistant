@@ -168,7 +168,7 @@ class SyntheticDataGenerator:
 
         prompt = GENERATION_PROMPT.format(
             content=chunk.content[:3000],  # Truncate for context limit
-            summary=chunk.narrative_summary or chunk.summary,
+            summary=chunk.narrative_summary or "Non disponible",
             participants=", ".join(chunk.participants),
             date_start=chunk.date_start[:10],
             date_end=chunk.date_end[:10]
