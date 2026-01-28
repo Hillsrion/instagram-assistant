@@ -122,9 +122,19 @@ python3 setup_rag_batch.py --reset
 # CLI chat interface
 python3 cli.py
 
-# Run evaluation benchmark
-python -m eval.run_eval --benchmark
+# Run evaluation benchmark (Generation)
+python -m eval.eval_generation qwen3:latest mistral
+
+# See docs/EVAL.md for full evaluation guide
 ```
+
+## Evaluation & Feedback Loop
+
+To improve the checking loop, use the scripts in `eval/` to benchmark retrieval and generation logic.
+
+- **Retrieval**: `python -m eval.eval_retrieval` checks if the right documents are found.
+- **Generation**: `python -m eval.eval_generation` compares model answers against retrieved context.
+- **Full Guide**: See [docs/EVAL.md](docs/EVAL.md) for detailed instructions on creating datasets and running benchmarks.
 
 ## Tech Stack
 
