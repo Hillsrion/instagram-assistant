@@ -74,10 +74,22 @@ def markdown_to_html(text: str) -> str:
     # Links: [text](url) -> <a>text</a>
     text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" class="text-indigo-600 hover:underline font-medium">\1</a>', text)
 
-    # Line breaks
-    text = text.replace('\n', '<br>')
+    # Wrap paragraphs instead of using <br>
+    paragraphs = text.split('\n\n')
+    wrapped = []
+    for p in paragraphs:
+        p = p.strip()
+        if not p:
+            continue
+        # Don't wrap block-level elements
+        if p.startswith('<h') or p.startswith('<hr') or p.startswith('<ul') or p.startswith('<pre') or p.startswith('<li'):
+            wrapped.append(p)
+        else:
+            # Replace single newlines within a paragraph with spaces
+            p = p.replace('\n', ' ')
+            wrapped.append(f'<p class="mb-2">{p}</p>')
 
-    return text
+    return '\n'.join(wrapped)
 
 def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
     """Format a chunk with its messages as a chat-like display with left/right alignment."""
@@ -109,9 +121,9 @@ def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
         for i, p in enumerate(participants)
     }
 
-    # Build HTML with chat interface
+    # Build HTML with chat interface (centered, max-w-2xl)
     html = f"""
-    <div class="chat-container" data-chunk="{chunk_id}">
+    <div class="chat-container max-w-2xl mx-auto" data-chunk="{chunk_id}">
         <div class="mb-3 pb-3 border-b border-slate-300">
             <div class="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">
                 📌 Conversation • {', '.join(participants) if participants else 'N/A'} • {chunk.date_start[:10]} à {chunk.date_end[:10]}
@@ -132,15 +144,15 @@ def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
             </div>
             """
         else:
-            # Find which side this message should be on (alternating or based on participant)
+            # First participant's messages on the right ("my messages"), others on the left
             is_first = participants and author == participants[0]
-            align_class = "justify-start" if is_first else "justify-end"
+            align_class = "justify-end" if is_first else "justify-start"
             color = participant_colors.get(author, "bg-indigo-500")
 
             html += f"""
             <div class="flex {align_class} mb-3 px-2">
-                <div class="flex flex-col {'mr-2' if is_first else 'ml-2'} max-w-xs">
-                    <span class="text-xs font-bold text-slate-700 mb-1 {'ml-2' if is_first else 'mr-2'}">
+                <div class="flex flex-col {'ml-2' if is_first else 'mr-2'} max-w-xs">
+                    <span class="text-xs font-bold text-slate-700 mb-1 {'mr-2 text-right' if is_first else 'ml-2'}">
                         {escape_html(author)}
                     </span>
                     <div class="rounded-xl px-4 py-2 {color} text-white text-sm break-words shadow-sm">
