@@ -25,7 +25,7 @@ from rag_pipeline.advanced_retriever import create_advanced_retriever
 from rag_pipeline.chat import ChatBot, QueryType, classify_query
 from rag_pipeline.query_analyzer import QueryAnalyzer
 from rag_pipeline.analytics import ConversationAnalytics
-from rag_pipeline.logger import get_logger
+from rag_pipeline.logger import get_logger, initialize_logging
 
 logger = get_logger()
 
@@ -952,5 +952,30 @@ async def chat_stream(request: ChatRequest):
 # ============================================================
 
 if __name__ == "__main__":
+    import argparse
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    parser = argparse.ArgumentParser(description='Instagram Assistant - Web API')
+    parser.add_argument(
+        '--log-verbose',
+        action='store_true',
+        help='Activer les logs détaillés'
+    )
+    parser.add_argument(
+        '--host',
+        default='0.0.0.0',
+        help='Host address'
+    )
+    parser.add_argument(
+        '--port',
+        type=int,
+        default=8000,
+        help='Port number'
+    )
+
+    args = parser.parse_args()
+
+    # Initialiser le logging selon le flag
+    initialize_logging(args.log_verbose)
+
+    uvicorn.run(app, host=args.host, port=args.port)

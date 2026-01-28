@@ -6,12 +6,13 @@ Envoie des requêtes de test et affiche les logs correspondants.
 import json
 import sys
 import time
+import argparse
 from pathlib import Path
 
 # Ajouter le répertoire courant au path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from rag_pipeline.logger import RequestLogger, get_logger
+from rag_pipeline.logger import RequestLogger, get_logger, initialize_logging
 from rag_pipeline.query_analyzer import QueryAnalyzer
 from rag_pipeline.config import default_config
 
@@ -113,6 +114,17 @@ def view_test_results():
 
 def main():
     """Run the tests."""
+    parser = argparse.ArgumentParser(description='Test logging system')
+    parser.add_argument(
+        '--log-verbose',
+        action='store_true',
+        help='Activer les logs détaillés'
+    )
+    args = parser.parse_args()
+
+    # Initialiser le logging selon le flag
+    initialize_logging(args.log_verbose)
+
     try:
         # Test the analyzer
         test_query_analyzer()

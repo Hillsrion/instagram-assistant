@@ -16,17 +16,50 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = LOG_DIR / "rag_pipeline.log"
 DEBUG_LOG_FILE = LOG_DIR / "debug.jsonl"
 
-# Configuration du logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='[%(asctime)s] %(levelname)-8s %(name)s - %(message)s',
-    handlers=[
-        logging.FileHandler(LOG_FILE),
-        logging.StreamHandler()
-    ]
-)
-
+# Logger global - sera configuré par initialize_logging()
 logger = logging.getLogger("rag_pipeline")
+logger.setLevel(logging.DEBUG)
+_logging_initialized = False
+
+
+def initialize_logging(verbose: bool = False):
+    """
+    Initialise le système de logging.
+
+    Args:
+        verbose: Si True, affiche les logs en console et dans les fichiers.
+                Si False, n'affiche rien du tout.
+    """
+    global _logging_initialized
+
+    if _logging_initialized:
+        return
+
+    # Supprimer tous les handlers existants
+    logger.handlers.clear()
+
+    if verbose:
+        # Mode verbose: afficher dans console ET fichiers
+        formatter = logging.Formatter(
+            '[%(asctime)s] %(levelname)-8s %(name)s - %(message)s'
+        )
+
+        # Handler pour les fichiers
+        file_handler = logging.FileHandler(LOG_FILE)
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+        # Handler pour la console
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.DEBUG)
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
+    else:
+        # Mode silencieux: NullHandler pour ne rien afficher
+        logger.addHandler(logging.NullHandler())
+
+    _logging_initialized = True
 
 
 class RequestLogger:

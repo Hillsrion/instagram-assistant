@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from rag_pipeline.config import Config
 from rag_pipeline.chunker import ConversationChunker
+from rag_pipeline.logger import initialize_logging
 from rag_pipeline.cli_utils import (
     print_header,
     CHECKPOINT_DIR,
@@ -212,8 +213,13 @@ Exemples:
                         help=f"Taille des batches d'embeddings (défaut: {DEFAULT_BATCH_SIZE})")
     parser.add_argument("--import-test", action="store_true",
                         help="Importe les conversations de test")
+    parser.add_argument("--log-verbose", action="store_true",
+                        help="Activer les logs détaillés")
 
     args = parser.parse_args()
+
+    # Initialiser le logging selon le flag
+    initialize_logging(args.log_verbose)
 
     config = Config()
 

@@ -12,6 +12,7 @@ from rag_pipeline.config import Config
 from rag_pipeline.advanced_retriever import create_advanced_retriever
 from rag_pipeline.chat import ChatBot
 from rag_pipeline.query_analyzer import QueryAnalyzer
+from rag_pipeline.logger import initialize_logging
 
 
 # Couleurs ANSI pour le terminal
@@ -198,8 +199,16 @@ def main():
         action='store_true',
         help='Afficher l\'aide'
     )
+    parser.add_argument(
+        '--log-verbose',
+        action='store_true',
+        help='Activer les logs détaillés'
+    )
 
     args = parser.parse_args()
+
+    # Initialiser le logging selon le flag
+    initialize_logging(args.log_verbose)
 
     if args.help:
         parser.print_help()
