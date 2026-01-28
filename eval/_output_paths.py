@@ -112,6 +112,29 @@ def get_summaries_report_path(
     return output_dir / filename
 
 
+def get_dashboard_path(
+    timestamp: Optional[datetime] = None
+) -> Path:
+    """
+    Get output path for multi-model dashboard.
+
+    Format: eval_results/eval_generation/dashboard_<timestamp>.html
+
+    Args:
+        timestamp: Optional timestamp (defaults to now)
+
+    Returns:
+        Path to the HTML dashboard file
+    """
+    ts = timestamp or datetime.now()
+    ts_str = ts.strftime("%Y%m%d_%H%M%S")
+
+    filename = f"dashboard_{ts_str}.html"
+
+    output_dir = ensure_dir(EVAL_RESULTS_DIR / "eval_generation")
+    return output_dir / filename
+
+
 def get_comparison_report_path(
     timestamp: Optional[datetime] = None
 ) -> Path:
