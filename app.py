@@ -50,7 +50,8 @@ class ChatRequest(BaseModel):
     message: str
     conversation_id: Optional[str] = None
     # Model selection
-    model: Optional[str] = None
+    mode: Optional[str] = "regular"  # fast, regular, advanced
+    model: Optional[str] = None      # Optional override
     # Filters
     participant_filter: Optional[str] = None
     year_filter: Optional[int] = None
@@ -686,9 +687,21 @@ async def chat(request: ChatRequest):
         expand_context=dyn_expand
     )
 
+    # Determine model
+    selected_model = request.model
+    if not selected_model:
+        if request.mode == "fast":
+            selected_model = config.fast_llm_model
+        elif request.mode == "advanced":
+            selected_model = config.advanced_llm_model
+        else: # regular or default
+            selected_model = config.regular_llm_model
+    
+    print(f"🤖 Using model: {selected_model} (Mode: {request.mode})")
+
     # Generate response
     response_text = ""
-    for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=request.model):
+    for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=selected_model):
         response_text += chunk
 
     # Format sources
@@ -798,8 +811,23 @@ async def chat_stream(request: ChatRequest):
         yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': f'Recherche ({intent_label})...'})}\n\n"
 
         # Dates
-        final_date_start = request.date_start or analysis.date_start
-        final_date_end = request.date_end or analysis.date_end
+        yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': f'Période: {analysis.date_start or '?'} -> {analysis.date_end or '?'}'})}\n\n"
+
+        # Determine model
+        selected_model = request.model
+        if not selected_model:
+            if request.mode == "fast":
+                selected_model = config.fast_llm_model
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'model', 'message': f'Mode Fast ({selected_model})'})}\n\n"
+            elif request.mode == "advanced":
+                selected_model = config.advanced_llm_model
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'model', 'message': f'Mode Advanced ({selected_model})'})}\n\n"
+            else: # regular or default
+                selected_model = config.regular_llm_model
+        else:
+             yield f"data: {json.dumps({'type': 'progress', 'step': 'model', 'message': f'Modèle spécifique ({selected_model})'})}\n\n"
+
+        print(f"🤖 Using model: {selected_model} (Mode: {request.mode})")
 
         context = retriever.retrieve(
             query=search_query,
@@ -860,7 +888,7 @@ async def chat_stream(request: ChatRequest):
 
             # Stream response
             response_text = ""
-            for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=request.model):
+            for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=selected_model):
                 response_text += chunk
                 yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
                 await asyncio.sleep(0)  # Allow other tasks to run

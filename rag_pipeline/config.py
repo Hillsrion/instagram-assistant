@@ -78,8 +78,14 @@ class Config:
     summary_boost: float = 0.8
     
     # === LLM ===
-    # Modèle Ollama à utiliser
+    # Modèle Ollama par défaut (Regular)
     llm_model: str = field(default_factory=lambda: os.getenv('LLM_MODEL', 'qwen3:latest'))
+    
+    # Modèles par mode
+    fast_llm_model: str = field(default_factory=lambda: os.getenv('FAST_LLM_MODEL', 'qwen3:4b'))
+    regular_llm_model: str = field(default_factory=lambda: os.getenv('REGULAR_LLM_MODEL', 'qwen3:latest'))
+    advanced_llm_model: str = field(default_factory=lambda: os.getenv('ADVANCED_LLM_MODEL', 'qwen3:14b'))
+
     # URL du serveur Ollama
     ollama_url: str = field(default_factory=lambda: os.getenv('OLLAMA_URL', 'http://localhost:11434'))
     # Température (basse = plus factuel)

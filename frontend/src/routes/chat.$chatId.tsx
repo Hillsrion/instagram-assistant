@@ -80,6 +80,10 @@ function ChatRoute() {
     }
   }, [modelsData, selectedModel, setSelectedModel])
 
+  // Mode State
+  const [selectedMode, setSelectedMode] = useState<string>('regular')
+  const [isExpertMode, setIsExpertMode] = useState<boolean>(false)
+
   // Filters State
   const [filterParticipant, setFilterParticipant] = useState<string>('')
   const [filterDateStart, setFilterDateStart] = useState<string>('')
@@ -144,7 +148,7 @@ function ChatRoute() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (inputRef.current?.value) {
-      sendMessage(inputRef.current.value)
+      sendMessage(inputRef.current.value, selectedMode)
       inputRef.current.value = ''
     }
   }
@@ -158,22 +162,46 @@ function ChatRoute() {
            {isLoading && <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>}
          </div>
 
-         {/* Model Selector */}
-         {modelsData?.models && modelsData.models.length > 0 && (
-           <Select value={selectedModel || modelsData.default_model || ''} onValueChange={setSelectedModel}>
-             <SelectTrigger className="w-48">
-               <SelectValue placeholder="Select model..." />
-             </SelectTrigger>
-             <SelectContent>
-               {modelsData.models.map((model) => (
-                 <SelectItem key={model.name} value={model.name}>
-                   {model.name.includes(':') ? model.name : `${model.name}:latest`}
-                   {model.name === modelsData.default_model && ' (default)'}
-                 </SelectItem>
-               ))}
-             </SelectContent>
-           </Select>
-         )}
+         {/* Mode Selector */}
+         <div className="flex items-center gap-2">
+            <Select value={selectedMode} onValueChange={setSelectedMode}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select mode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fast">⚡ Fast (Speed)</SelectItem>
+                <SelectItem value="regular">🟢 Regular (Balanced)</SelectItem>
+                <SelectItem value="advanced">🧠 Advanced (Reasoning)</SelectItem>
+              </SelectContent>
+            </Select>
+
+             {/* Expert Mode Toggle */}
+             <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsExpertMode(!isExpertMode)}
+                title="Expert Mode"
+             >
+                <Bot className={cn("h-4 w-4", isExpertMode ? "text-primary" : "text-muted-foreground")} />
+             </Button>
+
+             {/* Model Selector (Expert Mode) */}
+             {isExpertMode && modelsData?.models && modelsData.models.length > 0 && (
+               <Select value={selectedModel || modelsData.default_model || ''} onValueChange={setSelectedModel}>
+                 <SelectTrigger className="w-48">
+                   <SelectValue placeholder="Select model..." />
+                 </SelectTrigger>
+                 <SelectContent>
+                   {modelsData.models.map((model) => (
+                     <SelectItem key={model.name} value={model.name}>
+                       {model.name.includes(':') ? model.name : `${model.name}:latest`}
+                       {model.name === modelsData.default_model && ' (default)'}
+                     </SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
+             )}
+         </div>
        </div>
 
        {/* Filters */}
