@@ -778,6 +778,13 @@ async def chat_stream(request: ChatRequest):
             "timestamp": datetime.now().isoformat()
         }
         conv['messages'].append(user_msg)
+        
+        # Synchroniser l'historique du chatbot avec la conversation actuelle
+        # On ne prend que les messages de texte pour le chatbot
+        chatbot.conversation_history = [
+            {"role": m["role"], "content": m["content"]} 
+            for m in conv['messages'][:-1] # Tout sauf le dernier message qu'on vient d'ajouter
+        ]
 
         # Progress: Search step
         yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Analyse de la question...'})}\n\n"
@@ -885,6 +892,13 @@ async def chat_stream(request: ChatRequest):
         conv['messages'].append(assistant_msg)
         conv['updated_at'] = datetime.now().isoformat()
         save_conversation(conv)
+
+        # Déclencher le compactage si nécessaire et informer le front
+        if len(conv['messages']) > 10:
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'compacting', 'message': 'Optimisation de la mémoire...'})}\n\n"
+            chatbot._update_history(request.message, response_text, skip_add=True)
+            # Si un compactage a eu lieu, on pourrait vouloir sauvegarder le résumé
+            # mais pour l'instant il reste en mémoire vive du chatbot global.
 
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 

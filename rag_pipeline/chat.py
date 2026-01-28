@@ -144,10 +144,50 @@ class ChatBot:
         self.config = config or default_config
         self.retriever = retriever
         self.conversation_history: List[dict] = []
+        self.history_summary: Optional[str] = None
         self.pii_filter = PIIFilter() if self.config.enable_pii_filter else None
         self.rewriter = QueryRewriter(self.config)
         self.intent_detector = IntentDetector(self.config)
     
+    def _compact_history(self):
+        """
+        Résume l'historique ancien pour libérer du contexte tout en gardant la mémoire.
+        Se déclenche si l'historique dépasse un certain seuil.
+        """
+        # Seuil: 10 messages (5 échanges complets)
+        if len(self.conversation_history) <= 10:
+            return
+
+        print("🗜️ Compacting conversation history...")
+        
+        # On garde les 4 derniers messages intacts (contexte immédiat)
+        # On résume tout ce qui précède
+        to_summarize = self.conversation_history[:-4]
+        history_text = "\n".join([f"{m['role']}: {m['content']}" for m in to_summarize])
+        
+        prompt = f"""Résume de manière très concise les points clés de cette conversation passée entre un utilisateur et un assistant. 
+Inclus les faits importants découverts sur les conversations Instagram.
+{f"Résumé précédent : {self.history_summary}" if self.history_summary else ""}
+
+Conversation à résumer :
+{history_text}
+
+Réponds avec un résumé d'un paragraphe maximum."""
+
+        try:
+            summary = self._call_ollama_direct(
+                system_prompt="Tu es un assistant qui synthétise des mémoires de conversation.",
+                user_prompt=prompt,
+                model=self.config.llm_model,
+                max_tokens=250
+            )
+            self.history_summary = summary.strip()
+            # On ne garde que les 4 derniers messages
+            self.conversation_history = self.conversation_history[-4:]
+            print(f"✅ History compacted. Summary length: {len(self.history_summary)} chars")
+        except Exception as e:
+            print(f"⚠️ Failed to compact history: {e}")
+
     def determine_search_params(self, query: str) -> dict:
         """Détermine les paramètres de recherche via IntentDetector."""
         return self.intent_detector.detect_intent(query)
@@ -207,7 +247,7 @@ Réponds en te basant UNIQUEMENT sur les documents ci-dessus. Si tu ne trouves p
 Question : {query}
 
 Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante dans les conversations Instagram."""
-    
+
     def _call_ollama(
         self,
         prompt: str,
@@ -216,13 +256,17 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
     ) -> Generator[str, None, None] | str:
         """Appelle l'API Ollama."""
         system_prompt = SYSTEM_PROMPT.format(user_name=self.config.user_name)
+        
+        # Ajouter le résumé de l'historique s'il existe
+        if self.history_summary:
+            system_prompt += f"\n\nCONTEXTE DE LA CONVERSATION ACTUELLE (RÉSUMÉ) :\n{self.history_summary}"
 
         messages = [
             {"role": "system", "content": system_prompt}
         ]
 
-        # Ajouter l'historique de conversation (limité aux 4 derniers échanges)
-        for msg in self.conversation_history[-8:]:
+        # Ajouter l'historique restant (qui a été compacté si nécessaire)
+        for msg in self.conversation_history:
             messages.append(msg)
 
         # Ajouter la question actuelle
@@ -356,14 +400,26 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
             search_intent=search_intent
         )
     
-    def _update_history(self, query: str, answer: str):
-        """Met à jour l'historique de conversation."""
-        self.conversation_history.append({"role": "user", "content": query})
-        self.conversation_history.append({"role": "assistant", "content": answer})
+    def _update_history(self, query: str, answer: str, skip_add: bool = False):
+        """
+        Met à jour l'historique de conversation et déclenche le compactage.
+        
+        Args:
+            query: Question de l'utilisateur
+            answer: Réponse de l'assistant
+            skip_add: Si True, ne rajoute pas les messages (utile si déjà synchronisé)
+        """
+        if not skip_add:
+            self.conversation_history.append({"role": "user", "content": query})
+            self.conversation_history.append({"role": "assistant", "content": answer})
+        
+        # Vérifier si on doit compacter l'historique
+        self._compact_history()
     
     def clear_history(self):
         """Efface l'historique de conversation."""
         self.conversation_history = []
+        self.history_summary = None
     
     def get_sources_summary(self, context: RetrievalContext) -> str:
         """Retourne un résumé des sources utilisées."""
