@@ -42,7 +42,7 @@ RÉPONSE OBLIGATOIRE:
         try:
             # Appel direct à Ollama
             payload = {
-                "model": self.config.llm_model,
+                "model": self.config.llm_model_fast,
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": query}

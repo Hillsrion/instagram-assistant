@@ -78,10 +78,10 @@ class Config:
     summary_boost: float = 0.8
     
     # === LLM ===
-    # Modèles Ollama par tier de performance
-    llm_model_fast: str = "ministral-3:3b"      # Fast model for quick responses
-    llm_model_strong: str = "ministral-3:14b"   # Strong model for complex tasks
-    # Modèle LLM actuel à utiliser (env ou default)
+    # Modèles Ollama par tier de performance (configurable via env)
+    llm_model_fast: str = field(default_factory=lambda: os.getenv('LLM_MODEL_FAST', 'ministral-3:3b'))
+    llm_model_strong: str = field(default_factory=lambda: os.getenv('LLM_MODEL_STRONG', 'ministral-3:14b'))
+    # Modèle LLM principal (default = regular tier)
     llm_model: str = field(default_factory=lambda: os.getenv('LLM_MODEL', 'ministral-3:8b'))
     # URL du serveur Ollama
     ollama_url: str = field(default_factory=lambda: os.getenv('OLLAMA_URL', 'http://localhost:11434'))

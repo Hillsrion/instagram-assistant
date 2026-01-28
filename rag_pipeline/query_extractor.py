@@ -44,7 +44,7 @@ Format: {{"has_date": bool, "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"
             response = requests.post(
                 f"{self.config.ollama_url}/api/chat",
                 json={
-                    "model": self.config.llm_model,
+                    "model": self.config.llm_model_fast,
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": f"Requête: {query}"}

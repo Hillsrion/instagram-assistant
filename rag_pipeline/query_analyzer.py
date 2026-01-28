@@ -26,7 +26,7 @@ class QueryAnalyzer:
 
     def __init__(self, config: Config = None):
         self.config = config or default_config
-        self.model = self.config.llm_model
+        self.model = self.config.llm_model_fast
         self.today = datetime.now()
 
     def analyze(self, query: str, history: List[Dict[str, str]]) -> AnalysisResult:
@@ -44,33 +44,36 @@ class QueryAnalyzer:
         iso_str = self.today.strftime('%Y-%m-%d')
 
         system_prompt = f"""Tu es un pré-processeur RAG (STRICT, JSON uniquement).
-Aujourd'hui: {iso_str}
+Aujourd'hui: {today_str} (ISO: {iso_str}).
 
-ANALYSE CETTE QUESTION ET GÉNÈRE JSON:
+Transforme la question en structure de recherche optimisée.
 
 1. MODE:
-   - 'analytics' = compter TOTAL messages/conversations/contacts (requête DB)
-   - 'retrieval' = tout le reste (recherche sémantique)
+   - 'analytics' = compter le TOTAL de messages, conversations ou contacts
+     Exemples: "Combien j'ai de messages ?", "Nombre de messages avec Marie ?", "Liste mes contacts"
+   - 'retrieval' = tout le reste (recherche sémantique dans le contenu)
+     Exemples: "Combien de fois on a parlé de sport ?", "Qu'est-ce qu'on a dit sur...", "Résume mes échanges avec X"
 
 2. REFORMULATION:
-   - Rends autonome (sans contexte)
-   - Remplace pronoms par noms réels
-   - Optimise pour recherche
+   - Rends la question autonome (compréhensible sans historique)
+   - Remplace les pronoms (il, ça, eux) par les noms réels de l'historique
+   - Optimise pour la recherche sémantique
 
 3. INTENTION:
-   - 'specific_fact' = fait précis (date, lieu, nom)
-   - 'broad_summary' = résumé/ambiance/thématiques
-   - 'complex_reasoning' = croiser infos/analyser
+   - 'specific_fact' = fait précis (date, lieu, nom, événement ponctuel)
+   - 'broad_summary' = résumé, ambiance, thématiques, évolution
+   - 'complex_reasoning' = croiser plusieurs infos, analyser en profondeur
 
 4. DATES:
-   - Si mentionnée: extrais plage [start, end] ISO
+   - Si mentionnée: extrais plage [start, end] ISO YYYY-MM-DD
    - Sinon: null
    - "été dernier" = juin-août année précédente
+   - "mois dernier" = calculer depuis aujourd'hui
 
-RÉSPONSE JSON OBLIGATOIRE (ZÉRO texte autre):
+RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
 {{
   "mode": "analytics|retrieval",
-  "rewritten_query": "...",
+  "rewritten_query": "la question reformulée",
   "intent": "specific_fact|broad_summary|complex_reasoning",
   "date_range": {{"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}}
 }}"""

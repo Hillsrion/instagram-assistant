@@ -28,18 +28,18 @@ CONVERSATION:
 {content}
 
 RÈGLES STRICTES:
-- Format JSON obligatoire
+- Format JSON obligatoire, ZÉRO texte avant ou après
 - ZÉRO détails non présents dans le texte
 - Sois concis et direct
 
 JSON OBLIGATOIRE:
 {{
-  "narrative_summary": "...",
-  "questions": ["Q1?", "Q2?", "Q3?"],
-  "speaker_intents": {{"P1": "...", "P2": "..."}},
-  "temporal_context": "...",
-  "entities": {{"locations": [], "people": [], "media": [], "events": []}},
-  "emotions": {{"dominant": "...", "tone": "...", "tension_level": "low/medium/high"}}
+  "narrative_summary": "Ismaël et Marie organisent un shooting photo à Lyon",
+  "questions": ["Quand a lieu le shooting ?", "Qui participe ?", "Où se passe l'événement ?"],
+  "speaker_intents": {{"Ismaël": "organiser le shooting", "Marie": "confirmer sa venue"}},
+  "temporal_context": "pendant la préparation d'un événement",
+  "entities": {{"locations": ["Lyon", "Parc de la Tête d'Or"], "people": ["Sarah"], "media": [], "events": ["shooting photo"]}},
+  "emotions": {{"dominant": "excitation", "tone": "léger", "tension_level": "low"}}
 }}
 """
 

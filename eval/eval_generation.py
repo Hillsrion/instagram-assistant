@@ -157,38 +157,26 @@ def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
 
     return html
 
-def get_optimized_prompt(model: str, question: str, context: str) -> str:
+def get_eval_prompt(question: str, context: str) -> str:
     """
-    Generate optimized prompt based on model characteristics.
+    Build the evaluation prompt for any model.
 
-    Different models have different strengths/weaknesses:
-    - ministral-3:8b: Tends to over-interpret and add irrelevant details
-    - qwen3:latest: Generally more balanced
+    Uses strict anti-hallucination rules that benefit all models,
+    especially smaller ones like Ministral 8B.
     """
+    return f"""Réponds à la question ci-dessous en te basant UNIQUEMENT sur le contexte fourni.
 
-    if "ministral" in model.lower():
-        # Ministral-specific optimization: strict, concise, anti-hallucination
-        return f"""Tu es un assistant d'extraction d'information STRICTE et CONCISE.
-
-RÈGLES ABSOLUES À SUIVRE:
-1. Réponds UNIQUEMENT ce qui est explicitement demandé
-2. Sois concis: 1-2 phrases maximum sauf si plus est clairement nécessaire
-3. N'ajoute PAS d'interprétations, d'hypothèses ou de contexte externe
-4. N'ajoute PAS de détails supplémentaires non demandés
-5. Si tu dois inférer, cite la source qui le justifie
+Règles:
+- Réponds directement et de manière concise
+- N'ajoute pas d'interprétations ou d'hypothèses au-delà du texte
+- Si l'information n'est pas dans le contexte, dis-le
 
 Contexte:
 {context}
 
 Question: {question}
 
-Réponse (concise et directe):"""
-    else:
-        # Default prompt for other models
-        return f"""Contexte:
-{context}
-
-Question: {question}"""
+Réponse:"""
 
 
 def create_judge(config: Config, judge_model: str = None) -> RAGASMetrics:
@@ -725,8 +713,7 @@ Examples:
 
             start = time.time()
             try:
-                # Generate optimized prompt based on model
-                prompt = get_optimized_prompt(model, qa['question'], content)
+                prompt = get_eval_prompt(qa['question'], content)
                 resp = requests.post(f"{config.ollama_url}/api/chat", json={
                     "model": model,
                     "messages": [{"role": "user", "content": prompt}],

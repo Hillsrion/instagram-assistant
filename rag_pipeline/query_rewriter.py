@@ -32,7 +32,7 @@ class QueryRewriter:
 
     def __init__(self, config: Config):
         self.config = config
-        self.model = self.config.llm_model
+        self.model = self.config.llm_model_fast
 
     def rewrite(self, query: str, history: List[Dict[str, str]]) -> str:
         """
