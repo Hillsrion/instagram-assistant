@@ -762,21 +762,30 @@ async def chat_stream(request: ChatRequest):
 
     # Intelligent Routing based on LLM decision
     if analysis.mode == "analytics":
-        logger.warning(f"⚠️ Routing to ANALYTICS mode for: '{request.message}'")
-        # Check if it's discovery or computational based on intent/message
         query_lower = request.message.lower()
-        if any(k in query_lower for k in ["liste", "qui", "participants"]):
-            logger.info(f"  → Using DISCOVERY endpoint")
+        
+        # Define explicit keywords for routing
+        discovery_keywords = ["liste", "qui", "participants", "tous les", "show all", "list"]
+        computational_keywords = ["combien", "nombre", "count", "statistiques", "stats"]
+        
+        is_discovery = any(k in query_lower for k in discovery_keywords)
+        is_computational = any(k in query_lower for k in computational_keywords)
+        
+        if is_discovery:
+            logger.info(f"⚠️ Routing to DISCOVERY mode for: '{request.message}'")
             return StreamingResponse(
                 handle_discovery_query(request),
                 media_type="text/event-stream"
             )
-        else:
-            logger.info(f"  → Using COMPUTATIONAL endpoint")
+        elif is_computational:
+            logger.info(f"⚠️ Routing to COMPUTATIONAL mode for: '{request.message}'")
             return StreamingResponse(
                 handle_computational_query(request),
                 media_type="text/event-stream"
             )
+        else:
+            logger.warning(f"⚠️ Analytics mode proposed by LLM but no keywords matched. Fallback to RETRIEVAL.")
+            # Fall through to retrieval logic below
 
     logger.info(f"🔄 Using RETRIEVAL flow")
 
