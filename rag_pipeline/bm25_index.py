@@ -93,8 +93,11 @@ class BM25Index:
         # Tokenizer tous les documents
         tokenized_corpus = []
         for chunk in chunks:
-            # On indexe le contenu complet (pas juste le résumé)
-            text = f"{chunk.summary} {chunk.content}"
+            # On indexe le contenu complet
+            text_parts = [chunk.content]
+            if chunk.narrative_summary:
+                text_parts.insert(0, chunk.narrative_summary)
+            text = " ".join(text_parts)
             tokenized_corpus.append(self.tokenize(text))
 
         # Initialisation de BM25Okapi

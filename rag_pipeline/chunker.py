@@ -32,7 +32,6 @@ class Chunk:
     date_start: str
     date_end: str
     message_count: int
-    summary: str
     content: str
     file_source: str
     # Nouveaux champs pour le RAG "Gold Standard"
@@ -45,10 +44,13 @@ class Chunk:
     
     def to_dict(self) -> dict:
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "Chunk":
-        return cls(**data)
+        # Filter out any unknown fields (e.g., 'summary' from old chunks)
+        valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        return cls(**filtered_data)
     
     def get_embedding_text(self) -> str:
         """
@@ -99,8 +101,6 @@ class Chunk:
         # 6. Résumé narratif (Contexte sémantique)
         if self.narrative_summary:
             text_parts.append(f"Résumé : {self.narrative_summary}")
-        else:
-            text_parts.append(f"Résumé statistique : {self.summary}")
 
         text_parts.append("")
 
@@ -199,59 +199,6 @@ class ConversationChunker:
                 messages.append(current_message)
         
         return metadata, messages
-    
-    def generate_summary(self, messages: List[Message], participants: List[str]) -> str:
-        """Génère un résumé court du chunk."""
-        if not messages:
-            return "Chunk vide"
-        
-        # Participants actifs dans ce chunk
-        active_authors = set(m.author for m in messages)
-        other_participants = [p for p in active_authors if p != self.config.user_name]
-        
-        # Période
-        start = messages[0].timestamp.strftime('%d/%m/%Y')
-        end = messages[-1].timestamp.strftime('%d/%m/%Y')
-        period = f"{start}" if start == end else f"{start} - {end}"
-        
-        # Comptage par auteur
-        author_counts = defaultdict(int)
-        for m in messages:
-            author_counts[m.author] += 1
-        
-        # Mots-clés simples (les mots les plus fréquents > 4 caractères)
-        all_words = []
-        for m in messages:
-            words = re.findall(r'\b[a-zA-ZÀ-ÿ]{5,}\b', m.content.lower())
-            all_words.extend(words)
-        
-        word_freq = defaultdict(int)
-        stopwords = {'avoir', 'être', 'faire', 'cette', 'aussi', 'comme', 'encore', 
-                     'toujours', 'jamais', 'alors', 'quand', 'après', 'avant', 'depuis',
-                     'comment', 'pourquoi', 'parce', 'vraiment', 'tellement', 'quelque'}
-        for w in all_words:
-            if w not in stopwords:
-                word_freq[w] += 1
-        
-        top_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:5]
-        keywords = [w for w, _ in top_words] if top_words else []
-        
-        # Construire le résumé
-        summary_parts = [
-            f"Conversation entre {self.config.user_name} et {', '.join(other_participants) if other_participants else 'participants'}.",
-            f"Période: {period}.",
-            f"{len(messages)} messages échangés.",
-        ]
-        
-        if keywords:
-            summary_parts.append(f"Sujets abordés: {', '.join(keywords)}.")
-        
-        # Média
-        media_count = sum(1 for m in messages if m.has_media)
-        if media_count > 0:
-            summary_parts.append(f"Contient {media_count} média(s).")
-        
-        return " ".join(summary_parts)
     
     def format_chunk_content(self, messages: List[Message]) -> str:
         """Formate le contenu d'un chunk pour l'indexation."""
@@ -361,7 +308,6 @@ class ConversationChunker:
             date_start=messages[0].timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             date_end=messages[-1].timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             message_count=len(messages),
-            summary=self.generate_summary(messages, metadata['participants']),
             content=self.format_chunk_content(messages),
             file_source=file_path.name
         )

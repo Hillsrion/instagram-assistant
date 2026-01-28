@@ -1,23 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Send, StopCircle, User, Bot, ChevronDown } from 'lucide-react'
+import { Send, StopCircle, User, Bot, FileText } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { getConversation, getOllamaModels } from '@/lib/api'
 import { useChatStream } from '@/hooks/use-chat-stream'
+import { SourcesModal } from '@/components/SourcesModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -25,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import type { Source, SummarySource } from '@/lib/types'
 
 export const Route = createFileRoute('/chat/$chatId')({
   component: ChatRoute,
@@ -81,49 +75,18 @@ function ChatRoute() {
     }
   }, [messages, streamStatus])
 
+  const [sourcesModalOpen, setSourcesModalOpen] = useState(false)
+  const [selectedMessageSources, setSelectedMessageSources] = useState<{
+    sources: Source[]
+    summary_sources: SummarySource[]
+  } | null>(null)
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (inputRef.current?.value) {
       sendMessage(inputRef.current.value)
       inputRef.current.value = ''
     }
-  }
-
-  // Source viewer
-  const SourceChip = ({ source }: { source: any }) => {
-    const [open, setOpen] = useState(false)
-    
-    // Fetch full chunk on open if needed, or rely on what we have
-    // Usually we need to fetch /api/chunks/{chunk_id} to get full content if not present
-    // For now we'll just show what's in the source object + a placeholder if preview missing
-
-    return (
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <button className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs hover:bg-muted/80 transition-colors mx-0.5 align-middle">
-             <span className="font-bold text-primary">[{source.rank}]</span>
-             <span className="truncate max-w-[100px]">{source.file}</span>
-          </button>
-        </DialogTrigger>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Source #{source.rank}: {source.file}</DialogTitle>
-            <DialogDescription>
-              {(source.participants || []).join(', ')} • {source.date_start}
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="flex-1 mt-4 p-4 border rounded-md bg-muted/20">
-             <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
-               {/* In a real app we'd fetch the full content here */}
-               {source.preview || "Detailed content not available in this view."}
-             </pre>
-          </ScrollArea>
-          <div className="text-xs text-muted-foreground mt-2">
-            Confidence: {Math.round(source.score * 100)}%
-          </div>
-        </DialogContent>
-      </Dialog>
-    )
   }
 
   return (
@@ -193,12 +156,20 @@ function ChatRoute() {
                  </div>
 
                  {/* Sources */}
-                 {msg.sources && msg.sources.length > 0 && (
-                   <div className="flex flex-wrap gap-2 mt-1">
-                     {msg.sources.map((source, idx) => (
-                       <SourceChip key={idx} source={source} />
-                     ))}
-                   </div>
+                 {((msg.sources && msg.sources.length > 0) || (msg.summary_sources && msg.summary_sources.length > 0)) && (
+                   <button
+                     onClick={() => {
+                       setSelectedMessageSources({
+                         sources: msg.sources || [],
+                         summary_sources: msg.summary_sources || []
+                       })
+                       setSourcesModalOpen(true)
+                     }}
+                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors mt-2"
+                   >
+                     <FileText className="h-3 w-3" />
+                     {(msg.sources?.length || 0) + (msg.summary_sources?.length || 0)} sources
+                   </button>
                  )}
                </div>
              </div>
@@ -242,6 +213,16 @@ function ChatRoute() {
            )}
          </div>
        </div>
+
+       {/* Sources Modal */}
+       {selectedMessageSources && (
+         <SourcesModal
+           sources={selectedMessageSources.sources}
+           summaryources={selectedMessageSources.summary_sources}
+           open={sourcesModalOpen}
+           onOpenChange={setSourcesModalOpen}
+         />
+       )}
     </div>
   )
 }

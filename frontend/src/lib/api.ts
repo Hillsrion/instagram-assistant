@@ -1,4 +1,4 @@
-import type { Conversation, ConversationListResponse } from "./types"
+import type { Conversation, ConversationListResponse, ChunkDetail } from "./types"
 
 const API_BASE = '/api'
 
@@ -49,5 +49,11 @@ export async function updateConversation(id: string, title: string): Promise<Con
     body: JSON.stringify({ title })
   })
   if (!res.ok) throw new Error('Failed to update conversation')
+  return res.json()
+}
+
+export async function getChunkContent(chunkId: string): Promise<ChunkDetail> {
+  const res = await fetch(`${API_BASE}/chunks/${chunkId}`)
+  if (!res.ok) throw new Error('Failed to fetch chunk content')
   return res.json()
 }

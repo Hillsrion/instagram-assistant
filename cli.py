@@ -68,11 +68,12 @@ def print_sources(results, max_sources=5):
         print(f"    Période: {chunk.date_start[:10]} → {chunk.date_end[:10]}")
         print(f"    Score: {Colors.GREEN}{result.final_score:.2f}{Colors.RESET}")
 
-        # Afficher un extrait du résumé
-        summary = chunk.summary[:150]
-        if len(chunk.summary) > 150:
-            summary += "..."
-        print(f"    {Colors.DIM}{summary}{Colors.RESET}")
+        # Afficher un extrait du résumé narratif
+        if chunk.narrative_summary:
+            summary = chunk.narrative_summary[:150]
+            if len(chunk.narrative_summary) > 150:
+                summary += "..."
+            print(f"    {Colors.DIM}{summary}{Colors.RESET}")
 
     if len(results) > max_sources:
         print(f"\n{Colors.DIM}... et {len(results) - max_sources} autres sources{Colors.RESET}")

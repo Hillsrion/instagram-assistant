@@ -114,11 +114,6 @@ class SummaryGenerator:
                 date_str = chunk.date_start[:10]
                 summaries.append(f"[{date_str}] {chunk.narrative_summary}")
 
-        if not summaries:
-            # Fallback sur les résumés statistiques
-            for chunk in chunks:
-                date_str = chunk.date_start[:10]
-                summaries.append(f"[{date_str}] {chunk.summary}")
 
         # Participants
         participants = chunks[0].participants if chunks else []
@@ -179,10 +174,6 @@ class SummaryGenerator:
                 date_str = chunk.date_start[:10]
                 summaries.append(f"[{date_str}] {chunk.narrative_summary}")
 
-        if not summaries:
-            for chunk in chunks:
-                date_str = chunk.date_start[:10]
-                summaries.append(f"[{date_str}] {chunk.summary}")
 
         participants = chunks[0].participants if chunks else []
         participants_str = ", ".join(participants)

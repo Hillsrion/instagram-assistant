@@ -123,8 +123,6 @@ class CrossEncoderReranker:
             # 5. Résumé Narratif (Contexte fort)
             if chunk.narrative_summary:
                 text_parts.append(f"Résumé: {chunk.narrative_summary}")
-            else:
-                text_parts.append(f"Résumé: {chunk.summary}")
 
             # 6. Contenu (Preuve)
             # On garde un extrait significatif (900 chars) pour compenser les nouveaux champs

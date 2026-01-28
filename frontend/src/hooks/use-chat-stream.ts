@@ -73,7 +73,11 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
               if (last.role === 'assistant') {
                 return [
                   ...prev.slice(0, -1),
-                  { ...last, sources: data.sources }
+                  {
+                    ...last,
+                    sources: data.sources,
+                    summary_sources: data.summary_sources || []
+                  }
                 ]
               }
               return prev
