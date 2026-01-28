@@ -599,13 +599,18 @@ Examples:
     config = Config()
     evaluator = SummaryEvaluator(config)
 
+    # Load summary store
+    if not evaluator.summary_store.load():
+        print("No summaries found. Run the summary generation pipeline first.")
+        return
+
     all_results = []
     conv_count = 0
     period_count = 0
 
     # Evaluate conversation summaries
     try:
-        conv_summaries = evaluator.summary_store.get_all_conversation_summaries()[:args.conversations]
+        conv_summaries = evaluator.summary_store.conversation_summaries[:args.conversations]
         conv_count = len(conv_summaries)
         print(f"Evaluating {conv_count} conversation summaries...")
 
@@ -622,7 +627,7 @@ Examples:
 
     # Evaluate period summaries
     try:
-        period_summaries = evaluator.summary_store.get_all_period_summaries()[:args.periods]
+        period_summaries = evaluator.summary_store.period_summaries[:args.periods]
         period_count = len(period_summaries)
         print(f"Evaluating {period_count} period summaries...")
 
