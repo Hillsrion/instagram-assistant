@@ -212,7 +212,6 @@ def judge_response(
     """
     faith_data = metrics.compute_faithfulness_with_explanation(
         question=question,
-        expected_answer=expected,
         generated_answer=generated,
         source_content=source
     )
@@ -310,7 +309,7 @@ def generate_json_report(
             {
                 "question": qa["question"],
                 "expected_answer": qa["expected_answer"],
-                "source_chunk_id": qa.get("source_chunk_id", "")
+                "source_chunk_ids": qa.get("source_chunk_ids", [qa["source_chunk_id"]] if "source_chunk_id" in qa else [])
             }
             for qa in qa_pairs
         ]
@@ -426,7 +425,8 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
     """
 
     for i, qa in enumerate(qa_pairs):
-        chunk_id = qa.get('source_chunk_id')
+        chunk_ids = qa.get('source_chunk_ids', [qa['source_chunk_id']] if 'source_chunk_id' in qa else [])
+        chunk_id = next((cid for cid in chunk_ids if cid in chunks_map), None) if chunk_ids else None
         source_button_id = f"source-toggle-{i}"
         source_content_id = f"source-content-{i}"
 
@@ -704,8 +704,9 @@ Examples:
     for i, qa in enumerate(qa_pairs):
         print(f"\n[{i+1}/{len(qa_pairs)}] Question: {qa['question']}")
 
-        # Find the chunk
-        chunk = chunks_map.get(qa['source_chunk_id'])
+        # Find the chunk (support both source_chunk_ids and legacy source_chunk_id)
+        chunk_ids = qa.get('source_chunk_ids', [qa['source_chunk_id']] if 'source_chunk_id' in qa else [])
+        chunk = next((chunks_map[cid] for cid in chunk_ids if cid in chunks_map), None)
         content = chunk.content if chunk else ""
 
         for model in models:

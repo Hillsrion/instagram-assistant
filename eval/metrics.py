@@ -22,17 +22,20 @@ class EvalResult:
     question: str
     expected_answer: str
     generated_answer: str
-    source_chunk_id: str
+    source_chunk_ids: List[str]
     retrieved_chunk_ids: List[str]
 
     # Retrieval metrics
     retrieval_hit: bool  # Was correct chunk in top-k?
     retrieval_rank: Optional[int]  # Rank of correct chunk (1-indexed)
     retrieval_score: Optional[float]  # Score of correct chunk
+    recall_at_k: float = 0.0  # Fraction of source chunks found in top-k
+    precision_at_k: float = 0.0  # Fraction of top-k results that are source chunks
 
     # Generation metrics
-    faithfulness_score: float  # 0-1, LLM-judged answer fidelity
-    answer_relevance: float  # 0-1, how relevant is the answer
+    faithfulness_score: float = 0.0  # 0-1, LLM-judged answer fidelity
+    answer_relevance: float = 0.0  # 0-1, how relevant is the answer
+    conciseness_score: float = 0.0  # 0-1, LLM-judged conciseness
 
     # Metadata
     config_used: dict = field(default_factory=dict)
@@ -51,10 +54,13 @@ class BenchmarkReport:
     retrieval_accuracy: float  # % questions where correct chunk in top-k
     mrr: float  # Mean Reciprocal Rank
     avg_retrieval_rank: float
+    avg_recall_at_k: float = 0.0
+    avg_precision_at_k: float = 0.0
 
     # Generation metrics
-    avg_faithfulness: float
-    avg_relevance: float
+    avg_faithfulness: float = 0.0
+    avg_relevance: float = 0.0
+    avg_conciseness: float = 0.0
 
     # By type breakdown
     by_type: Dict[str, Dict[str, float]] = field(default_factory=dict)
@@ -103,8 +109,6 @@ FAITHFULNESS_PROMPT = """Tu es un évaluateur expert pour les systèmes de quest
 
 QUESTION: {question}
 
-RÉPONSE ATTENDUE: {expected_answer}
-
 RÉPONSE GÉNÉRÉE: {generated_answer}
 
 DOCUMENTS SOURCES:
@@ -146,29 +150,103 @@ Réponds avec un JSON strict:
 1.0 = Répond parfaitement"""
 
 
+CONCISENESS_PROMPT = """Tu es un évaluateur expert pour les systèmes de question-réponse.
+
+QUESTION: {question}
+
+RÉPONSE GÉNÉRÉE: {generated_answer}
+
+Évalue la CONCISION de la réponse générée.
+La concision mesure si la réponse:
+1. Va droit au but sans détours inutiles
+2. Ne contient pas de répétitions ou de remplissage
+3. Est proportionnelle à la complexité de la question
+
+Réponds avec un JSON strict:
+{{"score": 0.0 à 1.0, "explanation": "..."}}
+
+0.0 = Extrêmement verbose / hors sujet
+0.5 = Contient du remplissage mais reste lisible
+1.0 = Parfaitement concise et directe"""
+
+
 class RAGASMetrics:
     """Compute RAGAS-style metrics for RAG evaluation."""
 
     def __init__(self, config: Config = None):
         self.config = config or default_config
 
+    def compute_retrieval_hit(
+        self,
+        source_chunk_ids: List[str],
+        retrieved_results: List[AdvancedSearchResult],
+        top_k: int = 5
+    ) -> tuple:
+        """
+        Check if any correct source chunk is in the top-k results.
+
+        Args:
+            source_chunk_ids: List of correct source chunk IDs
+            retrieved_results: Retrieved results
+            top_k: Number of top results to consider
+
+        Returns:
+            (hit: bool, rank: Optional[int], score: Optional[float])
+        """
+        source_set = set(source_chunk_ids)
+        for i, result in enumerate(retrieved_results[:top_k]):
+            if result.chunk.chunk_id in source_set:
+                return True, i + 1, result.final_score
+
+        return False, None, None
+
+    # Backward-compatible alias
     def compute_retrieval_accuracy(
         self,
         source_chunk_id: str,
         retrieved_results: List[AdvancedSearchResult],
         top_k: int = 5
     ) -> tuple:
+        """Deprecated: use compute_retrieval_hit instead."""
+        return self.compute_retrieval_hit([source_chunk_id], retrieved_results, top_k)
+
+    def compute_recall_at_k(
+        self,
+        source_chunk_ids: List[str],
+        retrieved_results: List[AdvancedSearchResult],
+        top_k: int = 5
+    ) -> float:
         """
-        Check if the correct source chunk is in the top-k results.
+        Compute recall@k: fraction of source chunks found in top-k results.
 
         Returns:
-            (hit: bool, rank: Optional[int], score: Optional[float])
+            Float between 0 and 1.
         """
-        for i, result in enumerate(retrieved_results[:top_k]):
-            if result.chunk.chunk_id == source_chunk_id:
-                return True, i + 1, result.final_score
+        if not source_chunk_ids:
+            return 0.0
+        source_set = set(source_chunk_ids)
+        retrieved_ids = {r.chunk.chunk_id for r in retrieved_results[:top_k]}
+        found = source_set & retrieved_ids
+        return len(found) / len(source_set)
 
-        return False, None, None
+    def compute_precision_at_k(
+        self,
+        source_chunk_ids: List[str],
+        retrieved_results: List[AdvancedSearchResult],
+        top_k: int = 5
+    ) -> float:
+        """
+        Compute precision@k: fraction of top-k results that are source chunks.
+
+        Returns:
+            Float between 0 and 1.
+        """
+        top_results = retrieved_results[:top_k]
+        if not top_results:
+            return 0.0
+        source_set = set(source_chunk_ids)
+        relevant = sum(1 for r in top_results if r.chunk.chunk_id in source_set)
+        return relevant / len(top_results)
 
     def compute_mrr(self, results: List[EvalResult]) -> float:
         """
@@ -192,7 +270,6 @@ class RAGASMetrics:
     def compute_faithfulness(
         self,
         question: str,
-        expected_answer: str,
         generated_answer: str,
         source_content: str
     ) -> float:
@@ -204,7 +281,6 @@ class RAGASMetrics:
         """
         prompt = FAITHFULNESS_PROMPT.format(
             question=question,
-            expected_answer=expected_answer,
             generated_answer=generated_answer,
             sources=source_content[:2000]
         )
@@ -329,9 +405,9 @@ class RAGASMetrics:
     def compute_faithfulness_with_explanation(
         self,
         question: str,
-        expected_answer: str,
         generated_answer: str,
-        source_content: str
+        source_content: str,
+        expected_answer: str = None  # kept for backward compat, ignored
     ) -> Dict[str, Any]:
         """
         Use LLM-as-judge to evaluate answer faithfulness to sources.
@@ -339,7 +415,6 @@ class RAGASMetrics:
         """
         prompt = FAITHFULNESS_PROMPT.format(
             question=question,
-            expected_answer=expected_answer,
             generated_answer=generated_answer,
             sources=source_content[:2000]
         )
@@ -361,6 +436,23 @@ class RAGASMetrics:
             generated_answer=generated_answer
         )
         return self._llm_judge(prompt, return_explanation=True)
+
+    def compute_conciseness(
+        self,
+        question: str,
+        generated_answer: str
+    ) -> float:
+        """
+        Use LLM-as-judge to evaluate answer conciseness.
+
+        Returns:
+            Score between 0 and 1.
+        """
+        prompt = CONCISENESS_PROMPT.format(
+            question=question,
+            generated_answer=generated_answer
+        )
+        return self._llm_judge(prompt)
 
     def aggregate_results(
         self,
@@ -391,6 +483,11 @@ class RAGASMetrics:
         # Compute generation metrics
         avg_faithfulness = sum(r.faithfulness_score for r in results) / len(results)
         avg_relevance = sum(r.answer_relevance for r in results) / len(results)
+        avg_conciseness = sum(r.conciseness_score for r in results) / len(results)
+
+        # Compute recall/precision averages
+        avg_recall_at_k = sum(r.recall_at_k for r in results) / len(results)
+        avg_precision_at_k = sum(r.precision_at_k for r in results) / len(results)
 
         # Group by type and difficulty
         by_type = {}
@@ -434,8 +531,11 @@ class RAGASMetrics:
             retrieval_accuracy=retrieval_accuracy,
             mrr=mrr,
             avg_retrieval_rank=avg_rank,
+            avg_recall_at_k=avg_recall_at_k,
+            avg_precision_at_k=avg_precision_at_k,
             avg_faithfulness=avg_faithfulness,
             avg_relevance=avg_relevance,
+            avg_conciseness=avg_conciseness,
             by_type=by_type,
             by_difficulty=by_difficulty,
             results=results

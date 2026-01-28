@@ -87,7 +87,6 @@ def test_prompt(model: str, question: str, content: str, prompt: str, config: Co
 def judge_response(metrics: RAGASMetrics, question: str, expected: str, generated: str, source: str) -> Dict[str, Any]:
     faith_data = metrics.compute_faithfulness_with_explanation(
         question=question,
-        expected_answer=expected,
         generated_answer=generated,
         source_content=source
     )
@@ -139,7 +138,8 @@ def run_comparison():
 
     for q_num in PERFECT_QUESTIONS:
         qa = qa_pairs[q_num - 1]
-        chunk = chunks_map.get(qa['source_chunk_id'])
+        chunk_ids = qa.get('source_chunk_ids', [qa['source_chunk_id']] if 'source_chunk_id' in qa else [])
+        chunk = next((chunks_map[cid] for cid in chunk_ids if cid in chunks_map), None)
         content = chunk.content if chunk else ""
 
         # Baseline

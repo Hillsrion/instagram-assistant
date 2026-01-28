@@ -36,7 +36,7 @@ class QAPair:
     """A question-answer pair for evaluation."""
     question: str
     expected_answer: str
-    source_chunk_id: str
+    source_chunk_ids: List[str]
     question_type: QuestionType
     difficulty: Difficulty
     metadata: dict = None
@@ -50,6 +50,8 @@ class QAPair:
         d = asdict(self)
         d['question_type'] = self.question_type.value
         d['difficulty'] = self.difficulty.value
+        # Write both keys for backward compatibility
+        d['source_chunk_id'] = self.source_chunk_ids[0] if self.source_chunk_ids else ""
         return d
 
     @classmethod
@@ -58,6 +60,11 @@ class QAPair:
         data['difficulty'] = Difficulty(data['difficulty'])
         if 'tags' not in data:
             data['tags'] = []
+        # Backward compat: wrap singular source_chunk_id into list
+        if 'source_chunk_ids' not in data and 'source_chunk_id' in data:
+            data['source_chunk_ids'] = [data.pop('source_chunk_id')]
+        elif 'source_chunk_id' in data and 'source_chunk_ids' in data:
+            data.pop('source_chunk_id')
         return cls(**data)
 
 
@@ -257,7 +264,7 @@ class SyntheticDataGenerator:
                 qa_pairs.append(QAPair(
                     question=item['question'],
                     expected_answer=item['answer'],
-                    source_chunk_id=chunk.chunk_id,
+                    source_chunk_ids=[chunk.chunk_id],
                     question_type=qtype,
                     difficulty=diff,
                     metadata={

@@ -115,8 +115,20 @@ class BenchmarkRunner:
         )
 
         # 3. Check retrieval accuracy
-        hit, rank, score = self.metrics.compute_retrieval_accuracy(
-            qa.source_chunk_id,
+        hit, rank, score = self.metrics.compute_retrieval_hit(
+            qa.source_chunk_ids,
+            context.results,
+            bench_config.top_k
+        )
+
+        # 3b. Compute recall and precision at k
+        recall_at_k = self.metrics.compute_recall_at_k(
+            qa.source_chunk_ids,
+            context.results,
+            bench_config.top_k
+        )
+        precision_at_k = self.metrics.compute_precision_at_k(
+            qa.source_chunk_ids,
             context.results,
             bench_config.top_k
         )
@@ -134,12 +146,11 @@ class BenchmarkRunner:
             except Exception as e:
                 generated_answer = f"[Error: {e}]"
 
-        # 5. Evaluate faithfulness and relevance
+        # 5. Evaluate faithfulness, relevance, and conciseness
         source_content = context.formatted_context if context.has_results else ""
 
         faithfulness = self.metrics.compute_faithfulness(
             qa.question,
-            qa.expected_answer,
             generated_answer,
             source_content
         )
@@ -150,17 +161,25 @@ class BenchmarkRunner:
             generated_answer
         )
 
+        conciseness = self.metrics.compute_conciseness(
+            qa.question,
+            generated_answer
+        )
+
         return EvalResult(
             question=qa.question,
             expected_answer=qa.expected_answer,
             generated_answer=generated_answer,
-            source_chunk_id=qa.source_chunk_id,
+            source_chunk_ids=qa.source_chunk_ids,
             retrieved_chunk_ids=[r.chunk.chunk_id for r in context.results],
             retrieval_hit=hit,
             retrieval_rank=rank,
             retrieval_score=score,
+            recall_at_k=recall_at_k,
+            precision_at_k=precision_at_k,
             faithfulness_score=faithfulness,
             answer_relevance=relevance,
+            conciseness_score=conciseness,
             config_used={
                 'question_type': qa.question_type.value,
                 'difficulty': qa.difficulty.value,
