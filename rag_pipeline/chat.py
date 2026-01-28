@@ -12,6 +12,9 @@ from .config import Config, default_config
 from .retriever import Retriever, RetrievalContext
 from .pii_filter import PIIFilter
 from .query_analyzer import QueryAnalyzer, AnalysisResult
+from .logger import get_logger, RequestLogger
+
+logger = get_logger()
 
 
 # Prompt système optimisé pour Ministral - Anti-hallucination + chat interactif
@@ -329,23 +332,44 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         Returns:
             ChatResponse ou générateur de tokens + ChatResponse final
         """
+        request_logger = RequestLogger(query)
+
+        logger.info(f"📝 Chat request: '{query}'")
+
         # Omni-Prompt Analysis (Rewrite + Intent + Dates)
-        # Si use_rewriting est False, on pourrait limiter l'analyse, 
+        # Si use_rewriting est False, on pourrait limiter l'analyse,
         # mais l'Analyzer gère aussi l'intention et les dates.
         analysis = self.query_analyzer.analyze(query, self.conversation_history)
-        
+
         search_query = analysis.rewritten_query if use_rewriting else query
         rewritten_query = analysis.rewritten_query
         search_intent = analysis.intent
-        
+
         if top_k is None:
             top_k = analysis.top_k
-            
-        print(f"🔄 Omni-Analysis: {analysis.intent} | top_k={top_k} | dates={analysis.date_start}->{analysis.date_end}")
+
+        # Log the analysis result
+        request_logger.log_analysis({
+            "mode": analysis.mode,
+            "intent": analysis.intent,
+            "rewritten_query": analysis.rewritten_query,
+            "top_k": top_k,
+            "date_start": analysis.date_start,
+            "date_end": analysis.date_end
+        })
+
+        logger.info(f"📊 Mode detected: {analysis.mode} | Intent: {analysis.intent} | top_k={top_k}")
+        print(f"🔄 Omni-Analysis: {analysis.intent} | top_k={top_k} | mode={analysis.mode} | dates={analysis.date_start}->{analysis.date_end}")
+
+        # Check if this is analytics mode
+        if analysis.mode == "analytics":
+            logger.warning(f"⚠️ Analytics mode detected for query: '{query}'")
+            logger.warning(f"   This should be handled by analytics endpoints, not RAG retrieval")
 
         # Retrieval
+        logger.info(f"🔍 Starting retrieval: top_k={top_k}, use_reranking={analysis.use_reranking}, expand_context={analysis.expand_context}")
         context = self.retriever.retrieve(
-            search_query, 
+            search_query,
             top_k=top_k,
             date_start=analysis.date_start,
             date_end=analysis.date_end,
@@ -353,14 +377,21 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
             expand_context=analysis.expand_context
         )
 
+        request_logger.log_retrieval(len(context.sources),
+                                    [s.score for s in context.sources] if context.sources else [])
+
+        logger.info(f"📚 Retrieved {len(context.sources)} sources")
+
         # Construire le prompt (avec la question ORIGINALE pour la réponse finale)
         prompt = self._build_prompt(query, context)
 
         if stream:
-            return self._chat_stream(query, prompt, context, rewritten_query, model, search_intent)
+            return self._chat_stream(query, prompt, context, rewritten_query, model, search_intent, request_logger)
         else:
             answer = self._call_ollama(prompt, stream=False, model=model)
             self._update_history(query, answer)
+            request_logger.log_llm_call(model or self.config.llm_model, len(answer))
+            request_logger.save()
             return ChatResponse(
                 answer=answer,
                 context=context,
@@ -376,7 +407,8 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         context: RetrievalContext,
         rewritten_query: Optional[str] = None,
         model: str = None,
-        search_intent: str = None
+        search_intent: str = None,
+        request_logger: Optional[RequestLogger] = None
     ) -> Generator[str, None, ChatResponse]:
         """Chat en mode streaming."""
         full_response = []
@@ -387,6 +419,12 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
 
         answer = "".join(full_response)
         self._update_history(query, answer)
+
+        if request_logger:
+            request_logger.log_llm_call(model or self.config.llm_model, len(answer))
+            request_logger.save()
+
+        logger.info(f"✅ Chat complete: response_length={len(answer)}")
 
         # Le return final sera accessible via StopIteration.value
         return ChatResponse(

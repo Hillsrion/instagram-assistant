@@ -8,6 +8,9 @@ from datetime import datetime
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 from .config import Config, default_config
+from .logger import get_logger
+
+logger = get_logger()
 
 @dataclass
 class AnalysisResult:
@@ -48,11 +51,22 @@ Aujourd'hui: {today_str} (ISO: {iso_str}).
 
 Transforme la question en structure de recherche optimisée.
 
-1. MODE:
-   - 'analytics' = compter le TOTAL de messages, conversations ou contacts
-     Exemples: "Combien j'ai de messages ?", "Nombre de messages avec Marie ?", "Liste mes contacts"
-   - 'retrieval' = tout le reste (recherche sémantique dans le contenu)
-     Exemples: "Combien de fois on a parlé de sport ?", "Qu'est-ce qu'on a dit sur...", "Résume mes échanges avec X"
+1. MODE (DÉCISION CRITIQUE):
+
+   ✅ 'analytics' = COMPTAGE/STATISTIQUES UNIQUEMENT
+   Exemples ANALYTICS:
+   - "Combien j'ai de messages ?" → compter le total
+   - "Nombre de messages avec Marie ?" → compter par contact
+   - "Combien de fois on a parlé de sport ?" → compter des occurrences
+   - "Lister mes contacts" → énumérer les noms
+
+   ✅ 'retrieval' = INFORMATION, FAITS, RÉSUMÉS (tout le reste)
+   Exemples RETRIEVAL:
+   - "Qui est Ayoub ?" → chercher des infos sur Ayoub
+   - "Est-ce qu'Ayoub est marocain ?" → chercher des attributs personnels
+   - "De quoi on a parlé avec X ?" → résumé du contenu
+   - "Qu'est-ce qu'il a dit sur..." → recherche factuelle
+   - "Résume mes échanges avec Y" → analyse sémantique
 
 2. REFORMULATION:
    - Rends la question autonome (compréhensible sans historique)
@@ -81,6 +95,9 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
         user_content = f"HISTORIQUE :\n{formatted_history}\n\nDERNIÈRE QUESTION : {query}"
 
         try:
+            logger.info(f"🔍 Analyzing query: '{query}'")
+            logger.debug(f"Model: {self.model}")
+
             response = requests.post(
                 f"{self.config.ollama_url}/api/chat",
                 json={
@@ -100,18 +117,24 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
             )
             response.raise_for_status()
             content = response.json()["message"]["content"]
+            logger.debug(f"LLM raw response: {content}")
             data = json.loads(content)
 
             # Mapping des paramètres selon l'intention
             intent = data.get("intent", "complex_reasoning")
             params = self._get_params_for_intent(intent)
-            
+            mode = data.get("mode", "retrieval")
+
             date_range = data.get("date_range") or {}
-            
+
+            logger.info(f"✅ Analysis complete: mode={mode}, intent={intent}, top_k={params['top_k']}")
+            logger.debug(f"  Rewritten query: '{data.get('rewritten_query', query)}'")
+            logger.debug(f"  Date range: {date_range}")
+
             return AnalysisResult(
                 rewritten_query=data.get("rewritten_query", query),
                 intent=intent,
-                mode=data.get("mode", "retrieval"),
+                mode=mode,
                 top_k=params["top_k"],
                 use_reranking=params["use_reranking"],
                 expand_context=params["expand_context"],
@@ -120,7 +143,8 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
             )
 
         except Exception as e:
-            print(f"⚠️ Erreur Query Analysis: {e}")
+            logger.error(f"❌ Query Analysis Error: {e}", exc_info=True)
+            logger.warning(f"⚠️ Falling back to default retrieval mode")
             # Fallback sur les valeurs par défaut
             return AnalysisResult(
                 rewritten_query=query,

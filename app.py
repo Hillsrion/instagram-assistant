@@ -25,6 +25,9 @@ from rag_pipeline.advanced_retriever import create_advanced_retriever
 from rag_pipeline.chat import ChatBot, QueryType, classify_query
 from rag_pipeline.query_analyzer import QueryAnalyzer
 from rag_pipeline.analytics import ConversationAnalytics
+from rag_pipeline.logger import get_logger
+
+logger = get_logger()
 
 
 # ============================================================
@@ -749,23 +752,32 @@ async def chat_stream(request: ChatRequest):
     if not retriever or not chatbot:
         raise HTTPException(status_code=503, detail="RAG not initialized")
 
+    logger.info(f"📨 Chat stream request: '{request.message}'")
+
     # Omni-Analyse (Rewrite + Intent + Dates + Mode) en un seul appel LLM
     analysis = query_analyzer.analyze(request.message, chatbot.conversation_history)
-    
+
+    logger.info(f"🎯 Analysis result: mode={analysis.mode}, intent={analysis.intent}")
+
     # Intelligent Routing based on LLM decision
     if analysis.mode == "analytics":
+        logger.warning(f"⚠️ Routing to ANALYTICS mode for: '{request.message}'")
         # Check if it's discovery or computational based on intent/message
         query_lower = request.message.lower()
         if any(k in query_lower for k in ["liste", "qui", "participants"]):
+            logger.info(f"  → Using DISCOVERY endpoint")
             return StreamingResponse(
                 handle_discovery_query(request),
                 media_type="text/event-stream"
             )
         else:
+            logger.info(f"  → Using COMPUTATIONAL endpoint")
             return StreamingResponse(
                 handle_computational_query(request),
                 media_type="text/event-stream"
             )
+
+    logger.info(f"🔄 Using RETRIEVAL flow")
 
     # Default: retrieval flow
     async def generate() -> AsyncGenerator[str, None]:
