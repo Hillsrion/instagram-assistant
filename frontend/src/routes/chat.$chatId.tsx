@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Send, StopCircle, User, Bot, FileText } from 'lucide-react'
+import { Send, StopCircle, User, Bot, FileText, SlidersHorizontal, Sparkles } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { getConversation, getOllamaModels, getParticipants } from '@/lib/api'
 import { useChatStream } from '@/hooks/use-chat-stream'
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { FiltersPanel } from '@/components/filters-panel'
+import { SearchPopover } from '@/components/SearchPopover' // NEW IMPORT
 import { cn } from '@/lib/utils'
 import {
   Select,
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 import type { Source, SummarySource } from '@/lib/types'
 
 export const Route = createFileRoute('/chat/$chatId')({
@@ -82,14 +83,12 @@ function ChatRoute() {
 
   // Filters State
   const [filterParticipant, setFilterParticipant] = useState<string>('')
-  const [filterDateStart, setFilterDateStart] = useState<string>('')
-  const [filterDateEnd, setFilterDateEnd] = useState<string>('')
-
+  const [filterGroup, setFilterGroup] = useState<string>('') // NEW
+  
   // Filter Logic
   const filteredMessages = useMemo(() => {
     return messages.filter(msg => {
       // Participant Filter
-      // We filter assistant messages based on whether their sources mention the participant
       if (filterParticipant) {
         if (msg.role === 'assistant') {
           const hasParticipantInSources = msg.sources?.some(s => 
@@ -103,37 +102,17 @@ function ChatRoute() {
             return false
           }
         }
-        // For user messages, we might want to keep them to see the context of the questions asked,
-        // or filter them if they mention the participant. 
-        // Let's keep them for now to maintain conversation flow, or maybe filter them too?
-        // User's request implies they want to see "discussions de mes dm", which are in the sources.
       }
-
-      // Date Filter
-      if (filterDateStart || filterDateEnd) {
-        const msgDate = new Date(msg.timestamp)
-        if (filterDateStart) {
-          const start = new Date(filterDateStart)
-          if (msgDate < start) return false
-        }
-        if (filterDateEnd) {
-          const end = new Date(filterDateEnd)
-          end.setHours(23, 59, 59, 999) // End of day
-          if (msgDate > end) return false
-        }
-      }
-
       return true
     })
-  }, [messages, filterParticipant, filterDateStart, filterDateEnd])
+  }, [messages, filterParticipant])
 
-  // Auto-scroll (only if not filtering, or maybe always? If filtering, we might not want to scroll to bottom if we are looking at old messages)
-  // Let's keep it simple for now and scroll.
+  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [filteredMessages, streamStatus])
+  }, [filteredMessages, streamStatus, isStreaming])
 
   const [sourcesModalOpen, setSourcesModalOpen] = useState(false)
   const [selectedMessageSources, setSelectedMessageSources] = useState<{
@@ -144,55 +123,27 @@ function ChatRoute() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (inputRef.current?.value) {
-      sendMessage(inputRef.current.value)
+      sendMessage(inputRef.current.value, { 
+        participant: filterParticipant, 
+        group: filterGroup 
+      })
       inputRef.current.value = ''
     }
   }
 
   return (
-    <div className="flex h-full flex-col relative">
-       {/* Header */}
-       <div className="border-b p-4 flex items-center justify-between bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 w-full">
+    <div className="flex h-full flex-col relative bg-background">
+       {/* Header - SIMPLIFIED */}
+       <div className="border-b p-4 flex items-center justify-between bg-background/95 backdrop-blur z-10 w-full h-14">
          <div className="flex items-center gap-2">
-           <h2 className="font-semibold text-lg">{conversation?.title || 'Chat'}</h2>
+           <h2 className="font-semibold text-lg truncate max-w-[500px]">{conversation?.title || 'Chat'}</h2>
            {isLoading && <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>}
          </div>
-
-         {/* Model Selector */}
-         {modelsData?.models && modelsData.models.length > 0 && (
-           <Select value={selectedModel || modelsData.default_model || ''} onValueChange={setSelectedModel}>
-             <SelectTrigger className="w-48">
-               <SelectValue placeholder="Select model..." />
-             </SelectTrigger>
-             <SelectContent>
-               {modelsData.models.map((model) => (
-                 <SelectItem key={model.name} value={model.name}>
-                   {model.name.includes(':') ? model.name : `${model.name}:latest`}
-                   {model.name === modelsData.default_model && ' (default)'}
-                 </SelectItem>
-               ))}
-             </SelectContent>
-           </Select>
-         )}
-       </div>
-
-       {/* Filters */}
-       <div className="px-4 py-1 border-b bg-muted/5 backdrop-blur-sm z-10 sticky top-0">
-          <div className="max-w-3xl mx-auto">
-            <FiltersPanel
-              participants={participantNames}
-              onParticipantChange={setFilterParticipant}
-              onDateRangeChange={(start, end) => {
-                   setFilterDateStart(start)
-                   setFilterDateEnd(end)
-              }}
-            />
-          </div>
        </div>
 
        {/* Messages Area */}
        <ScrollArea className="flex-1 p-4">
-         <div className="max-w-3xl mx-auto space-y-6 pb-20">
+         <div className="max-w-3xl mx-auto space-y-6 pb-4">
            {filteredMessages.map((msg, i) => (
              <div 
                key={i} 
@@ -215,13 +166,13 @@ function ChatRoute() {
                  msg.role === 'user' ? "items-end" : "items-start"
                )}>
                  <div className={cn(
-                   "rounded-lg px-4 py-3 text-sm",
+                   "rounded-lg px-4 py-3 text-sm shadow-sm",
                    msg.role === 'user' 
                      ? "bg-primary text-primary-foreground" 
-                     : "bg-muted/50 border"
+                     : "bg-card border"
                  )}>
                     {msg.role === 'assistant' ? (
-                       <div className="prose dark:prose-invert prose-sm max-w-none break-words">
+                       <div className="prose dark:prose-invert prose-sm max-w-none break-words leading-relaxed">
                          <ReactMarkdown>{msg.content}</ReactMarkdown>
                        </div>
                     ) : (
@@ -239,7 +190,7 @@ function ChatRoute() {
                        })
                        setSourcesModalOpen(true)
                      }}
-                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors mt-2"
+                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground text-xs font-medium transition-colors mt-1"
                    >
                      <FileText className="h-3 w-3" />
                      {(msg.sources?.length || 0) + (msg.summary_sources?.length || 0)} sources
@@ -261,30 +212,107 @@ function ChatRoute() {
          </div>
        </ScrollArea>
 
-       {/* Input Area */}
-       <div className="p-4 border-t bg-background/95 backdrop-blur">
-         <div className="max-w-3xl mx-auto flex gap-2">
-           <Input 
-             ref={inputRef}
-             placeholder="Ask a question about your conversations..."
-             className="flex-1"
-             onKeyDown={(e) => {
-               if (e.key === 'Enter' && !e.shiftKey) {
-                 e.preventDefault()
-                 handleSubmit(e)
+       {/* Input Area & Toolbar */}
+       <div className="p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t">
+         <div className="max-w-3xl mx-auto space-y-3">
+           
+           {/* Input */}
+           <div className="flex gap-2 relative">
+             <Input 
+               ref={inputRef}
+               placeholder={
+                 filterParticipant 
+                   ? `Ask a question about ${filterParticipant}...`
+                   : filterGroup
+                     ? `Ask a question about group ${filterGroup}...` 
+                     : "Poser une question sur vos conversations..."
                }
-             }}
-             disabled={isStreaming}
-           />
-           {isStreaming ? (
-             <Button variant="destructive" size="icon" onClick={stopStream}>
-               <StopCircle className="h-4 w-4" />
-             </Button>
-           ) : (
-             <Button size="icon" onClick={handleSubmit} disabled={isLoading}>
-               <Send className="h-4 w-4" />
-             </Button>
-           )}
+               className="flex-1 pr-12 min-h-[50px] text-base shadow-sm"
+               onKeyDown={(e) => {
+                 if (e.key === 'Enter' && !e.shiftKey) {
+                   e.preventDefault()
+                   handleSubmit(e)
+                 }
+               }}
+               disabled={isStreaming}
+             />
+             
+             <div className="absolute right-1.5 top-1.5">
+               {isStreaming ? (
+                 <Button variant="destructive" size="icon" onClick={stopStream} className="h-9 w-9 rounded-full">
+                   <StopCircle className="h-4 w-4" />
+                 </Button>
+               ) : (
+                 <Button size="icon" onClick={handleSubmit} disabled={isLoading} className="h-9 w-9 rounded-full">
+                   <Send className="h-4 w-4" />
+                 </Button>
+               )}
+             </div>
+           </div>
+
+           {/* Toolbar: Filters & Model Selection */}
+           <div className="flex items-center justify-between">
+              
+              <div className="flex items-center gap-2">
+                {/* 1. FILTER POPOVER */}
+                <SearchPopover
+                  participantNames={participantNames}
+                  selectedParticipant={filterParticipant}
+                  onSelectParticipant={(p) => {
+                    setFilterParticipant(p)
+                    if(p) setFilterGroup('') // Exclusive or override
+                  }}
+                  selectedGroup={filterGroup} // NEW
+                  onSelectGroup={(g) => {
+                    setFilterGroup(g)
+                    if(g) setFilterParticipant('') // Exclusive or override
+                  }}
+                >
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className={cn(
+                      "gap-2 h-8 text-xs font-medium border-dashed",
+                      (filterParticipant || filterGroup) && "bg-primary/5 border-primary/20 text-primary border-solid"
+                    )}
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    {filterParticipant ? (
+                       <span>Personne: <span className="font-semibold">{filterParticipant}</span></span>
+                    ) : filterGroup ? (
+                       <span>Groupe: <span className="font-semibold">{filterGroup}</span></span>
+                    ) : (
+                       "Filtres"
+                    )}
+                    {(filterParticipant || filterGroup) && (
+                      <Badge variant="secondary" className="ml-1 h-5 px-1 rounded-sm bg-primary/10 text-primary hover:bg-primary/20">1</Badge>
+                    )}
+                  </Button>
+                </SearchPopover>
+
+                {/* 2. MODEL SELECTOR (Moved here) */}
+                {modelsData?.models && modelsData.models.length > 0 && (
+                  <Select value={selectedModel || modelsData.default_model || ''} onValueChange={setSelectedModel}>
+                    <SelectTrigger className="h-8 w-auto gap-2 text-xs border-0 bg-transparent hover:bg-muted/50 focus:ring-0 px-2 text-muted-foreground hover:text-foreground transition-colors">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <SelectValue placeholder="Model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modelsData.models.map((model) => (
+                        <SelectItem key={model.name} value={model.name} className="text-xs">
+                          {model.name.includes(':') ? model.name : `${model.name}:latest`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              
+              <div className="text-[10px] text-muted-foreground/60 hidden sm:block">
+                 Enter pour envoyer, Shift+Enter pour sauter une ligne
+              </div>
+           </div>
+
          </div>
        </div>
 
