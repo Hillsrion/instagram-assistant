@@ -16,9 +16,13 @@ ANALYSE CETTE CONVERSATION ET GÉNÈRE JSON :
 2. **QUESTIONS** : 3 questions précises que cet extrait répond (ce qu'un utilisateur demanderait)
 3. **INTENTIONS** : Pour chaque participant → son objectif principal (une phrase max)
 4. **CONTEXTE TEMPOREL** : Moment/période (ex: "avant X", "durant vacances")
-5. **ENTITÉS** : Éléments mentionnés dans le texte SEULEMENT:
-   - locations, people (hors participants), media, events
-   - ZÉRO hallucinations, ZÉRO inferences
+5. **ENTITÉS** : Éléments EXPLICITEMENT mentionnés dans le texte :
+   - locations : villes, lieux, restaurants cités dans les messages
+   - people : personnes mentionnées (hors participants directs)
+   - media : films, séries, jeux, musiques cités
+   - events : événements, fêtes, réunions cités
+   - Si une catégorie n'a AUCUNE mention dans le texte → liste vide []
+   - N'invente RIEN. Ne remplis PAS un champ juste pour le remplir.
 6. **ÉMOTIONS** : Ambiance générale de l'échange:
    - dominant: émotion principale (basée sur le texte)
    - tone: ton général (léger, sérieux, playful, etc)
@@ -30,16 +34,17 @@ CONVERSATION:
 RÈGLES STRICTES:
 - Format JSON obligatoire, ZÉRO texte avant ou après
 - ZÉRO détails non présents dans le texte
-- Sois concis et direct
+- Si un champ entités n'a pas de correspondance dans le texte → [] (liste vide)
+- Ne recopie JAMAIS les exemples ci-dessous, ils illustrent uniquement le format
 
-JSON OBLIGATOIRE:
+FORMAT JSON (les valeurs sont des exemples de format, PAS des données à recopier):
 {{
-  "narrative_summary": "Ismaël et Marie organisent un shooting photo à Lyon",
-  "questions": ["Quand a lieu le shooting ?", "Qui participe ?", "Où se passe l'événement ?"],
-  "speaker_intents": {{"Ismaël": "organiser le shooting", "Marie": "confirmer sa venue"}},
-  "temporal_context": "pendant la préparation d'un événement",
-  "entities": {{"locations": ["Lyon", "Parc de la Tête d'Or"], "people": ["Sarah"], "media": [], "events": ["shooting photo"]}},
-  "emotions": {{"dominant": "excitation", "tone": "léger", "tension_level": "low"}}
+  "narrative_summary": "<1 phrase décrivant l'échange>",
+  "questions": ["<question 1>", "<question 2>", "<question 3>"],
+  "speaker_intents": {{"<participant>": "<son intention>"}},
+  "temporal_context": "<moment ou période>",
+  "entities": {{"locations": [], "people": [], "media": [], "events": []}},
+  "emotions": {{"dominant": "<émotion>", "tone": "<ton>", "tension_level": "low|medium|high"}}
 }}
 """
 
