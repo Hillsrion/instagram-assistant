@@ -77,6 +77,7 @@ USER_NAME={user_name}
 # === Configuration LLM ===
 LLM_MODEL={llm_model}
 OLLAMA_URL=http://localhost:11434
+LLM_NUM_CTX=8192
 
 # === Configuration Embeddings ===
 EMBEDDING_MODEL=BAAI/bge-m3

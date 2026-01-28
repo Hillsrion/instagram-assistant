@@ -88,6 +88,8 @@ class Config:
     top_p: float = 0.9
     # Tokens max en sortie
     max_tokens: int = 1024
+    # Taille de la fenêtre de contexte Ollama (RAG + Historique)
+    num_ctx: int = field(default_factory=lambda: int(os.getenv('LLM_NUM_CTX', '8192')))
 
     # === Utilisateur ===
     user_name: str = field(default_factory=lambda: os.getenv('USER_NAME', 'Ismaël'))

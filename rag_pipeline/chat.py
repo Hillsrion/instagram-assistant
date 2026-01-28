@@ -272,6 +272,7 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
                 "temperature": self.config.temperature,
                 "top_p": self.config.top_p,
                 "num_predict": self.config.max_tokens,
+                "num_ctx": self.config.num_ctx,
             }
         }
         
@@ -448,6 +449,7 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
                 "temperature": 0.5,
                 "top_p": 0.9,
                 "num_predict": 200,
+                "num_ctx": self.config.num_ctx,
             }
         }
 
