@@ -3,6 +3,7 @@ import { fetchEventSource } from '@microsoft/fetch-event-source'
 import type { Message } from '@/lib/types'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
+import { evaluateTitle, updateConversation } from '@/lib/api'
 
 interface UseChatStreamProps {
   chatId: string
@@ -85,7 +86,19 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
           } else if (data.type === 'done') {
             setIsStreaming(false)
             setStreamStatus('')
+            
+            // Auto-evaluate title if it's the first message
+            if (messages.length === 0) {
+              try {
+                const { title } = await evaluateTitle(content, selectedModel || undefined)
+                await updateConversation(chatId, title)
+              } catch (err) {
+                console.error('Failed to auto-update title:', err)
+              }
+            }
+            
             queryClient.invalidateQueries({ queryKey: ['conversations'] })
+            queryClient.invalidateQueries({ queryKey: ['conversation', chatId] })
             if (onFinish) onFinish()
           } else if (data.error) {
             throw new Error(data.error)

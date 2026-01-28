@@ -64,6 +64,10 @@ class ChatRequest(BaseModel):
 
 class ConversationCreate(BaseModel):
     title: Optional[str] = None
+class TitleEvaluationRequest(BaseModel):
+    message: str
+    model: Optional[str] = None
+
 
 
 # ============================================================
@@ -305,6 +309,21 @@ async def update_conversation(conv_id: str, data: ConversationCreate):
         save_conversation(conv)
 
     return conv
+
+@app.post("/api/evaluate-title")
+async def evaluate_conversation_title(data: TitleEvaluationRequest):
+    """
+    Evaluate and generate a title for a conversation based on the first message.
+    """
+    if not chatbot:
+        raise HTTPException(status_code=503, detail="Chatbot not initialized")
+    
+    try:
+        title = chatbot.evaluate_title(data.message, model=data.model)
+        return {"title": title}
+    except Exception as e:
+        print(f"Error in evaluate-title endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/participants")
