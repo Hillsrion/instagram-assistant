@@ -20,24 +20,8 @@ def ensure_dir(path: Path) -> Path:
     return path
 
 
-def get_generation_report_path(
-    models: List[str],
-    trials: int,
-    timestamp: Optional[datetime] = None
-) -> Path:
-    """
-    Get output path for generation evaluation report.
-
-    Format: eval_results/eval_generation/gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.html
-
-    Args:
-        models: List of model names being compared
-        trials: Number of trials run
-        timestamp: Optional timestamp (defaults to now)
-
-    Returns:
-        Path to the HTML report file
-    """
+def _generation_base_name(models: List[str], trials: int, timestamp: Optional[datetime] = None) -> tuple:
+    """Generate base filename components for generation reports."""
     ts = timestamp or datetime.now()
     ts_str = ts.strftime("%Y%m%d_%H%M%S")
 
@@ -45,10 +29,33 @@ def get_generation_report_path(
     clean_models = [m.replace(":", "-").replace("/", "-") for m in models]
     models_str = "_vs_".join(clean_models[:3])  # Limit to first 3 models
 
-    filename = f"gen_{trials}trials_{models_str}_{ts_str}.html"
-
+    base = f"gen_{trials}trials_{models_str}_{ts_str}"
     output_dir = ensure_dir(EVAL_RESULTS_DIR / "eval_generation")
-    return output_dir / filename
+    return output_dir, base
+
+
+def get_generation_report_path(
+    models: List[str],
+    trials: int,
+    timestamp: Optional[datetime] = None,
+    format: str = "html"
+) -> Path:
+    """
+    Get output path for generation evaluation report.
+
+    Format: eval_results/eval_generation/gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.<ext>
+
+    Args:
+        models: List of model names being compared
+        trials: Number of trials run
+        timestamp: Optional timestamp (defaults to now)
+        format: Output format ("html" or "json")
+
+    Returns:
+        Path to the report file
+    """
+    output_dir, base = _generation_base_name(models, trials, timestamp)
+    return output_dir / f"{base}.{format}"
 
 
 def get_retrieval_report_path(
@@ -79,25 +86,27 @@ def get_retrieval_report_path(
 def get_summaries_report_path(
     conversations: int,
     periods: int,
-    timestamp: Optional[datetime] = None
+    timestamp: Optional[datetime] = None,
+    format: str = "html"
 ) -> Path:
     """
     Get output path for summaries evaluation report.
 
-    Format: eval_results/evaluate_summaries/summaries_<conv>conv_<periods>periods_<timestamp>.html
+    Format: eval_results/evaluate_summaries/summaries_<conv>conv_<periods>periods_<timestamp>.<ext>
 
     Args:
         conversations: Number of conversation summaries evaluated
         periods: Number of period summaries evaluated
         timestamp: Optional timestamp (defaults to now)
+        format: Output format ("html" or "json")
 
     Returns:
-        Path to the HTML report file
+        Path to the report file
     """
     ts = timestamp or datetime.now()
     ts_str = ts.strftime("%Y%m%d_%H%M%S")
 
-    filename = f"summaries_{conversations}conv_{periods}periods_{ts_str}.html"
+    filename = f"summaries_{conversations}conv_{periods}periods_{ts_str}.{format}"
 
     output_dir = ensure_dir(EVAL_RESULTS_DIR / "evaluate_summaries")
     return output_dir / filename

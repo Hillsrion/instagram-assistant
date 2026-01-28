@@ -179,7 +179,7 @@ python -m eval.eval_generation --models qwen3:latest,mistral --judge qwen3:lates
 |--------|-------------|--------|
 | `models` | Modèles à comparer (min. 2) | `qwen3:latest qwen2.5:3b` |
 | `--trials` | Nombre de questions à tester | 3 |
-| `--html` | Générer un rapport HTML interactif | false |
+| `--html` | Générer un rapport HTML en plus du JSON | false |
 | `--judge` | Modèle juge pour l'évaluation | config.llm_model |
 
 **Métriques calculées:**
@@ -190,10 +190,14 @@ python -m eval.eval_generation --models qwen3:latest,mistral --judge qwen3:lates
 | **Relevance** | La réponse répond-elle bien à la question? |
 | **Speed** | Vitesse de génération (mots/seconde) |
 
-**Rapport HTML:**
+**Rapports générés:**
 
-Avec `--html`, un rapport interactif est généré dans `eval_results/eval_generation/`:
-- Nom du fichier: `gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.html`
+Un rapport JSON est toujours généré dans `eval_results/eval_generation/`:
+- Nom: `gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.json`
+- Contient les métriques, la synthèse et les détails par question
+
+Avec `--html`, un rapport HTML interactif est également généré:
+- Nom: `gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.html`
 - Graphiques de comparaison
 - Détails par question avec réponses côte à côte
 - Observations du juge
@@ -337,11 +341,13 @@ Tous les résultats d'évaluation sont stockés dans `eval_results/` (ignoré pa
 ```
 eval_results/
 ├── eval_generation/
-│   └── gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.html
+│   ├── gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.json  (toujours)
+│   └── gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.html  (avec --html)
 ├── eval_retrieval/
 │   └── retrieval_<config>_<timestamp>.json
 ├── evaluate_summaries/
-│   └── summaries_<conv>conv_<periods>periods_<timestamp>.html
+│   ├── summaries_<conv>conv_<periods>periods_<timestamp>.json  (toujours)
+│   └── summaries_<conv>conv_<periods>periods_<timestamp>.html  (avec --html)
 └── compare_configs/
     └── comparison_<timestamp>.json
 ```
@@ -350,9 +356,11 @@ eval_results/
 |---------|-------------|-----------|
 | `eval/eval_dataset.json` | Dataset de paires QA | Non |
 | `eval/eval_dataset.sample.json` | Sample avec données fictives | Oui |
-| `eval_results/eval_generation/*.html` | Rapports HTML comparaison LLMs | Non |
+| `eval_results/eval_generation/*.json` | Rapports JSON comparaison LLMs (toujours généré) | Non |
+| `eval_results/eval_generation/*.html` | Rapports HTML comparaison LLMs (avec --html) | Non |
 | `eval_results/eval_retrieval/*.json` | Rapports de benchmark retrieval | Non |
-| `eval_results/evaluate_summaries/*.html` | Rapports évaluation résumés | Non |
+| `eval_results/evaluate_summaries/*.json` | Rapports JSON évaluation résumés (toujours généré) | Non |
+| `eval_results/evaluate_summaries/*.html` | Rapports HTML évaluation résumés (avec --html) | Non |
 | `eval_results/compare_configs/*.json` | Rapports de comparaison configs | Non |
 
 ---

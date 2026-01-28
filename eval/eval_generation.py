@@ -261,6 +261,60 @@ def display_missing_models_help(missing_models: List[str]):
     print("\n💡 Note: Make sure Ollama is running before installing models.")
     print("   Run 'ollama serve' in another terminal if needed.\n")
 
+
+def generate_json_report(
+    results: Dict[str, Any],
+    qa_pairs: List[Any],
+    summary_synthesis: str,
+    judge_model: str,
+    models: List[str],
+    trials: int
+) -> Path:
+    """Generate JSON report with evaluation results."""
+    report_data = {
+        "metadata": {
+            "timestamp": datetime.now().isoformat(),
+            "judge_model": judge_model,
+            "models_compared": models,
+            "num_trials": trials,
+            "num_questions": len(qa_pairs)
+        },
+        "summary": {
+            "synthesis": summary_synthesis,
+            "by_model": {}
+        },
+        "results": results,
+        "qa_pairs": [
+            {
+                "question": qa["question"],
+                "expected_answer": qa["expected_answer"],
+                "source_chunk_id": qa.get("source_chunk_id", "")
+            }
+            for qa in qa_pairs
+        ]
+    }
+
+    # Calculate summary metrics per model
+    for model in models:
+        model_trials = results[model]["trials"]
+        if model_trials:
+            avg_faith = sum(t["faith"]["score"] for t in model_trials) / len(model_trials)
+            avg_relev = sum(t["relev"]["score"] for t in model_trials) / len(model_trials)
+            avg_speed = results[model].get("avg_speed", 0)
+
+            report_data["summary"]["by_model"][model] = {
+                "avg_faithfulness": round(avg_faith, 3),
+                "avg_relevance": round(avg_relev, 3),
+                "avg_speed_wps": round(avg_speed, 2)
+            }
+
+    report_path = get_generation_report_path(models, trials, format="json")
+    with open(report_path, 'w', encoding='utf-8') as f:
+        json.dump(report_data, f, ensure_ascii=False, indent=2)
+
+    return report_path
+
+
 def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_synthesis: str, judge_model: str, chunks_map: Dict[str, Chunk] = None, models: List[str] = None, trials: int = 0):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     chunks_map = chunks_map or {}
@@ -684,9 +738,14 @@ Examples:
     for m in models:
         results[m]["avg_speed"] = sum(t["words_per_sec"] for t in results[m]["trials"]) / len(qa_pairs)
 
+    # Always generate JSON report
+    json_path = generate_json_report(results, qa_pairs, synth_resp, judge_model, models, args.trials)
+    print(f"\n✅ Rapport JSON généré: {json_path}")
+
+    # Optionally generate HTML report
     if args.html:
-        path = generate_html_report(results, qa_pairs, synth_resp, judge_model, chunks_map, models=models, trials=args.trials)
-        print(f"\n✅ Rapport HTML généré: {path}")
+        html_path = generate_html_report(results, qa_pairs, synth_resp, judge_model, chunks_map, models=models, trials=args.trials)
+        print(f"✅ Rapport HTML généré: {html_path}")
 
     print("\n" + synth_resp)
 

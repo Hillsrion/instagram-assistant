@@ -295,6 +295,72 @@ Réponds en JSON:
             return f"Error: {e}"
 
 
+def generate_json_report(
+    results: List[SummaryEvalResult],
+    conversations: int = 0,
+    periods: int = 0
+) -> Path:
+    """Generate JSON report for summary evaluation."""
+    # Calculate metrics
+    avg_conciseness = sum(r.conciseness_score for r in results) / len(results) if results else 0
+    avg_completeness = sum(r.completeness_score for r in results) / len(results) if results else 0
+    avg_accuracy = sum(r.accuracy_score for r in results) / len(results) if results else 0
+
+    # Group by summary type
+    conv_results = [r for r in results if r.summary_type == "conversation"]
+    period_results = [r for r in results if r.summary_type == "period"]
+
+    report_data = {
+        "metadata": {
+            "timestamp": datetime.now().isoformat(),
+            "conversations_evaluated": conversations,
+            "periods_evaluated": periods,
+            "total_evaluations": len(results)
+        },
+        "summary": {
+            "avg_conciseness": round(avg_conciseness, 3),
+            "avg_completeness": round(avg_completeness, 3),
+            "avg_accuracy": round(avg_accuracy, 3),
+            "by_type": {
+                "conversation": {
+                    "count": len(conv_results),
+                    "avg_conciseness": round(sum(r.conciseness_score for r in conv_results) / len(conv_results), 3) if conv_results else 0,
+                    "avg_completeness": round(sum(r.completeness_score for r in conv_results) / len(conv_results), 3) if conv_results else 0,
+                    "avg_accuracy": round(sum(r.accuracy_score for r in conv_results) / len(conv_results), 3) if conv_results else 0
+                },
+                "period": {
+                    "count": len(period_results),
+                    "avg_conciseness": round(sum(r.conciseness_score for r in period_results) / len(period_results), 3) if period_results else 0,
+                    "avg_completeness": round(sum(r.completeness_score for r in period_results) / len(period_results), 3) if period_results else 0,
+                    "avg_accuracy": round(sum(r.accuracy_score for r in period_results) / len(period_results), 3) if period_results else 0
+                }
+            }
+        },
+        "results": [
+            {
+                "summary_id": r.summary_id,
+                "summary_type": r.summary_type,
+                "test_question": r.test_question,
+                "expected_answer": r.expected_answer,
+                "generated_answer": r.generated_answer,
+                "scores": {
+                    "conciseness": round(r.conciseness_score, 3),
+                    "completeness": round(r.completeness_score, 3),
+                    "accuracy": round(r.accuracy_score, 3)
+                },
+                "judge_explanation": r.judge_explanation
+            }
+            for r in results
+        ]
+    }
+
+    report_path = get_summaries_report_path(conversations, periods, format="json")
+    with open(report_path, 'w', encoding='utf-8') as f:
+        json.dump(report_data, f, ensure_ascii=False, indent=2)
+
+    return report_path
+
+
 def generate_html_report(
     results: List[SummaryEvalResult],
     conversations: int = 0,
@@ -588,9 +654,14 @@ Examples:
     print(f"  🎯 Accuracy:     {avg_accurate*100:.1f}%")
     print()
 
+    # Always generate JSON report
+    json_path = generate_json_report(all_results, conversations=conv_count, periods=period_count)
+    print(f"✅ JSON report generated: {json_path}")
+
+    # Optionally generate HTML report
     if args.html:
-        path = generate_html_report(all_results, conversations=conv_count, periods=period_count)
-        print(f"✅ HTML report generated: {path}")
+        html_path = generate_html_report(all_results, conversations=conv_count, periods=period_count)
+        print(f"✅ HTML report generated: {html_path}")
 
 
 if __name__ == "__main__":
