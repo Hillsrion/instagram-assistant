@@ -107,6 +107,16 @@ class SyntheticDataGenerator:
     def __init__(self, config: Config = None):
         self.config = config or default_config
 
+    def _get_length_bucket(self, chunk: Chunk) -> str:
+        """Categorize chunk by content length."""
+        length = len(chunk.content)
+        if length < 800:
+            return "short"
+        elif length < 2000:
+            return "medium"
+        else:
+            return "long"
+
     def sample_chunks(
         self,
         chunks: List[Chunk],
@@ -119,7 +129,7 @@ class SyntheticDataGenerator:
         Args:
             chunks: All available chunks
             n_samples: Number of chunks to sample
-            ensure_diversity: If True, ensure variety in participants and dates
+            ensure_diversity: If True, ensure variety in participants AND lengths
         """
         if len(chunks) <= n_samples:
             return chunks
@@ -127,33 +137,57 @@ class SyntheticDataGenerator:
         if not ensure_diversity:
             return random.sample(chunks, n_samples)
 
-        # Filter for "rich" chunks (more than 500 characters)
-        rich_chunks = [c for c in chunks if len(c.content) > 1000]
-        if len(rich_chunks) < n_samples:
-            rich_chunks = [c for c in chunks if len(c.content) > 500]
-        
-        target_pool = rich_chunks if len(rich_chunks) >= n_samples else chunks
+        # Filter chunks with minimum content (at least 300 chars for meaningful QA)
+        valid_chunks = [c for c in chunks if len(c.content) >= 300]
+        if len(valid_chunks) < n_samples:
+            valid_chunks = chunks
 
-        # Group by participant combination and year
+        # Group by participant combination
         by_participants = {}
-        for chunk in target_pool:
+        for chunk in valid_chunks:
             key = tuple(sorted(chunk.participants))
             if key not in by_participants:
                 by_participants[key] = []
             by_participants[key].append(chunk)
 
-        # Sample evenly from each group
+        # Calculate target distribution for lengths (roughly equal)
+        target_per_length = n_samples // 3
+        length_counts = {"short": 0, "medium": 0, "long": 0}
+
+        # Sample evenly from each participant group, balancing lengths
         sampled = []
         groups = list(by_participants.values())
         random.shuffle(groups)
 
         idx = 0
-        while len(sampled) < n_samples and any(groups):
+        max_iterations = n_samples * 10  # Prevent infinite loop
+        iterations = 0
+
+        while len(sampled) < n_samples and any(groups) and iterations < max_iterations:
+            iterations += 1
             group = groups[idx % len(groups)]
+
             if group:
-                chunk = random.choice(group)
-                sampled.append(chunk)
-                group.remove(chunk)
+                # Try to pick a chunk that balances length distribution
+                random.shuffle(group)
+                selected = None
+
+                for chunk in group:
+                    bucket = self._get_length_bucket(chunk)
+                    # Prefer under-represented length buckets
+                    if length_counts[bucket] < target_per_length:
+                        selected = chunk
+                        break
+
+                # If all buckets are full, just pick any
+                if selected is None and group:
+                    selected = group[0]
+
+                if selected:
+                    bucket = self._get_length_bucket(selected)
+                    length_counts[bucket] += 1
+                    sampled.append(selected)
+                    group.remove(selected)
 
             # Remove empty groups
             groups = [g for g in groups if g]
