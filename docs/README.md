@@ -9,6 +9,8 @@ Welcome to the Instagram Assistant documentation, a production-ready RAG (Retrie
 | [Quick Start Guide](QUICKSTART.md) | Installation and first steps |
 | [Features Documentation](FEATURES.md) | Comprehensive feature guide |
 | [API Reference](API.md) | REST endpoints and SSE events |
+| [Evaluation Guide](EVAL.md) | Dataset generation, benchmarks, and metrics |
+| [Configuration](CONFIGURATION.md) | Configuration options |
 
 ## System Overview
 
@@ -139,10 +141,13 @@ instagram-assistant/
 │   ├── pii_filter.py
 │   └── delta_tracker.py
 ├── eval/                   # Evaluation pipeline
-│   ├── synthetic_generator.py
-│   ├── metrics.py
-│   ├── benchmark.py
-│   └── run_eval.py
+│   ├── generate_dataset.py # Generate QA pairs
+│   ├── eval_retrieval.py   # Evaluate retrieval quality
+│   ├── eval_generation.py  # Evaluate LLM generation quality
+│   ├── compare_configs.py  # Compare RAG configurations
+│   ├── synthetic_generator.py  # QA pair generation (lib)
+│   ├── metrics.py          # RAGAS metrics (lib)
+│   └── benchmark.py        # Benchmark runner (lib)
 ├── web/                    # Web interface
 └── docs/                   # Documentation
 ```

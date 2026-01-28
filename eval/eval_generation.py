@@ -1,7 +1,15 @@
 """
-Script to compare Generation Quality of different LLMs on the evaluation dataset.
-This bypasses retrieval and provides the exact source chunk as context.
-Generates an interactive HTML report with Tailwind CSS and visualizations.
+Evaluate GENERATION quality: compare how different LLMs answer user questions.
+
+This script bypasses retrieval and provides the exact source chunk as context,
+isolating the LLM's generation quality from retrieval performance.
+
+Measures: Faithfulness (answer fidelity to sources), Relevance (answer quality),
+and generation speed.
+
+Usage:
+    python -m eval.eval_generation model1 model2
+    python -m eval.eval_generation qwen3:latest mistral --trials 10 --html
 """
 
 import json
@@ -148,62 +156,59 @@ def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
 
     return html
 
-class AdvancedJudge:
-    def __init__(self, config: Config, judge_model: str = None):
-        self.config = config
-        self.judge_model = judge_model or config.llm_model
-        self.metrics = RAGASMetrics(config)
+def create_judge(config: Config, judge_model: str = None) -> RAGASMetrics:
+    """
+    Create a RAGASMetrics instance configured as a judge.
 
-    def judge(self, question: str, expected: str, generated: str, source: str, source_chunk: Chunk = None) -> Dict[str, Any]:
-        """Get score AND explanation from judge, with source tracking."""
-        faith_prompt = """Tu es un évaluateur expert. Évalue la FIDÉLITÉ (0-1).
-QUESTION: {question}
-RÉPONSE ATTENDUE: {expected}
-RÉPONSE GÉNÉRÉE: {generated}
-SOURCES: {sources}
-Réponds en JSON: {{"score": float, "explanation": "..."}}"""
+    Args:
+        config: Base configuration
+        judge_model: Optional model override for judging
 
-        relev_prompt = """Tu es un évaluateur expert. Évalue la PERTINENCE (0-1).
-QUESTION: {question}
-RÉPONSE ATTENDUE: {expected}
-RÉPONSE GÉNÉRÉE: {generated}
-Réponds en JSON: {{"score": float, "explanation": "..."}}"""
+    Returns:
+        RAGASMetrics instance configured for judging
+    """
+    metrics = RAGASMetrics(config)
+    if judge_model:
+        metrics.config.llm_model = judge_model
+    return metrics
 
-        faith_data = self._call_judge(faith_prompt.format(
-            question=question, expected=expected, generated=generated, sources=source[:2000]
-        ))
-        relev_data = self._call_judge(relev_prompt.format(
-            question=question, expected=expected, generated=generated
-        ))
 
-        return {
-            "faithfulness": faith_data,
-            "relevance": relev_data,
-            "source_chunk": source_chunk
-        }
+def judge_response(
+    metrics: RAGASMetrics,
+    question: str,
+    expected: str,
+    generated: str,
+    source: str,
+    source_chunk: Chunk = None
+) -> Dict[str, Any]:
+    """
+    Judge a response using RAGASMetrics.
 
-    def _call_judge(self, prompt: str) -> Dict[str, Any]:
-        payload = {
-            "model": self.judge_model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "options": {"temperature": 0.1}
-        }
-        try:
-            response = requests.post(f"{self.config.ollama_url}/api/chat", json=payload, timeout=120)
-            response.raise_for_status()
-            content = response.json()["message"]["content"].strip()
-            
-            import re
-            json_match = re.search(r'\{[^}]+\}', content)
-            if json_match:
-                return json.loads(json_match.group())
-        except Exception as e:
-            return {"score": 0.5, "explanation": f"Erreur de jugement: {e}"}
-        return {"score": 0.5, "explanation": "Impossible de parser le jugement."}
+    Returns dict with faithfulness, relevance (each with score and explanation),
+    and source_chunk reference.
+    """
+    faith_data = metrics.compute_faithfulness_with_explanation(
+        question=question,
+        expected_answer=expected,
+        generated_answer=generated,
+        source_content=source
+    )
+    relev_data = metrics.compute_relevance_with_explanation(
+        question=question,
+        expected_answer=expected,
+        generated_answer=generated
+    )
+
+    return {
+        "faithfulness": faith_data,
+        "relevance": relev_data,
+        "source_chunk": source_chunk
+    }
+
 
 def load_qa_dataset(config: Config):
-    path = config.index_dir / "eval_dataset.json"
+    """Load QA dataset from eval/ folder."""
+    path = Path(__file__).parent / "eval_dataset.json"
     if not path.exists():
         return None
     with open(path, 'r', encoding='utf-8') as f:
@@ -495,21 +500,29 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
 </html>
     """
 
-    report_path = Path("rag_data/comparison_report.html")
+    report_path = Path(__file__).parent / "generation_report.html"
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write(html)
     return report_path
 
 def run_comparison():
     parser = argparse.ArgumentParser(
-        description="Compare generation quality of different LLMs (requires at least 2 models)",
+        description="Evaluate GENERATION quality: compare how different LLMs answer questions (bypasses retrieval)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+This evaluates LLM response quality independently from retrieval.
+Each LLM receives the exact source chunk as context.
+
+Metrics:
+  - Faithfulness: How well the answer reflects the source content
+  - Relevance: How well the answer addresses the question
+  - Speed: Words per second generation rate
+
 Examples:
-    python eval/compare_llms.py                           # Use defaults: qwen3:latest + qwen2.5:3b
-    python eval/compare_llms.py mistral neural-chat
-    python eval/compare_llms.py mistral neural-chat --trials 20 --html
-    python eval/compare_llms.py --models mistral,neural-chat --trials 10 --html
+    python -m eval.eval_generation                        # Use defaults
+    python -m eval.eval_generation mistral neural-chat
+    python -m eval.eval_generation qwen3:latest mistral --trials 20 --html
+    python -m eval.eval_generation --models mistral,qwen3:latest --judge qwen3:latest
         """
     )
     parser.add_argument(
@@ -559,12 +572,12 @@ Examples:
     # Check that we have at least 2 models
     if len(models) < 2:
         parser.print_help()
-        print("\n❌ Error: Must specify at least 2 models to compare")
-        print("   Example: python eval/compare_llms.py qwen3:latest mistral")
+        print("\n Error: Must specify at least 2 models to compare")
+        print("   Example: python -m eval.eval_generation qwen3:latest mistral")
         return
 
     print("=" * 60)
-    print("LLM Comparison Pipeline")
+    print("RAG Evaluation - Generation Quality")
     print("=" * 60)
     print()
 
@@ -598,14 +611,14 @@ Examples:
     print(f"Using judge: {judge_model}")
     print()
 
-    judge = AdvancedJudge(config, judge_model=judge_model)
+    judge_metrics = create_judge(config, judge_model=judge_model)
     chunker = ConversationChunker(config)
     chunks = chunker.load_chunks()
     chunks_map = {c.chunk_id: c for c in chunks}
 
     dataset = load_qa_dataset(config)
     if not dataset:
-        print("Error: Dataset not found. Run: python -m eval.run_eval --generate 10")
+        print("Error: Dataset not found. Run: python -m eval.generate_dataset 10")
         return
 
     qa_pairs = dataset['qa_pairs'][:args.trials]
@@ -646,7 +659,7 @@ Examples:
             wps = word_count / duration if duration > 0 else 0
 
             # Judge with source chunk
-            j_res = judge.judge(qa['question'], qa['expected_answer'], answer, content, chunk)
+            j_res = judge_response(judge_metrics, qa['question'], qa['expected_answer'], answer, content, chunk)
 
             results[model]["trials"].append({
                 "answer": answer,

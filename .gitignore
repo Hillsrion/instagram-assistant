@@ -98,6 +98,8 @@ tmp/
 # Evaluation data (keep the module, ignore generated data)
 eval/__pycache__/
 eval/*.json
+!eval/eval_dataset.sample.json
+eval/*.html
 eval/results/
 
 # macOS

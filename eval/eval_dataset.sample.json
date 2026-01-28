@@ -1,0 +1,126 @@
+{
+  "metadata": {
+    "total_pairs": 9,
+    "by_type": {
+      "factual": 3,
+      "summary": 3,
+      "implicit": 3
+    },
+    "by_difficulty": {
+      "easy": 3,
+      "medium": 4,
+      "hard": 2
+    },
+    "description": "Sample evaluation dataset with fictional data for testing purposes"
+  },
+  "qa_pairs": [
+    {
+      "question": "Where did Alice and Bob plan to meet for lunch?",
+      "expected_answer": "They planned to meet at the Italian restaurant on Main Street.",
+      "source_chunk_id": "sample_chunk_001",
+      "question_type": "factual",
+      "difficulty": "easy",
+      "metadata": {
+        "participants": ["Alice", "Bob"],
+        "date_range": "2024-03-15 - 2024-03-15"
+      },
+      "tags": ["sample", "location"]
+    },
+    {
+      "question": "What were the main topics discussed between Alice and Bob?",
+      "expected_answer": "They discussed lunch plans, a work project deadline, and weekend activities.",
+      "source_chunk_id": "sample_chunk_001",
+      "question_type": "summary",
+      "difficulty": "medium",
+      "metadata": {
+        "participants": ["Alice", "Bob"],
+        "date_range": "2024-03-15 - 2024-03-15"
+      },
+      "tags": ["sample"]
+    },
+    {
+      "question": "Why did Alice suggest meeting earlier than usual?",
+      "expected_answer": "Because she had an afternoon meeting and wanted to avoid rushing.",
+      "source_chunk_id": "sample_chunk_001",
+      "question_type": "implicit",
+      "difficulty": "medium",
+      "metadata": {
+        "participants": ["Alice", "Bob"],
+        "date_range": "2024-03-15 - 2024-03-15"
+      },
+      "tags": ["sample"]
+    },
+    {
+      "question": "What programming language did Charlie recommend to Diana?",
+      "expected_answer": "Python for data analysis and machine learning projects.",
+      "source_chunk_id": "sample_chunk_002",
+      "question_type": "factual",
+      "difficulty": "easy",
+      "metadata": {
+        "participants": ["Charlie", "Diana"],
+        "date_range": "2024-04-20 - 2024-04-21"
+      },
+      "tags": ["sample", "tech"]
+    },
+    {
+      "question": "Summarize Charlie's advice about learning programming.",
+      "expected_answer": "Start with Python basics, build small projects, use online resources, and practice consistently for at least an hour daily.",
+      "source_chunk_id": "sample_chunk_002",
+      "question_type": "summary",
+      "difficulty": "medium",
+      "metadata": {
+        "participants": ["Charlie", "Diana"],
+        "date_range": "2024-04-20 - 2024-04-21"
+      },
+      "tags": ["sample", "tech"]
+    },
+    {
+      "question": "What can we infer about Diana's experience level in programming?",
+      "expected_answer": "She is likely a beginner, as Charlie provided foundational advice and suggested starting with basics.",
+      "source_chunk_id": "sample_chunk_002",
+      "question_type": "implicit",
+      "difficulty": "hard",
+      "metadata": {
+        "participants": ["Charlie", "Diana"],
+        "date_range": "2024-04-20 - 2024-04-21"
+      },
+      "tags": ["sample", "tech"]
+    },
+    {
+      "question": "What time did Eve's flight arrive?",
+      "expected_answer": "The flight arrived at 6:30 PM local time.",
+      "source_chunk_id": "sample_chunk_003",
+      "question_type": "factual",
+      "difficulty": "easy",
+      "metadata": {
+        "participants": ["Eve", "Frank"],
+        "date_range": "2024-05-10 - 2024-05-10"
+      },
+      "tags": ["sample", "travel"]
+    },
+    {
+      "question": "What was the overall situation regarding Eve's travel plans?",
+      "expected_answer": "Eve's flight was delayed by 2 hours, she arrived at 6:30 PM, and Frank picked her up at the airport despite traffic.",
+      "source_chunk_id": "sample_chunk_003",
+      "question_type": "summary",
+      "difficulty": "medium",
+      "metadata": {
+        "participants": ["Eve", "Frank"],
+        "date_range": "2024-05-10 - 2024-05-10"
+      },
+      "tags": ["sample", "travel"]
+    },
+    {
+      "question": "What does Frank's willingness to wait at the airport suggest about their relationship?",
+      "expected_answer": "It suggests they have a close relationship, as Frank was willing to deal with traffic and delays to pick her up.",
+      "source_chunk_id": "sample_chunk_003",
+      "question_type": "implicit",
+      "difficulty": "hard",
+      "metadata": {
+        "participants": ["Eve", "Frank"],
+        "date_range": "2024-05-10 - 2024-05-10"
+      },
+      "tags": ["sample", "travel"]
+    }
+  ]
+}

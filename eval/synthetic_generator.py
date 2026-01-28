@@ -275,8 +275,8 @@ class SyntheticDataGenerator:
         return all_qa_pairs
 
     def save_dataset(self, qa_pairs: List[QAPair], path: Path = None):
-        """Save QA dataset to JSON file."""
-        path = path or (self.config.index_dir / "eval_dataset.json")
+        """Save QA dataset to JSON file in eval/ folder."""
+        path = path or (Path(__file__).parent / "eval_dataset.json")
 
         data = {
             'metadata': {
@@ -301,8 +301,8 @@ class SyntheticDataGenerator:
         print(f"Saved {len(qa_pairs)} QA pairs to {path}")
 
     def load_dataset(self, path: Path = None) -> List[QAPair]:
-        """Load QA dataset from JSON file."""
-        path = path or (self.config.index_dir / "eval_dataset.json")
+        """Load QA dataset from JSON file in eval/ folder."""
+        path = path or (Path(__file__).parent / "eval_dataset.json")
 
         if not path.exists():
             return []

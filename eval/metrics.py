@@ -231,8 +231,17 @@ class RAGASMetrics:
 
         return self._llm_judge(prompt)
 
-    def _llm_judge(self, prompt: str) -> float:
-        """Call LLM and extract score from response."""
+    def _llm_judge(self, prompt: str, return_explanation: bool = False) -> float | Dict[str, Any]:
+        """
+        Call LLM and extract score from response.
+
+        Args:
+            prompt: The evaluation prompt
+            return_explanation: If True, return dict with score and explanation
+
+        Returns:
+            Score (float) if return_explanation=False, else dict with score and explanation
+        """
         payload = {
             "model": self.config.llm_model,
             "messages": [{"role": "user", "content": prompt}],
@@ -248,7 +257,7 @@ class RAGASMetrics:
             response = requests.post(
                 f"{self.config.ollama_url}/api/chat",
                 json=payload,
-                timeout=30
+                timeout=120
             )
             response.raise_for_status()
 
@@ -266,13 +275,60 @@ class RAGASMetrics:
             if json_match:
                 data = json.loads(json_match.group())
                 score = float(data.get('score', 0.5))
-                return max(0.0, min(1.0, score))
+                score = max(0.0, min(1.0, score))
 
+                if return_explanation:
+                    return {
+                        "score": score,
+                        "explanation": data.get('explanation', '')
+                    }
+                return score
+
+            if return_explanation:
+                return {"score": 0.5, "explanation": "Could not parse judge response"}
             return 0.5
 
         except Exception as e:
             print(f"LLM judge error: {e}")
+            if return_explanation:
+                return {"score": 0.5, "explanation": f"Error: {e}"}
             return 0.5
+
+    def compute_faithfulness_with_explanation(
+        self,
+        question: str,
+        expected_answer: str,
+        generated_answer: str,
+        source_content: str
+    ) -> Dict[str, Any]:
+        """
+        Use LLM-as-judge to evaluate answer faithfulness to sources.
+        Returns score and explanation.
+        """
+        prompt = FAITHFULNESS_PROMPT.format(
+            question=question,
+            expected_answer=expected_answer,
+            generated_answer=generated_answer,
+            sources=source_content[:2000]
+        )
+        return self._llm_judge(prompt, return_explanation=True)
+
+    def compute_relevance_with_explanation(
+        self,
+        question: str,
+        expected_answer: str,
+        generated_answer: str
+    ) -> Dict[str, Any]:
+        """
+        Use LLM-as-judge to evaluate answer relevance.
+        Returns score and explanation.
+        """
+        prompt = RELEVANCE_PROMPT.format(
+            question=question,
+            expected_answer=expected_answer,
+            generated_answer=generated_answer
+        )
+        return self._llm_judge(prompt, return_explanation=True)
 
     def aggregate_results(
         self,
