@@ -225,8 +225,17 @@ class ConversationChunker:
     def chunk_conversation(self, file_path: Path) -> List[Chunk]:
         """Découpe une conversation en chunks adaptatifs."""
         metadata, messages = self.parse_conversation(file_path)
-        
+
         if not messages:
+            return []
+
+        # Skip les conversations avec comptes désactivés
+        conversation_id = metadata['conversation_id']
+        if self.config.skip_deactivated_accounts and conversation_id.startswith('utilisateurinstagram_'):
+            return []
+
+        # Skip les conversations avec trop peu de messages
+        if len(messages) < self.config.min_messages_per_conversation:
             return []
         
         chunks = []

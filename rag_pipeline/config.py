@@ -30,6 +30,10 @@ class Config:
     chunk_overlap: int = field(default_factory=lambda: int(os.getenv('CHUNK_OVERLAP', '5')))
     # Pause (en heures) qui déclenche un nouveau chunk
     chunk_time_gap: float = field(default_factory=lambda: float(os.getenv('CHUNK_TIME_GAP', '6.0')))
+    # Nombre minimum de messages par conversation (skip si inférieur)
+    min_messages_per_conversation: int = field(default_factory=lambda: int(os.getenv('MIN_MESSAGES_PER_CONVERSATION', '2')))
+    # Skip les conversations avec comptes désactivés (utilisateurinstagram_*)
+    skip_deactivated_accounts: bool = field(default_factory=lambda: os.getenv('SKIP_DEACTIVATED_ACCOUNTS', 'true').lower() == 'true')
 
     # === Embeddings ===
     # Modèle d'embeddings (bge-m3 recommandé pour multilingue)
