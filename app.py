@@ -709,6 +709,28 @@ async def chat(request: ChatRequest):
         expand_context=dyn_expand
     )
 
+    # Smart Fallback: Si la requête réécrite donne peu de résultats, on tente la requête originale
+    # Cela permet de gérer les cas où la réécriture a été trop restrictive (ex: mauvais contexte ajouté)
+    if (context.low_confidence or not context.has_results) and search_query != request.message:
+        print(f"⚠️ Low confidence ({context.max_confidence_score:.2f}). Attempting fallback with original query.")
+        
+        fallback_context = retriever.retrieve(
+            query=request.message,
+            participant_filter=request.participant_filter,
+            year_filter=request.year_filter,
+            date_start=final_date_start,
+            date_end=final_date_end,
+            top_k=dyn_top_k,
+            use_reranking=dyn_reranking,
+            use_hybrid=request.use_hybrid,
+            expand_context=dyn_expand
+        )
+        
+        # Si le fallback est meilleur ou si l'original n'avait rien, on remplace
+        if fallback_context.max_confidence_score > context.max_confidence_score:
+            print(f"✅ Fallback successful: score {context.max_confidence_score:.2f} -> {fallback_context.max_confidence_score:.2f}")
+            context = fallback_context
+
     # Generate response
     response_text = ""
     for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=request.model):
@@ -853,6 +875,27 @@ async def chat_stream(request: ChatRequest):
             use_hybrid=request.use_hybrid,
             expand_context=dyn_expand
         )
+
+        # Smart Fallback: Si la requête réécrite donne peu de résultats, on tente la requête originale
+        if (context.low_confidence or not context.has_results) and search_query != request.message:
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Recherche élargie (Smart Fallback)...'})}\n\n"
+            
+            fallback_context = retriever.retrieve(
+                query=request.message,
+                participant_filter=request.participant_filter,
+                year_filter=request.year_filter,
+                date_start=final_date_start,
+                date_end=final_date_end,
+                top_k=dyn_top_k,
+                use_reranking=dyn_reranking,
+                use_hybrid=request.use_hybrid,
+                expand_context=dyn_expand
+            )
+            
+            # Si le fallback est meilleur, on remplace
+            if fallback_context.max_confidence_score > context.max_confidence_score:
+                context = fallback_context
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Meilleurs résultats trouvés.'})}\n\n"
 
         # Send sources with chunk_id and preview
         sources = []
