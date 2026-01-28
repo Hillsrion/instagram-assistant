@@ -67,7 +67,6 @@ class TestEnrichmentChunking(unittest.TestCase):
             date_start="2023-01-01",
             date_end="2023-01-01",
             message_count=5,
-            summary="Stats summary",
             content="Some content",
             file_source="test.txt"
         )
@@ -104,7 +103,6 @@ class TestEnrichmentChunking(unittest.TestCase):
             date_start="2023-01-01",
             date_end="2023-01-01",
             message_count=5,
-            summary="Stats summary",
             content="Some content",
             file_source="test.txt"
         )
@@ -160,7 +158,6 @@ class TestEnrichmentChunking(unittest.TestCase):
             date_start="2023-01-01",
             date_end="2023-01-01",
             message_count=5,
-            summary="Basic summary",
             content="Hello world",
             file_source="conv1.txt"
         )

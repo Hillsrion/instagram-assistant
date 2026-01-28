@@ -36,15 +36,22 @@ class TestTitleEvaluationIntegration(unittest.TestCase):
 
     def test_endpoint_evaluate_title(self):
         mock_title = "Projet de voyage"
-        with patch("app.chatbot") as mock_chatbot:
+        # Patch get_chatbot where it's imported in the route module
+        with patch("api.routes.conversations.get_chatbot") as mock_get_chatbot:
+            mock_chatbot = MagicMock()
             mock_chatbot.evaluate_title.return_value = mock_title
+            mock_get_chatbot.return_value = mock_chatbot
+            
             response = self.client.post("/api/evaluate-title", json={"message": "On devrait organiser notre voyage en Italie."})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json(), {"title": mock_title})
 
     def test_endpoint_evaluate_title_no_chatbot(self):
-        with patch("app.chatbot", None):
+        # Patch get_chatbot where it's imported in the route module
+        with patch("api.routes.conversations.get_chatbot", return_value=None):
             response = self.client.post("/api/evaluate-title", json={"message": "Hello"})
             self.assertEqual(response.status_code, 503)
+
+
 if __name__ == "__main__":
     unittest.main()
