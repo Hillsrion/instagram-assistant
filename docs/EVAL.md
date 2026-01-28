@@ -17,6 +17,7 @@ eval/
 ├── eval_generation.py        # Script: évaluation de la génération
 ├── compare_configs.py        # Script: comparaison de configurations RAG
 ├── evaluate_summaries.py     # Script: évaluation des résumés
+├── model_dashboard.py        # Script: dashboard multi-modèles
 ├── benchmark.py              # Bibliothèque: BenchmarkRunner
 ├── synthetic_generator.py    # Bibliothèque: SyntheticDataGenerator
 ├── metrics.py                # Bibliothèque: RAGASMetrics
@@ -24,7 +25,7 @@ eval/
 └── eval_dataset.sample.json  # Dataset sample versionné
 
 eval_results/                 # Résultats d'évaluation (ignoré par git)
-├── eval_generation/          # Rapports comparaison LLMs
+├── eval_generation/          # Rapports comparaison LLMs + dashboards
 ├── eval_retrieval/           # Rapports benchmark retrieval
 ├── evaluate_summaries/       # Rapports évaluation résumés
 └── compare_configs/          # Rapports comparaison configs
@@ -44,6 +45,9 @@ python -m eval.eval_generation qwen3:latest mistral --trials 10 --html
 
 # 4. Comparer différentes configurations RAG
 python -m eval.compare_configs
+
+# 5. Générer un dashboard multi-modèles (aggrège tous les rapports JSON)
+python -m eval.model_dashboard
 ```
 
 ## Dataset d'Évaluation
@@ -75,7 +79,7 @@ python -m eval.eval_retrieval
     {
       "question": "Question en langage naturel?",
       "expected_answer": "Réponse attendue basée sur le chunk source",
-      "source_chunk_id": "conversation_chunk_001",
+      "source_chunk_ids": ["conversation_chunk_001"],
       "question_type": "factual",
       "difficulty": "easy",
       "metadata": {
@@ -87,6 +91,10 @@ python -m eval.eval_retrieval
   ]
 }
 ```
+
+> **Note**: `source_chunk_ids` est une liste permettant de référencer plusieurs chunks sources
+> pour une même question (ex: questions nécessitant des informations de plusieurs conversations).
+> L'ancien format `source_chunk_id` (singulier) est toujours accepté en lecture pour la rétrocompatibilité.
 
 ---
 
@@ -129,10 +137,13 @@ python -m eval.eval_retrieval --judge qwen3:latest
 
 | Métrique | Description |
 |----------|-------------|
-| **Hit@k** | % de questions où le bon chunk est dans le top-k résultats |
+| **Hit@k** | % de questions où au moins un bon chunk est dans le top-k résultats |
 | **MRR** | Mean Reciprocal Rank - qualité du classement |
-| **Faithfulness** | Fidélité de la réponse aux sources (LLM-as-judge) |
+| **Recall@k** | Fraction des chunks sources retrouvés dans le top-k |
+| **Precision@k** | Fraction des résultats top-k qui sont des chunks sources |
+| **Faithfulness** | Fidélité de la réponse aux sources (LLM-as-judge, sans biais de réponse attendue) |
 | **Relevance** | Pertinence de la réponse à la question (LLM-as-judge) |
+| **Conciseness** | Concision de la réponse (LLM-as-judge) |
 
 **Output:**
 ```
@@ -225,6 +236,29 @@ python -m eval.compare_configs --question-type factual
 
 ---
 
+### 5. Dashboard Multi-Modèles (`model_dashboard.py`)
+
+**Objectif**: Agréger tous les rapports JSON de `eval_generation` et produire un dashboard HTML interactif comparant les modèles.
+
+```bash
+# Génération avec chemin par défaut
+python -m eval.model_dashboard
+
+# Génération avec chemin personnalisé
+python -m eval.model_dashboard --output rapport_dashboard.html
+```
+
+Le script scanne `eval_results/eval_generation/*.json`, extrait les métriques par modèle de chaque rapport, et génère un HTML interactif avec:
+
+- **Checkboxes** par modèle (cochés par défaut) pour filtrer dynamiquement
+- **3 bar charts** (Faithfulness, Relevance, Vitesse) via Chart.js, mis à jour en temps réel
+- **Tableau détaillé** avec les moyennes et le nombre de rapports par modèle
+- Stack: Tailwind CSS + Chart.js (cohérent avec les autres rapports)
+
+**Output:** `eval_results/eval_generation/dashboard_<timestamp>.html`
+
+---
+
 ## Options de Filtrage
 
 Tous les scripts d'évaluation supportent les mêmes options de filtrage:
@@ -290,16 +324,37 @@ from eval import RAGASMetrics
 
 metrics = RAGASMetrics(config)
 
-# Score simple
+# Faithfulness (sans expected_answer pour éviter le biais du juge)
 score = metrics.compute_faithfulness(
     question="Qui a dit bonjour?",
-    expected_answer="Alice",
     generated_answer="Alice a dit bonjour",
     source_content="Alice: Bonjour!"
 )
 
+# Conciseness
+score = metrics.compute_conciseness(
+    question="Qui a dit bonjour?",
+    generated_answer="Alice a dit bonjour"
+)
+
+# Recall@k et Precision@k (supportent plusieurs chunks sources)
+recall = metrics.compute_recall_at_k(
+    source_chunk_ids=["chunk_001", "chunk_002"],
+    retrieved_results=results,
+    top_k=5
+)
+precision = metrics.compute_precision_at_k(
+    source_chunk_ids=["chunk_001"],
+    retrieved_results=results,
+    top_k=5
+)
+
 # Score avec explication (pour les rapports)
-result = metrics.compute_faithfulness_with_explanation(...)
+result = metrics.compute_faithfulness_with_explanation(
+    question="...",
+    generated_answer="...",
+    source_content="..."
+)
 # {"score": 0.85, "explanation": "La réponse est fidèle..."}
 ```
 
@@ -311,13 +366,13 @@ result = metrics.compute_faithfulness_with_explanation(...)
 ```python
 @dataclass
 class QAPair:
-    question: str           # La question
-    expected_answer: str    # La réponse attendue
-    source_chunk_id: str    # ID du chunk source
+    question: str                # La question
+    expected_answer: str         # La réponse attendue
+    source_chunk_ids: List[str]  # IDs des chunks sources (multi-source)
     question_type: QuestionType  # factual, summary, implicit, temporal
-    difficulty: Difficulty  # easy, medium, hard
-    metadata: dict          # Métadonnées (participants, date_range)
-    tags: List[str]         # Tags optionnels
+    difficulty: Difficulty       # easy, medium, hard
+    metadata: dict               # Métadonnées (participants, date_range)
+    tags: List[str]              # Tags optionnels
 ```
 
 ### BenchmarkConfig
@@ -342,7 +397,8 @@ Tous les résultats d'évaluation sont stockés dans `eval_results/` (ignoré pa
 eval_results/
 ├── eval_generation/
 │   ├── gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.json  (toujours)
-│   └── gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.html  (avec --html)
+│   ├── gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.html  (avec --html)
+│   └── dashboard_<timestamp>.html                                (model_dashboard)
 ├── eval_retrieval/
 │   └── retrieval_<config>_<timestamp>.json
 ├── evaluate_summaries/
@@ -358,6 +414,7 @@ eval_results/
 | `eval/eval_dataset.sample.json` | Sample avec données fictives | Oui |
 | `eval_results/eval_generation/*.json` | Rapports JSON comparaison LLMs (toujours généré) | Non |
 | `eval_results/eval_generation/*.html` | Rapports HTML comparaison LLMs (avec --html) | Non |
+| `eval_results/eval_generation/dashboard_*.html` | Dashboard multi-modèles | Non |
 | `eval_results/eval_retrieval/*.json` | Rapports de benchmark retrieval | Non |
 | `eval_results/evaluate_summaries/*.json` | Rapports JSON évaluation résumés (toujours généré) | Non |
 | `eval_results/evaluate_summaries/*.html` | Rapports HTML évaluation résumés (avec --html) | Non |
