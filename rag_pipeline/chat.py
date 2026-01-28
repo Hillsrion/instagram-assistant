@@ -175,7 +175,9 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
             if line:
                 data = json.loads(line)
                 if "message" in data and "content" in data["message"]:
-                    yield data["message"]["content"]
+                    content = data["message"]["content"]
+                    if content:  # Only yield non-empty content
+                        yield content
     
     def chat(
         self,
