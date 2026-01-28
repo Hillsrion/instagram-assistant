@@ -149,8 +149,9 @@ def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
     return html
 
 class AdvancedJudge:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, judge_model: str = None):
         self.config = config
+        self.judge_model = judge_model or config.llm_model
         self.metrics = RAGASMetrics(config)
 
     def judge(self, question: str, expected: str, generated: str, source: str, source_chunk: Chunk = None) -> Dict[str, Any]:
@@ -183,7 +184,7 @@ Réponds en JSON: {{"score": float, "explanation": "..."}}"""
 
     def _call_judge(self, prompt: str) -> Dict[str, Any]:
         payload = {
-            "model": self.config.llm_model,
+            "model": self.judge_model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "options": {"temperature": 0.1}
@@ -254,7 +255,7 @@ def display_missing_models_help(missing_models: List[str]):
     print("\n💡 Note: Make sure Ollama is running before installing models.")
     print("   Run 'ollama serve' in another terminal if needed.\n")
 
-def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_synthesis: str, chunks_map: Dict[str, Chunk] = None):
+def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_synthesis: str, judge_model: str, chunks_map: Dict[str, Chunk] = None):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     chunks_map = chunks_map or {}
 
@@ -293,7 +294,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
                     📊 Rapport de Comparaison LLM
                 </h1>
                 <p class="mt-4 text-lg text-slate-600">
-                    Généré le <span class="font-semibold text-indigo-600">{timestamp}</span> • Basé sur <span class="font-semibold text-indigo-600">{len(qa_pairs)}</span> questions de test
+                    Généré le <span class="font-semibold text-indigo-600">{timestamp}</span> • Basé sur <span class="font-semibold text-indigo-600">{len(qa_pairs)}</span> questions de test • Juge: <span class="font-semibold text-indigo-600">{escape_html(judge_model)}</span>
                 </p>
             </div>
 
@@ -534,6 +535,11 @@ Examples:
         action="store_true",
         help="Generate HTML report"
     )
+    parser.add_argument(
+        "--judge",
+        type=str,
+        help="Model to use as judge (default: from config)"
+    )
     args = parser.parse_args()
 
     # Parse models from either positional or --models argument
@@ -565,20 +571,34 @@ Examples:
     # Check Ollama models
     print(f"Checking Ollama models at {Config().ollama_url}...")
     config = Config()
-    available, missing = check_ollama_models_available(config, models)
+    
+    # Judge model
+    judge_model = args.judge if args.judge else config.llm_model
+    models_to_check = list(set(models + [judge_model]))
+    
+    available, missing = check_ollama_models_available(config, models_to_check)
 
     if missing:
         display_missing_models_help(missing)
-        if not available:
-            print("Error: No models available. Please install at least one model.")
+        # If judge is missing, we can't continue safely if we want evaluations
+        if judge_model in missing:
+            print(f"❌ Error: Judge model '{judge_model}' is not available.")
             return
-        print(f"Continuing with available models: {', '.join(available)}\n")
-        models = available
+
+        # Check if we still have at least 2 models to compare (if that was the goal)
+        available_test_models = [m for m in models if m in available]
+        if not available_test_models:
+             print("Error: No test models available. Please install at least one model.")
+             return
+        
+        print(f"Continuing with available models: {', '.join(available_test_models)}\n")
+        models = available_test_models
 
     print(f"Using models: {', '.join(models)}")
+    print(f"Using judge: {judge_model}")
     print()
 
-    judge = AdvancedJudge(config)
+    judge = AdvancedJudge(config, judge_model=judge_model)
     chunker = ConversationChunker(config)
     chunks = chunker.load_chunks()
     chunks_map = {c.chunk_id: c for c in chunks}
@@ -641,7 +661,7 @@ Examples:
     print("\n✍️ Generating final synthesis...")
     synth_prompt = f"You are an expert judge. Compare these results for {models} and provide a detailed human conclusion on their respective strengths and weaknesses based on these tests.\n\nData: {json.dumps(results)}"
     synth_resp = requests.post(f"{config.ollama_url}/api/chat", json={
-        "model": "qwen3:latest",
+        "model": judge_model,
         "messages": [{"role": "user", "content": synth_prompt}],
         "stream": False
     }).json()["message"]["content"]
@@ -651,7 +671,7 @@ Examples:
         results[m]["avg_speed"] = sum(t["words_per_sec"] for t in results[m]["trials"]) / len(qa_pairs)
 
     if args.html:
-        path = generate_html_report(results, qa_pairs, synth_resp, chunks_map)
+        path = generate_html_report(results, qa_pairs, synth_resp, judge_model, chunks_map)
         print(f"\n✅ Rapport HTML généré: {path}")
 
     print("\n" + synth_resp)
