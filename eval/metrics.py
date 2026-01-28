@@ -249,7 +249,7 @@ class RAGASMetrics:
             "options": {
                 "temperature": 0.1,
                 "top_p": 0.9,
-                "num_predict": 256,
+                "num_predict": 1024,
             }
         }
 
@@ -263,33 +263,65 @@ class RAGASMetrics:
 
             content = response.json()["message"]["content"].strip()
 
-            # Parse JSON
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0]
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0]
-
-            # Try to find JSON in response
-            import re
-            json_match = re.search(r'\{[^}]+\}', content)
-            if json_match:
-                data = json.loads(json_match.group())
+            # Parse JSON - try direct parse first
+            try:
+                data = json.loads(content)
                 score = float(data.get('score', 0.5))
                 score = max(0.0, min(1.0, score))
-
                 if return_explanation:
-                    return {
-                        "score": score,
-                        "explanation": data.get('explanation', '')
-                    }
+                    return {"score": score, "explanation": data.get('explanation', '')}
                 return score
+            except json.JSONDecodeError:
+                pass  # Try other parsing methods
 
+            # Parse JSON - extract from code blocks
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+
+            # Try to parse again after code block extraction
+            try:
+                data = json.loads(content)
+                score = float(data.get('score', 0.5))
+                score = max(0.0, min(1.0, score))
+                if return_explanation:
+                    return {"score": score, "explanation": data.get('explanation', '')}
+                return score
+            except json.JSONDecodeError:
+                pass  # Try regex method
+
+            # Last resort: find JSON in response using regex
+            import re
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                try:
+                    data = json.loads(json_match.group())
+                    score = float(data.get('score', 0.5))
+                    score = max(0.0, min(1.0, score))
+
+                    if return_explanation:
+                        return {
+                            "score": score,
+                            "explanation": data.get('explanation', '')
+                        }
+                    return score
+                except json.JSONDecodeError as je:
+                    print(f"[JUDGE LOG] Failed to parse JSON: {je}")
+                    print(f"[JUDGE LOG] Raw response content:\n{content}")
+                    if return_explanation:
+                        return {"score": 0.5, "explanation": "Could not parse judge response"}
+                    return 0.5
+
+            # Could not find JSON at all
+            print(f"[JUDGE LOG] No JSON found in response")
+            print(f"[JUDGE LOG] Raw response content:\n{content}")
             if return_explanation:
                 return {"score": 0.5, "explanation": "Could not parse judge response"}
             return 0.5
 
         except Exception as e:
-            print(f"LLM judge error: {e}")
+            print(f"[JUDGE LOG] LLM judge error: {e}")
             if return_explanation:
                 return {"score": 0.5, "explanation": f"Error: {e}"}
             return 0.5

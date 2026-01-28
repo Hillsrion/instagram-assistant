@@ -82,7 +82,7 @@ class ChunkEnricher:
             "format": "json", # Demander du JSON à Ollama
             "options": {
                 "temperature": 0.1,
-                "num_predict": 1024,  # Augmenté pour accommoder les émotions et entités
+                "num_predict": 2048,  # Augmenté pour accommoder les émotions, entités et explications longues
             }
         }
 
@@ -90,7 +90,7 @@ class ChunkEnricher:
             response = requests.post(
                 f"{self.config.ollama_url}/api/chat",
                 json=payload,
-                timeout=60
+                timeout=300
             )
             response.raise_for_status()
             result = response.json()["message"]["content"]
@@ -106,6 +106,10 @@ class ChunkEnricher:
             cleaned_result = cleaned_result.strip()
 
             # Parser le JSON de réponse
+            if not cleaned_result:
+                print(f"[ENRICH LOG] Empty response for chunk {chunk.chunk_id}")
+                return "", [], {}, "", {}, {}
+
             data = json.loads(cleaned_result)
             summary = data.get("narrative_summary", "")
             questions = data.get("questions", [])
@@ -118,16 +122,18 @@ class ChunkEnricher:
 
         except json.JSONDecodeError as e:
             print(f"⚠️ Erreur décodage JSON pour chunk {chunk.chunk_id}: {e}")
+            print(f"[ENRICH LOG] Failed to parse JSON: {e}")
             if 'cleaned_result' in locals():
-                print(f"   Contenu reçu (cleaned): {cleaned_result}...")
+                print(f"[ENRICH LOG] Cleaned result:\n{cleaned_result[:500]}...")
             elif 'result' in locals():
-                 print(f"   Contenu reçu (raw): {result}...")
+                 print(f"[ENRICH LOG] Raw result:\n{result[:500]}...")
             return "", [], {}, "", {}, {}
         except Exception as e:
             # En cas d'erreur, on retourne des valeurs vides (fallback sur le résumé statistique)
             print(f"⚠️ Erreur enrichissement chunk {chunk.chunk_id}: {e}")
+            print(f"[ENRICH LOG] Error: {e}")
             if 'result' in locals():
-                print(f"   Contenu reçu (raw): {result}...")
+                print(f"[ENRICH LOG] Raw result:\n{result[:500]}...")
             return "", [], {}, "", {}, {}
 
     def enrich_batch(
