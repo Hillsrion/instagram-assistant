@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Send, StopCircle, User, Bot, FileText } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { getConversation, getOllamaModels } from '@/lib/api'
+import { getConversation, getOllamaModels, getParticipants } from '@/lib/api'
 import { useChatStream } from '@/hooks/use-chat-stream'
 import { SourcesModal } from '@/components/SourcesModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { FiltersPanel } from '@/components/filters-panel'
 import { cn } from '@/lib/utils'
 import {
   Select,
@@ -42,6 +43,17 @@ function ChatRoute() {
     refetchOnWindowFocus: false
   })
 
+  // Load participants for filter
+  const { data: participantsData } = useQuery({
+    queryKey: ['participants'],
+    queryFn: () => getParticipants(),
+    refetchOnWindowFocus: false
+  })
+
+  const participantNames = useMemo(() => {
+    return participantsData?.map(p => p.name) || []
+  }, [participantsData])
+
   // Chat hook
   const {
     messages,
@@ -68,12 +80,60 @@ function ChatRoute() {
     }
   }, [modelsData, selectedModel, setSelectedModel])
 
-  // Auto-scroll
+  // Filters State
+  const [filterParticipant, setFilterParticipant] = useState<string>('')
+  const [filterDateStart, setFilterDateStart] = useState<string>('')
+  const [filterDateEnd, setFilterDateEnd] = useState<string>('')
+
+  // Filter Logic
+  const filteredMessages = useMemo(() => {
+    return messages.filter(msg => {
+      // Participant Filter
+      // We filter assistant messages based on whether their sources mention the participant
+      if (filterParticipant) {
+        if (msg.role === 'assistant') {
+          const hasParticipantInSources = msg.sources?.some(s => 
+            s.participants.some(p => p.toLowerCase().includes(filterParticipant.toLowerCase()))
+          )
+          const hasParticipantInSummarySources = msg.summary_sources?.some(s => 
+            s.participants.some(p => p.toLowerCase().includes(filterParticipant.toLowerCase()))
+          )
+          
+          if (!hasParticipantInSources && !hasParticipantInSummarySources) {
+            return false
+          }
+        }
+        // For user messages, we might want to keep them to see the context of the questions asked,
+        // or filter them if they mention the participant. 
+        // Let's keep them for now to maintain conversation flow, or maybe filter them too?
+        // User's request implies they want to see "discussions de mes dm", which are in the sources.
+      }
+
+      // Date Filter
+      if (filterDateStart || filterDateEnd) {
+        const msgDate = new Date(msg.timestamp)
+        if (filterDateStart) {
+          const start = new Date(filterDateStart)
+          if (msgDate < start) return false
+        }
+        if (filterDateEnd) {
+          const end = new Date(filterDateEnd)
+          end.setHours(23, 59, 59, 999) // End of day
+          if (msgDate > end) return false
+        }
+      }
+
+      return true
+    })
+  }, [messages, filterParticipant, filterDateStart, filterDateEnd])
+
+  // Auto-scroll (only if not filtering, or maybe always? If filtering, we might not want to scroll to bottom if we are looking at old messages)
+  // Let's keep it simple for now and scroll.
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [messages, streamStatus])
+  }, [filteredMessages, streamStatus])
 
   const [sourcesModalOpen, setSourcesModalOpen] = useState(false)
   const [selectedMessageSources, setSelectedMessageSources] = useState<{
@@ -116,10 +176,24 @@ function ChatRoute() {
          )}
        </div>
 
+       {/* Filters */}
+       <div className="px-4 py-1 border-b bg-muted/5 backdrop-blur-sm z-10 sticky top-0">
+          <div className="max-w-3xl mx-auto">
+            <FiltersPanel
+              participants={participantNames}
+              onParticipantChange={setFilterParticipant}
+              onDateRangeChange={(start, end) => {
+                   setFilterDateStart(start)
+                   setFilterDateEnd(end)
+              }}
+            />
+          </div>
+       </div>
+
        {/* Messages Area */}
        <ScrollArea className="flex-1 p-4">
          <div className="max-w-3xl mx-auto space-y-6 pb-20">
-           {messages.map((msg, i) => (
+           {filteredMessages.map((msg, i) => (
              <div 
                key={i} 
                className={cn(

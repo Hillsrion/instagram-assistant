@@ -10,6 +10,7 @@ from pathlib import Path
 from rag_pipeline.config import Config
 from rag_pipeline.advanced_retriever import create_advanced_retriever
 from rag_pipeline.chat import ChatBot
+from rag_pipeline.intent_detector import IntentDetector
 
 
 # Couleurs ANSI pour le terminal
@@ -133,6 +134,7 @@ def main():
 
         # Créer le chatbot
         chatbot = ChatBot(retriever, config)
+        intent_detector = IntentDetector(config)
 
         print(f"{Colors.GREEN}✅ Système chargé ({components['vector_store'].size} chunks){Colors.RESET}\n")
 
@@ -185,13 +187,21 @@ def main():
                     continue
 
                 # Recherche
-                print(f"\n{Colors.DIM}🔍 Recherche en cours...{Colors.RESET}", end='\r')
+                print(f"\n{Colors.DIM}🔍 Analyse de l'intention...{Colors.RESET}", end='\r')
+                intent_params = intent_detector.detect_intent(query)
+                
+                dyn_top_k = intent_params.get("top_k", 5)
+                dyn_reranking = intent_params.get("use_reranking", use_reranking)
+                dyn_expand = intent_params.get("expand_context", expand_context)
+                
+                print(f"{Colors.DIM}🔍 Recherche ({intent_params.get('intent', 'unknown')}, k={dyn_top_k})...{Colors.RESET}", end='\r')
 
                 context = retriever.retrieve(
                     query=query,
-                    use_reranking=use_reranking,
+                    top_k=dyn_top_k,
+                    use_reranking=dyn_reranking,
                     use_hybrid=use_hybrid,
-                    expand_context=expand_context
+                    expand_context=dyn_expand
                 )
 
                 if not context.has_results:

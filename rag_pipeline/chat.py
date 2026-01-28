@@ -12,6 +12,7 @@ from .config import Config, default_config
 from .retriever import Retriever, RetrievalContext
 from .pii_filter import PIIFilter
 from .query_rewriter import QueryRewriter
+from .intent_detector import IntentDetector, SearchIntent
 
 
 # Prompt système strict pour éviter les hallucinations
@@ -72,7 +73,7 @@ Réponds UNIQUEMENT avec les 3 questions, une par ligne, sans numérotation ni t
 
 
 # ============================================================
-# Query Classification
+# Query Classification & Intent Analysis
 # ============================================================
 
 class QueryType(Enum):
@@ -85,17 +86,7 @@ class QueryType(Enum):
 def classify_query(query: str) -> QueryType:
     """
     Classifie une requête pour déterminer le meilleur traitement.
-
-    Heuristiques:
-    - COMPUTATIONAL: contient des mots comme "combien", "nombre", "count"
-    - DISCOVERY: contient des mots comme "qui", "liste", "tous les"
-    - RETRIEVAL: par défaut (rappel factuel, résumés, questions ouvertes)
-
-    Args:
-        query: Requête de l'utilisateur
-
-    Returns:
-        QueryType classifiant la requête
+    ... (code inchangé pour classify_query)
     """
     query_lower = query.lower()
 
@@ -143,7 +134,8 @@ class ChatResponse:
     context: RetrievalContext
     model: str
     rewritten_query: Optional[str] = None
-    
+    search_intent: Optional[str] = None
+
 
 class ChatBot:
     """Chatbot RAG avec Ollama."""
@@ -154,7 +146,41 @@ class ChatBot:
         self.conversation_history: List[dict] = []
         self.pii_filter = PIIFilter() if self.config.enable_pii_filter else None
         self.rewriter = QueryRewriter(self.config)
+        self.intent_detector = IntentDetector(self.config)
     
+    def determine_search_params(self, query: str) -> dict:
+        """Détermine les paramètres de recherche via IntentDetector."""
+        return self.intent_detector.detect_intent(query)
+
+    def _call_ollama_direct(self, system_prompt: str, user_prompt: str, model: str, max_tokens: int = 50) -> str:
+        # On garde cette méthode car elle peut être utile ailleurs
+        # Mais IntentDetector a sa propre implémentation pour être indépendant
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        payload = {
+            "model": model,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+                "num_predict": max_tokens,
+            }
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.config.ollama_url}/api/chat",
+                json=payload,
+                timeout=10
+            )
+            response.raise_for_status()
+            return response.json()["message"]["content"]
+        except Exception:
+            raise
+
     def _build_prompt(self, query: str, context: RetrievalContext) -> str:
         """Construit le prompt complet pour le LLM."""
         if context.has_results:
@@ -268,12 +294,20 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         """
         search_query = query
         rewritten_query = None
+        search_intent = None
 
         if use_rewriting:
             # On passe l'historique pour une réécriture contextuelle
             rewritten_query = self.rewriter.rewrite(query, self.conversation_history)
             search_query = rewritten_query
             print(f"🔄 Rewritten: {query} -> {rewritten_query}")
+
+        # Détermination dynamique des paramètres si top_k non fourni
+        if top_k is None:
+            params = self.determine_search_params(search_query)
+            top_k = params["top_k"]
+            search_intent = params["intent"]
+            print(f"🎯 Intent analysis: {search_intent} -> top_k={top_k}")
 
         # Retrieval
         context = self.retriever.retrieve(search_query, top_k=top_k)
@@ -282,7 +316,7 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         prompt = self._build_prompt(query, context)
 
         if stream:
-            return self._chat_stream(query, prompt, context, rewritten_query, model)
+            return self._chat_stream(query, prompt, context, rewritten_query, model, search_intent)
         else:
             answer = self._call_ollama(prompt, stream=False, model=model)
             self._update_history(query, answer)
@@ -290,7 +324,8 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
                 answer=answer,
                 context=context,
                 model=model or self.config.llm_model,
-                rewritten_query=rewritten_query
+                rewritten_query=rewritten_query,
+                search_intent=search_intent
             )
     
     def _chat_stream(
@@ -299,7 +334,8 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         prompt: str,
         context: RetrievalContext,
         rewritten_query: Optional[str] = None,
-        model: str = None
+        model: str = None,
+        search_intent: str = None
     ) -> Generator[str, None, ChatResponse]:
         """Chat en mode streaming."""
         full_response = []
@@ -316,7 +352,8 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
             answer=answer,
             context=context,
             model=model or self.config.llm_model,
-            rewritten_query=rewritten_query
+            rewritten_query=rewritten_query,
+            search_intent=search_intent
         )
     
     def _update_history(self, query: str, answer: str):

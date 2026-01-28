@@ -58,6 +58,12 @@ export async function getChunkContent(chunkId: string): Promise<ChunkDetail> {
   return res.json()
 }
 
+export async function getParticipants(): Promise<Array<{ name: string; count: number }>> {
+  const res = await fetch(`${API_BASE}/participants`)
+  if (!res.ok) throw new Error('Failed to fetch participants')
+  return res.json()
+}
+
 // ============================================================
 // Analytics APIs
 // ============================================================
