@@ -8,50 +8,38 @@ from typing import List, Optional, Tuple, Dict
 from .config import Config, default_config
 from .chunker import Chunk
 
-ENRICH_PROMPT = """Tu es un expert en analyse de conversations.
-Analyse l'extrait de conversation Instagram ci-dessous et génère six éléments :
+ENRICH_PROMPT = """Tu es un analyseur de conversations (STRICT, basé sur le texte uniquement).
 
-1. RÉSUMÉ NARRATIF : Une seule phrase qui décrit l'action principale, l'intention et le résultat de l'échange.
-2. QUESTIONS HYPOTHÉTIQUES : Liste 3 questions précises auxquelles cet extrait de conversation répond exactement. Ces questions doivent ressembler à ce qu'un utilisateur pourrait demander à un assistant.
-3. INTENTIONS DES PARTICIPANTS : Pour chaque participant actif, décris en quelques mots son intention ou objectif principal dans cet échange.
-4. CONTEXTE TEMPOREL : Décris le moment ou la période de cet échange de manière sémantique (ex: "avant l'obtention du visa", "pendant les vacances d'été", "après la rupture").
-5. ENTITÉS NOMMÉES : Extrais les éléments importants mentionnés :
-   - locations : villes, pays, restaurants, lieux spécifiques
-   - people : personnes mentionnées (hors participants)
-   - media : films, séries, livres, jeux, chansons
-   - events : fêtes, concerts, réunions, voyages
-6. ÉMOTIONS : Analyse l'ambiance émotionnelle globale de l'échange avec trois dimensions :
-   - dominant : l'émotion principale (joie, tristesse, colère, peur, surprise, excitation, frustration, affection, inquiétude, soulagement, etc.)
-   - tone : le ton général (léger, sérieux, playful, tendu, intime, formel, sarcastique, etc.)
-   - tension_level : niveau de tension (low, medium, high)
+ANALYSE CETTE CONVERSATION ET GÉNÈRE JSON :
 
-CONVERSATION :
+1. **RÉSUMÉ** : 1 phrase max, l'action/intention/résultat
+2. **QUESTIONS** : 3 questions précises que cet extrait répond (ce qu'un utilisateur demanderait)
+3. **INTENTIONS** : Pour chaque participant → son objectif principal (une phrase max)
+4. **CONTEXTE TEMPOREL** : Moment/période (ex: "avant X", "durant vacances")
+5. **ENTITÉS** : Éléments mentionnés dans le texte SEULEMENT:
+   - locations, people (hors participants), media, events
+   - ZÉRO hallucinations, ZÉRO inferences
+6. **ÉMOTIONS** : Ambiance générale de l'échange:
+   - dominant: émotion principale (basée sur le texte)
+   - tone: ton général (léger, sérieux, playful, etc)
+   - tension_level: low/medium/high
+
+CONVERSATION:
 {content}
 
-RÉPONDS STRICTEMENT AU FORMAT JSON SUIVANT :
+RÈGLES STRICTES:
+- Format JSON obligatoire
+- ZÉRO détails non présents dans le texte
+- Sois concis et direct
+
+JSON OBLIGATOIRE:
 {{
-  "narrative_summary": "La phrase de résumé ici",
-  "questions": [
-    "Question 1 ?",
-    "Question 2 ?",
-    "Question 3 ?"
-  ],
-  "speaker_intents": {{
-    "Participant1": "son intention principale",
-    "Participant2": "son intention principale"
-  }},
-  "temporal_context": "description sémantique du moment",
-  "entities": {{
-    "locations": ["Paris", "McDo"],
-    "people": ["Sarah", "Thomas"],
-    "media": ["Inception", "GTA VI"],
-    "events": ["Anniversaire", "Noël"]
-  }},
-  "emotions": {{
-    "dominant": "émotion principale",
-    "tone": "ton général",
-    "tension_level": "low/medium/high"
-  }}
+  "narrative_summary": "...",
+  "questions": ["Q1?", "Q2?", "Q3?"],
+  "speaker_intents": {{"P1": "...", "P2": "..."}},
+  "temporal_context": "...",
+  "entities": {{"locations": [], "people": [], "media": [], "events": []}},
+  "emotions": {{"dominant": "...", "tone": "...", "tension_level": "low/medium/high"}}
 }}
 """
 

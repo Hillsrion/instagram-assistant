@@ -157,6 +157,40 @@ def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
 
     return html
 
+def get_optimized_prompt(model: str, question: str, context: str) -> str:
+    """
+    Generate optimized prompt based on model characteristics.
+
+    Different models have different strengths/weaknesses:
+    - ministral-3:8b: Tends to over-interpret and add irrelevant details
+    - qwen3:latest: Generally more balanced
+    """
+
+    if "ministral" in model.lower():
+        # Ministral-specific optimization: strict, concise, anti-hallucination
+        return f"""Tu es un assistant d'extraction d'information STRICTE et CONCISE.
+
+RÈGLES ABSOLUES À SUIVRE:
+1. Réponds UNIQUEMENT ce qui est explicitement demandé
+2. Sois concis: 1-2 phrases maximum sauf si plus est clairement nécessaire
+3. N'ajoute PAS d'interprétations, d'hypothèses ou de contexte externe
+4. N'ajoute PAS de détails supplémentaires non demandés
+5. Si tu dois inférer, cite la source qui le justifie
+
+Contexte:
+{context}
+
+Question: {question}
+
+Réponse (concise et directe):"""
+    else:
+        # Default prompt for other models
+        return f"""Contexte:
+{context}
+
+Question: {question}"""
+
+
 def create_judge(config: Config, judge_model: str = None) -> RAGASMetrics:
     """
     Create a RAGASMetrics instance configured as a judge.
@@ -691,9 +725,11 @@ Examples:
 
             start = time.time()
             try:
+                # Generate optimized prompt based on model
+                prompt = get_optimized_prompt(model, qa['question'], content)
                 resp = requests.post(f"{config.ollama_url}/api/chat", json={
                     "model": model,
-                    "messages": [{"role": "user", "content": f"Contexte:\n{content}\n\nQuestion: {qa['question']}"}],
+                    "messages": [{"role": "user", "content": prompt}],
                     "stream": False
                 }, timeout=180).json()
             except Exception as e:

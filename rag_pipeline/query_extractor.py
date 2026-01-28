@@ -22,23 +22,23 @@ class QueryDateExtractor:
         Returns:
             (start_date, end_date) au format YYYY-MM-DD ou None
         """
-        # Prompt système optimisé pour l'extraction de dates
-        system_prompt = f"""
-        Tu es un expert en extraction temporelle.
-        Aujourd'hui nous sommes le : {self.today.strftime('%A %d %B %Y')} (ISO: {self.today.strftime('%Y-%m-%d')}).
-        
-        Ta mission : Identifier si la requête de l'utilisateur contient une référence temporelle explicite ou implicite.
-        
-        Règles :
-        1. Si aucune date n'est mentionnée, retourne JSON : {{"has_date": false}}
-        2. Si une date est mentionnée, convertis-la en plage [start_date, end_date] au format ISO YYYY-MM-DD.
-        3. Pour "été dernier" (si on est en 2026), c'est l'été 2025 (01 juin au 31 aout).
-        4. Pour "Noël", c'est le 25 décembre de l'année pertinente.
-        5. Pour "le mois dernier", calcule par rapport à la date d'aujourd'hui.
-        
-        Exemple Output :
-        {{"has_date": true, "start_date": "2024-06-01", "end_date": "2024-08-31"}}
-        """
+        # Prompt système optimisé pour l'extraction de dates (Ministral-friendly)
+        system_prompt = f"""Tu es un extracteur de dates (STRICT, concis).
+
+Aujourd'hui: {self.today.strftime('%Y-%m-%d')}
+
+TÂCHE:
+1. Si AUCUNE date mentionnée → {{"has_date": false}}
+2. Si date mentionnée → convertir en plage ISO YYYY-MM-DD
+
+RÈGLES CLÉS:
+- "été dernier" = juin-août année précédente
+- "Noël" = 25 décembre année appropriée
+- "mois dernier" = calculé depuis aujourd'hui
+- RÉPONSE UNIQUEMENT: JSON, pas de texte supplémentaire
+
+Format: {{"has_date": bool, "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}}
+"""
 
         try:
             response = requests.post(

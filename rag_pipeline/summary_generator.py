@@ -13,33 +13,39 @@ from .chunker import Chunk
 from .summary_models import ConversationSummary, PeriodSummary
 
 
-CONVERSATION_SUMMARY_PROMPT = """Tu es un assistant qui résume des conversations Instagram.
+CONVERSATION_SUMMARY_PROMPT = """Tu résumes des conversations Instagram (BASÉ UNIQUEMENT SUR LE TEXTE).
 
-Voici les résumés de tous les échanges avec {participants} :
-
-{narrative_summaries}
-
-Génère un JSON avec :
-- "summary": Résumé global de la relation/conversation (2-3 phrases max)
-- "main_topics": Liste de 3-5 sujets récurrents
-- "relationship_dynamic": Type de relation (amis proches, collègues, famille, connaissance, relation amoureuse, etc.)
-- "notable_events": Liste d'événements marquants mentionnés (max 5)
-
-Réponds UNIQUEMENT en JSON valide, sans texte avant ou après."""
-
-
-PERIOD_SUMMARY_PROMPT = """Tu es un assistant qui résume des conversations Instagram.
-
-Voici les échanges avec {participants} pendant {period} :
+Résumés des échanges avec {participants} :
 
 {narrative_summaries}
 
-Génère un JSON avec :
-- "summary": Résumé de cette période (1-2 phrases max)
-- "topics": Liste de 2-3 sujets abordés
-- "mood": Ambiance générale (léger, sérieux, tendu, joyeux, intime, amical, etc.)
+GÉNÈRE JSON (strict, sans hallucinations):
+- "summary": 2-3 phrases UNIQUEMENT sur ce qui est présent
+- "main_topics": 3-5 sujets récurrents mentionnés
+- "relationship_dynamic": Type de relation (amis, collègues, famille, etc.)
+- "notable_events": Jusqu'à 5 événements EXPLICITEMENT mentionnés
 
-Réponds UNIQUEMENT en JSON valide, sans texte avant ou après."""
+RÈGLES:
+- JSON VALIDE UNIQUEMENT, ZÉRO texte supplémentaire
+- ZÉRO inférences, ZÉRO détails non présents
+- Basé UNIQUEMENT sur les résumés fournis"""
+
+
+PERIOD_SUMMARY_PROMPT = """Tu résumes des conversations Instagram pour une période (STRICT).
+
+Échanges avec {participants} pendant {period} :
+
+{narrative_summaries}
+
+GÉNÈRE JSON (concis, basé sur les faits):
+- "summary": 1-2 phrases sur cette période
+- "topics": 2-3 sujets abordés (basé sur le texte)
+- "mood": Ambiance générale (léger, sérieux, tendu, joyeux, etc.)
+
+RÈGLES STRICTES:
+- JSON VALIDE UNIQUEMENT
+- ZÉRO texte supplémentaire
+- Uniquement ce qui est dans les résumés fournis"""
 
 
 class SummaryGenerator:

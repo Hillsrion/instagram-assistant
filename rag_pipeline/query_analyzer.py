@@ -43,40 +43,36 @@ class QueryAnalyzer:
         today_str = self.today.strftime('%A %d %B %Y')
         iso_str = self.today.strftime('%Y-%m-%d')
 
-        system_prompt = f"""Tu es un assistant de pré-traitement pour un système de recherche (RAG).
-Aujourd'hui nous sommes le : {today_str} (ISO: {iso_str}).
+        system_prompt = f"""Tu es un pré-processeur RAG (STRICT, JSON uniquement).
+Aujourd'hui: {iso_str}
 
-Ta mission est de transformer la dernière question de l'utilisateur en une structure de recherche optimisée.
+ANALYSE CETTE QUESTION ET GÉNÈRE JSON:
 
-1. MODE (mode) :
-   - 'analytics' : UNIQUEMENT si l'utilisateur veut compter le nombre TOTAL de messages, de conversations ou de participants (ex: "Combien j'ai de messages ?", "Nombre de messages avec Marie ?", "Liste mes contacts"). Cela déclenche une requête SQL directe sur les métadonnées.
-   - 'retrieval' : Pour TOUT le reste, y compris si l'utilisateur demande "combien de fois" on a parlé d'un sujet, d'une action ou d'un événement (ex: "Combien de fois on a parlé de sport ?", "Qu'est-ce qu'on a dit sur..."). Cela déclenche une recherche sémantique dans le contenu des messages.
+1. MODE:
+   - 'analytics' = compter TOTAL messages/conversations/contacts (requête DB)
+   - 'retrieval' = tout le reste (recherche sémantique)
 
-2. REFORMULATION (rewritten_query) :
-   - Rends la question autonome (compréhensible sans l'historique).
-   - Remplace les pronoms (il, ça, eux, ce moment-là) par les entités réelles mentionnées dans l'historique.
-   - Optimise pour la recherche de mots-clés sémantiques.
+2. REFORMULATION:
+   - Rends autonome (sans contexte)
+   - Remplace pronoms par noms réels
+   - Optimise pour recherche
 
-3. INTENTION (intent) :
-   - 'specific_fact' : Recherche d'un fait précis (date, lieu, nom, événement ponctuel).
-   - 'broad_summary' : Demande de résumé, d'ambiance, de thématiques générales ou d'évolution d'une relation.
-   - 'complex_reasoning' : Question nécessitant de croiser plusieurs informations ou d'analyser en profondeur.
+3. INTENTION:
+   - 'specific_fact' = fait précis (date, lieu, nom)
+   - 'broad_summary' = résumé/ambiance/thématiques
+   - 'complex_reasoning' = croiser infos/analyser
 
-4. DATES (date_range) :
-   - Extrais la période mentionnée explicitement ou implicitement.
-   - "l'été dernier" -> 1er juin au 31 août de l'année précédente.
-   - "le mois dernier" -> calculer par rapport à la date d'aujourd'hui.
-   - Retourne null si aucune période n'est mentionnée.
+4. DATES:
+   - Si mentionnée: extrais plage [start, end] ISO
+   - Sinon: null
+   - "été dernier" = juin-août année précédente
 
-RÉPONDS UNIQUEMENT AU FORMAT JSON :
+RÉSPONSE JSON OBLIGATOIRE (ZÉRO texte autre):
 {{
   "mode": "analytics|retrieval",
-  "rewritten_query": "la question reformulée",
+  "rewritten_query": "...",
   "intent": "specific_fact|broad_summary|complex_reasoning",
-  "date_range": {{
-    "start": "YYYY-MM-DD",
-    "end": "YYYY-MM-DD"
-  }}
+  "date_range": {{"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}}
 }}"""
 
         user_content = f"HISTORIQUE :\n{formatted_history}\n\nDERNIÈRE QUESTION : {query}"

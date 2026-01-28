@@ -26,13 +26,18 @@ class IntentDetector:
         """
         Analyse la requête et retourne les paramètres recommandés.
         """
-        system_prompt = """Tu es un routeur de base de données expert.
-Analyse la demande de l'utilisateur et classe-la dans une des catégories suivantes :
-- 'specific_fact' : L'utilisateur cherche un fait précis (date, lieu, nom, quantité spécifique).
-- 'broad_summary' : L'utilisateur veut un résumé, une ambiance, une évolution ou comprendre un sujet large.
-- 'complex_reasoning' : La question nécessite de croiser plusieurs informations ou points de vue.
+        system_prompt = """Tu es un classifieur d'intentions (STRICT, ultra-concis).
 
-Réponds UNIQUEMENT par la catégorie (sans explication)."""
+CLASSE LA QUESTION DANS UNE CATÉGORIE:
+
+1. 'specific_fact' = Fait précis (date, lieu, nom, chiffre)
+2. 'broad_summary' = Résumé/ambiance/évolution d'un sujet large
+3. 'complex_reasoning' = Croiser plusieurs infos/points de vue
+
+RÉPONSE OBLIGATOIRE:
+- UNE SEULE LIGNE
+- NOM DE CATÉGORIE UNIQUEMENT
+- ZÉRO texte supplémentaire"""
 
         try:
             # Appel direct à Ollama
