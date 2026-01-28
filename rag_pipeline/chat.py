@@ -436,6 +436,47 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
             return filtered
         return text
 
+    def evaluate_title(self, first_message: str, model: str = None) -> str:
+        """
+        Génère un titre court et descriptif pour une conversation à partir du premier message.
+        """
+        prompt = f"""Génère un titre très court (3 à 5 mots maximum) et accrocheur pour une conversation qui commence par ce message :
+\"{first_message}\"
+
+Le titre doit être en français et refléter le sujet principal.
+Réponds UNIQUEMENT avec le titre, sans guillemets ni ponctuation finale."""
+
+        payload = {
+            "model": model or self.config.llm_model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+            "options": {
+                "temperature": 0.3,
+                "top_p": 0.9,
+                "num_predict": 20,
+            }
+        }
+
+        try:
+            response = requests.post(
+                f"{self.config.ollama_url}/api/chat",
+                json=payload,
+                timeout=10
+            )
+            response.raise_for_status()
+            title = response.json()["message"]["content"].strip()
+            
+            # Nettoyage sommaire
+            title = title.strip('"').strip("'").strip()
+            if len(title) > 60:
+                title = title[:57] + "..."
+            
+            return title
+        except Exception as e:
+            print(f"Error generating title: {e}")
+            # Fallback simple
+            return first_message[:47] + "..." if len(first_message) > 50 else first_message
+
     def generate_followup_questions(self, query: str, answer: str, model: str = None) -> List[str]:
         """Generate follow-up questions based on the conversation."""
         prompt = FOLLOWUP_PROMPT.format(query=query, answer=answer[:500])
