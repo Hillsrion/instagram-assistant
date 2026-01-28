@@ -52,7 +52,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
           model: selectedModel
         }),
         signal: abortController.current.signal,
-        onmessage(ev) {
+        async onmessage(ev) {
           const data = JSON.parse(ev.data)
 
           if (data.type === 'progress') {
@@ -115,7 +115,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
       console.error('Fetch error:', error)
       setIsStreaming(false)
     }
-  }, [chatId, queryClient, onFinish, selectedModel])
+  }, [chatId, queryClient, onFinish, selectedModel, messages])
 
   const stopStream = useCallback(() => {
     if (abortController.current) {

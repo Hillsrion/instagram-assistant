@@ -5,6 +5,7 @@ Utilise le RAG Pipeline avancé avec Ollama.
 """
 import sys
 import readline  # Pour l'historique des commandes
+import argparse
 from pathlib import Path
 
 from rag_pipeline.config import Config
@@ -82,6 +83,78 @@ def print_sources(results, max_sources=5):
     print(f"{Colors.DIM}{'─'*70}{Colors.RESET}\n")
 
 
+def main_noninteractive(query):
+    """Exécute une seule question et quitte (mode --prompt)."""
+    try:
+        config = Config()
+
+        # Vérifier que l'index existe
+        if not (config.vector_store_path / "index.faiss").exists():
+            print(f"{Colors.RED}❌ Erreur: Index FAISS non trouvé.{Colors.RESET}")
+            print(f"{Colors.YELLOW}Veuillez exécuter setup_rag_batch.py d'abord.{Colors.RESET}")
+            sys.exit(1)
+
+        # Charger les composants RAG
+        print(f"{Colors.YELLOW}⏳ Chargement du système RAG...{Colors.RESET}")
+        retriever, components = create_advanced_retriever(
+            config,
+            enable_reranking=True,
+            enable_bm25=True,
+            enable_metadata=True
+        )
+
+        # Créer le chatbot
+        chatbot = ChatBot(retriever, config)
+        query_analyzer = QueryAnalyzer(config)
+        print(f"{Colors.GREEN}✅ Système chargé ({components['vector_store'].size} chunks){Colors.RESET}\n")
+
+        # Traiter la question
+        print(f"{Colors.BOLD}{Colors.BLUE}Vous:{Colors.RESET} {query}\n")
+        print(f"{Colors.DIM}🔍 Analyse de la question...{Colors.RESET}", end='\r')
+
+        analysis = query_analyzer.analyze(query, [])
+
+        dyn_top_k = analysis.top_k
+        dyn_reranking = analysis.use_reranking
+        dyn_expand = analysis.expand_context
+        search_query = analysis.rewritten_query
+
+        print(f"{Colors.DIM}🔍 Recherche ({analysis.intent}, k={dyn_top_k})...{Colors.RESET}", end='\r')
+
+        context = retriever.retrieve(
+            query=search_query,
+            top_k=dyn_top_k,
+            date_start=analysis.date_start,
+            date_end=analysis.date_end,
+            use_reranking=dyn_reranking,
+            expand_context=dyn_expand
+        )
+
+        if not context.has_results:
+            print(f"{Colors.YELLOW}⚠️  Aucun document pertinent trouvé.{Colors.RESET}\n")
+            sys.exit(0)
+
+        # Afficher les sources
+        print_sources(context.results)
+
+        # Générer la réponse
+        print(f"{Colors.BOLD}{Colors.GREEN}Assistant:{Colors.RESET} ", end='', flush=True)
+
+        prompt = chatbot._build_prompt(query, context)
+
+        # Streaming de la réponse
+        response_text = ""
+        for token in chatbot._chat_stream(query, prompt, context):
+            print(token, end='', flush=True)
+            response_text += token
+
+        print("\n")
+
+    except Exception as e:
+        print(f"\n{Colors.RED}❌ Erreur: {e}{Colors.RESET}\n")
+        sys.exit(1)
+
+
 def print_stats(components):
     """Affiche les statistiques du système."""
     vector_store = components['vector_store']
@@ -110,6 +183,33 @@ def print_stats(components):
 
 def main():
     """Point d'entrée principal."""
+    # Parser les arguments
+    parser = argparse.ArgumentParser(
+        description='Instagram Assistant - Chat CLI',
+        add_help=False
+    )
+    parser.add_argument(
+        '--prompt',
+        type=str,
+        help='Question à poser (mode non-interactif)'
+    )
+    parser.add_argument(
+        '-h', '--help',
+        action='store_true',
+        help='Afficher l\'aide'
+    )
+
+    args = parser.parse_args()
+
+    if args.help:
+        parser.print_help()
+        print_help()
+        sys.exit(0)
+
+    if args.prompt:
+        # Mode non-interactif: exécuter une seule question
+        return main_noninteractive(args.prompt)
+
     print_header()
 
     # Initialisation

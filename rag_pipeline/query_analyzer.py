@@ -133,10 +133,21 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
             mode = data.get("mode", "retrieval")
 
             date_range = data.get("date_range") or {}
+            date_start = date_range.get("start")
+            date_end = date_range.get("end")
+
+            # Validation: ignorer les dates vagues ou auto-détectées
+            # (Si la question ne mentionne pas de période spécifique, ne pas filtrer)
+            # Détection simple: si date_start = "YYYY-01-01" c'est probablement "depuis le début de l'année"
+            if date_start and "-01-01" in date_start:
+                # Pas une date spécifique, c'est une détection floue → ignorer
+                logger.debug(f"  Ignoring vague date detection: {date_start}")
+                date_start = None
+                date_end = None
 
             logger.info(f"✅ Analysis complete: mode={mode}, intent={intent}, top_k={params['top_k']}")
             logger.debug(f"  Rewritten query: '{data.get('rewritten_query', query)}'")
-            logger.debug(f"  Date range: {date_range}")
+            logger.debug(f"  Date range: {date_start} → {date_end}")
 
             return AnalysisResult(
                 rewritten_query=data.get("rewritten_query", query),
@@ -145,8 +156,8 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
                 top_k=params["top_k"],
                 use_reranking=params["use_reranking"],
                 expand_context=params["expand_context"],
-                date_start=date_range.get("start"),
-                date_end=date_range.get("end")
+                date_start=date_start,
+                date_end=date_end
             )
 
         except Exception as e:

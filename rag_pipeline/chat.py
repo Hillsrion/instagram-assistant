@@ -377,10 +377,11 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
             expand_context=analysis.expand_context
         )
 
-        request_logger.log_retrieval(len(context.sources),
-                                    [s.score for s in context.sources] if context.sources else [])
+        sources = context.get_sources()
+        request_logger.log_retrieval(len(sources),
+                                    [r.final_score for r in context.results] if context.results else [])
 
-        logger.info(f"📚 Retrieved {len(context.sources)} sources")
+        logger.info(f"📚 Retrieved {len(sources)} sources")
 
         # Construire le prompt (avec la question ORIGINALE pour la réponse finale)
         prompt = self._build_prompt(query, context)
