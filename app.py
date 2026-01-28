@@ -22,7 +22,8 @@ from pydantic import BaseModel
 # RAG imports
 from rag_pipeline.config import Config
 from rag_pipeline.advanced_retriever import create_advanced_retriever
-from rag_pipeline.chat import ChatBot
+from rag_pipeline.chat import ChatBot, QueryType, classify_query
+from rag_pipeline.analytics import ConversationAnalytics
 
 
 # ============================================================
@@ -117,12 +118,13 @@ retriever = None
 chatbot = None
 config = None
 components = None
+analytics = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize RAG components on startup."""
-    global retriever, chatbot, config, components
+    global retriever, chatbot, config, components, analytics
 
     print("=" * 60)
     print("Instagram Conversations Assistant")
@@ -130,6 +132,9 @@ async def lifespan(app: FastAPI):
     print()
 
     config = Config()
+
+    # Initialize analytics module
+    analytics = ConversationAnalytics(config)
 
     # Check if index exists
     if not (config.vector_store_path / "index.faiss").exists():
@@ -162,6 +167,8 @@ async def lifespan(app: FastAPI):
     # Cleanup
     if components and 'metadata_store' in components:
         components['metadata_store'].close()
+    if analytics:
+        analytics.close()
 
 
 # ============================================================
@@ -333,6 +340,292 @@ async def get_chunk_content(chunk_id: str):
     raise HTTPException(status_code=404, detail="Chunk not found")
 
 
+# ============================================================
+# Analytics Endpoints
+# ============================================================
+
+
+@app.get("/api/analytics/message_count")
+async def get_message_count(
+    participant: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    conversation_id: Optional[str] = None
+):
+    """
+    Get message count with optional filters.
+
+    Query params:
+    - participant: Filter by participant name (partial match)
+    - start: Start date (ISO format)
+    - end: End date (ISO format)
+    - conversation_id: Filter by conversation ID
+    """
+    if not analytics:
+        raise HTTPException(status_code=503, detail="Analytics not initialized")
+
+    try:
+        count = analytics.count_messages(
+            participant=participant,
+            date_start=start,
+            date_end=end,
+            conversation_id=conversation_id
+        )
+        return {"count": count}
+    except Exception as e:
+        print(f"Error getting message count: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/participant_stats")
+async def get_participant_stats():
+    """Get statistics for all participants."""
+    if not analytics:
+        raise HTTPException(status_code=503, detail="Analytics not initialized")
+
+    try:
+        stats = analytics.get_participant_stats()
+        return {"participants": stats}
+    except Exception as e:
+        print(f"Error getting participant stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/conversation_timeline")
+async def get_conversation_timeline(participant: str):
+    """Get timeline of conversations with a specific participant."""
+    if not analytics:
+        raise HTTPException(status_code=503, detail="Analytics not initialized")
+
+    if not participant:
+        raise HTTPException(status_code=400, detail="participant parameter required")
+
+    try:
+        timeline = analytics.get_conversation_timeline(participant)
+        return {"timeline": timeline}
+    except Exception as e:
+        print(f"Error getting conversation timeline: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/topic_participants")
+async def get_topic_participants(topic: str):
+    """Get list of participants who discussed a specific topic."""
+    if not analytics:
+        raise HTTPException(status_code=503, detail="Analytics not initialized")
+
+    if not topic:
+        raise HTTPException(status_code=400, detail="topic parameter required")
+
+    try:
+        participants = analytics.get_topic_participants(topic)
+        return {"participants": participants}
+    except Exception as e:
+        print(f"Error getting topic participants: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/conversation_participants")
+async def get_conversation_participants(conversation_id: str):
+    """Get all participants in a conversation with their message counts."""
+    if not analytics:
+        raise HTTPException(status_code=503, detail="Analytics not initialized")
+
+    if not conversation_id:
+        raise HTTPException(status_code=400, detail="conversation_id parameter required")
+
+    try:
+        participants = analytics.get_participants_by_conversation(conversation_id)
+        return {"participants": participants}
+    except Exception as e:
+        print(f"Error getting conversation participants: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/date_range")
+async def get_date_range():
+    """Get the overall date range of all conversations."""
+    if not analytics:
+        raise HTTPException(status_code=503, detail="Analytics not initialized")
+
+    try:
+        start, end = analytics.get_date_range()
+        return {"date_start": start, "date_end": end}
+    except Exception as e:
+        print(f"Error getting date range: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/overview")
+async def get_analytics_overview():
+    """Get overall statistics about all conversations."""
+    if not analytics:
+        raise HTTPException(status_code=503, detail="Analytics not initialized")
+
+    try:
+        stats = analytics.get_conversation_stats()
+        return stats
+    except Exception as e:
+        print(f"Error getting analytics overview: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/monthly_timeline")
+async def get_monthly_timeline(participant: Optional[str] = None):
+    """Get message counts grouped by month."""
+    if not analytics:
+        raise HTTPException(status_code=503, detail="Analytics not initialized")
+
+    try:
+        timeline = analytics.get_message_count_by_month(participant)
+        return {"timeline": timeline}
+    except Exception as e:
+        print(f"Error getting monthly timeline: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# Query Routing Handlers
+# ============================================================
+
+async def handle_computational_query(request: ChatRequest) -> AsyncGenerator[str, None]:
+    """Handle computational queries (counting, stats)."""
+    conv_id = request.conversation_id
+    if conv_id:
+        conv = get_conversation(conv_id)
+        if not conv:
+            yield f"data: {json.dumps({'error': 'Conversation not found'})}\n\n"
+            return
+    else:
+        conv_id = str(uuid.uuid4())[:8]
+        now = datetime.now().isoformat()
+        conv = {
+            "id": conv_id,
+            "title": request.message[:50] + ("..." if len(request.message) > 50 else ""),
+            "created_at": now,
+            "updated_at": now,
+            "messages": []
+        }
+
+    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
+
+    # Add user message
+    user_msg = {
+        "role": "user",
+        "content": request.message,
+        "timestamp": datetime.now().isoformat()
+    }
+    conv['messages'].append(user_msg)
+
+    # Determine which analytics endpoint to call
+    query_lower = request.message.lower()
+
+    try:
+        if "combien" in query_lower or "nombre" in query_lower or "count" in query_lower:
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'analytics', 'message': 'Calcul des statistiques...'})}\n\n"
+
+            # Extract participant if mentioned
+            participant = request.participant_filter
+            count = analytics.count_messages(
+                participant=participant,
+                date_start=request.date_start,
+                date_end=request.date_end
+            )
+            response_text = f"Il y a **{count}** messages"
+            if participant:
+                response_text += f" avec {participant}"
+            if request.date_start or request.date_end:
+                response_text += f" entre {request.date_start or 'le début'} et {request.date_end or 'maintenant'}"
+            response_text += "."
+        else:
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'analytics', 'message': 'Récupération des données...'})}\n\n"
+            response_text = "Je n'ai pas pu traiter cette requête analytique. Pouvez-vous préciser ce que vous souhaitez compter ou analyser ?"
+
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
+
+    except Exception as e:
+        response_text = f"Erreur lors du calcul: {str(e)}"
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
+
+    # Save conversation
+    assistant_msg = {
+        "role": "assistant",
+        "content": response_text,
+        "timestamp": datetime.now().isoformat(),
+        "sources": [],
+        "summary_sources": []
+    }
+    conv['messages'].append(assistant_msg)
+    conv['updated_at'] = datetime.now().isoformat()
+    save_conversation(conv)
+
+    yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+
+async def handle_discovery_query(request: ChatRequest) -> AsyncGenerator[str, None]:
+    """Handle discovery queries (lists, exploration)."""
+    conv_id = request.conversation_id
+    if conv_id:
+        conv = get_conversation(conv_id)
+        if not conv:
+            yield f"data: {json.dumps({'error': 'Conversation not found'})}\n\n"
+            return
+    else:
+        conv_id = str(uuid.uuid4())[:8]
+        now = datetime.now().isoformat()
+        conv = {
+            "id": conv_id,
+            "title": request.message[:50] + ("..." if len(request.message) > 50 else ""),
+            "created_at": now,
+            "updated_at": now,
+            "messages": []
+        }
+
+    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
+
+    # Add user message
+    user_msg = {
+        "role": "user",
+        "content": request.message,
+        "timestamp": datetime.now().isoformat()
+    }
+    conv['messages'].append(user_msg)
+
+    try:
+        yield f"data: {json.dumps({'type': 'progress', 'step': 'analytics', 'message': 'Exploration des données...'})}\n\n"
+
+        # Default: list all participants
+        stats = analytics.get_participant_stats()
+
+        # Format response
+        if stats:
+            response_text = "**Participants et statistiques:**\n\n"
+            for participant, info in list(stats.items())[:20]:  # Top 20
+                response_text += f"• **{participant}**: {info['message_count']} messages, {info['conversations']} conversations\n"
+        else:
+            response_text = "Aucun participant trouvé dans les conversations."
+
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
+
+    except Exception as e:
+        response_text = f"Erreur lors de l'exploration: {str(e)}"
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
+
+    # Save conversation
+    assistant_msg = {
+        "role": "assistant",
+        "content": response_text,
+        "timestamp": datetime.now().isoformat(),
+        "sources": [],
+        "summary_sources": []
+    }
+    conv['messages'].append(assistant_msg)
+    conv['updated_at'] = datetime.now().isoformat()
+    save_conversation(conv)
+
+    yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     """Send a message and get a response (non-streaming)."""
@@ -421,6 +714,31 @@ async def chat_stream(request: ChatRequest):
     if not retriever or not chatbot:
         raise HTTPException(status_code=503, detail="RAG not initialized")
 
+    # Classify query to determine routing
+    query_type = classify_query(request.message)
+
+    # Route to specialized handlers for computational/discovery queries
+    if query_type == QueryType.COMPUTATIONAL:
+        return StreamingResponse(
+            handle_computational_query(request),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
+
+    if query_type == QueryType.DISCOVERY:
+        return StreamingResponse(
+            handle_discovery_query(request),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
+
+    # Default: retrieval flow
     async def generate() -> AsyncGenerator[str, None]:
         # Get or create conversation
         conv_id = request.conversation_id

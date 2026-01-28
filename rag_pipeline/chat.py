@@ -6,6 +6,7 @@ import json
 import requests
 from typing import Optional, Generator, List
 from dataclasses import dataclass
+from enum import Enum
 
 from .config import Config, default_config
 from .retriever import Retriever, RetrievalContext
@@ -68,6 +69,71 @@ Les questions doivent:
 - Être formulées naturellement en français
 
 Réponds UNIQUEMENT avec les 3 questions, une par ligne, sans numérotation ni tirets."""
+
+
+# ============================================================
+# Query Classification
+# ============================================================
+
+class QueryType(Enum):
+    """Types de requêtes pour routage intelligent."""
+    RETRIEVAL = "retrieval"          # Rappel factuel, résumés (flux normal)
+    COMPUTATIONAL = "computational"  # Comptage, stats (APIs analytics)
+    DISCOVERY = "discovery"          # Liste, exploration (APIs analytics)
+
+
+def classify_query(query: str) -> QueryType:
+    """
+    Classifie une requête pour déterminer le meilleur traitement.
+
+    Heuristiques:
+    - COMPUTATIONAL: contient des mots comme "combien", "nombre", "count"
+    - DISCOVERY: contient des mots comme "qui", "liste", "tous les"
+    - RETRIEVAL: par défaut (rappel factuel, résumés, questions ouvertes)
+
+    Args:
+        query: Requête de l'utilisateur
+
+    Returns:
+        QueryType classifiant la requête
+    """
+    query_lower = query.lower()
+
+    # Keywords pour questions de comptage
+    computational_keywords = [
+        "combien",
+        "nombre de",
+        "how many",
+        "count",
+        "combien de fois",
+        "total de",
+        "total messages"
+    ]
+
+    # Keywords pour questions de découverte
+    discovery_keywords = [
+        "liste",
+        "qui a",
+        "tous les",
+        "show all",
+        "list all",
+        "enumerate",
+        "énumère",
+        "quels sont",
+        "qui sont",
+        "members",
+        "participants"
+    ]
+
+    # Vérifier les heuristiques
+    if any(keyword in query_lower for keyword in computational_keywords):
+        return QueryType.COMPUTATIONAL
+
+    if any(keyword in query_lower for keyword in discovery_keywords):
+        return QueryType.DISCOVERY
+
+    # Par défaut: retrieval
+    return QueryType.RETRIEVAL
 
 
 @dataclass
