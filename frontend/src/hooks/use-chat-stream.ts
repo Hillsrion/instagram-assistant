@@ -18,7 +18,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
   const queryClient = useQueryClient()
   const abortController = useRef<AbortController | null>(null)
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, mode: string = 'regular') => {
     if (!content.trim()) return
 
     // Add user message
@@ -49,7 +49,8 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
         body: JSON.stringify({
           message: content,
           conversation_id: chatId,
-          model: selectedModel
+          model: selectedModel,
+          mode: mode
         }),
         signal: abortController.current.signal,
         onmessage(ev) {
