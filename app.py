@@ -563,8 +563,9 @@ async def handle_computational_query(request: ChatRequest) -> AsyncGenerator[str
                 response_text += f" entre {request.date_start or 'le début'} et {request.date_end or 'maintenant'}"
             response_text += "."
         else:
+            # This branch should rarely be hit since QueryAnalyzer should catch unsupported analytics queries
             yield f"data: {json.dumps({'type': 'progress', 'step': 'analytics', 'message': 'Récupération des données...'})}\n\n"
-            response_text = "Je n'ai pas pu traiter cette requête analytique. Pouvez-vous préciser ce que vous souhaitez compter ou analyser ?"
+            response_text = "Je peux compter le nombre de messages totaux ou par contact. Pour d'autres analyses, essayez de reformuler votre question en utilisant 'combien' ou 'nombre'. Sinon, je peux chercher du contenu spécifique dans vos conversations."
 
         yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
 

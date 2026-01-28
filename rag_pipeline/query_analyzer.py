@@ -53,20 +53,27 @@ Transforme la question en structure de recherche optimisée.
 
 1. MODE (DÉCISION CRITIQUE):
 
-   ✅ 'analytics' = COMPTAGE/STATISTIQUES UNIQUEMENT
+   ✅ 'analytics' = COMPTAGE/STATISTIQUES/ENUMERATION UNIQUEMENT
    Exemples ANALYTICS:
    - "Combien j'ai de messages ?" → compter le total
    - "Nombre de messages avec Marie ?" → compter par contact
    - "Combien de fois on a parlé de sport ?" → compter des occurrences
    - "Lister mes contacts" → énumérer les noms
+   - "Quels sont mes participants?" → énumérer
 
-   ✅ 'retrieval' = INFORMATION, FAITS, RÉSUMÉS (tout le reste)
+   ✅ 'retrieval' = INFORMATION, FAITS, RECHERCHES, RÉSUMÉS (tout le reste)
    Exemples RETRIEVAL:
    - "Qui est Ayoub ?" → chercher des infos sur Ayoub
    - "Est-ce qu'Ayoub est marocain ?" → chercher des attributs personnels
+   - "J'ai déjà parlé d'un taxi ?" → RECHERCHE FACTUELLE (pas un comptage!)
+   - "On a parlé de voiture ?" → VÉRIFICATION (pas un comptage!)
    - "De quoi on a parlé avec X ?" → résumé du contenu
-   - "Qu'est-ce qu'il a dit sur..." → recherche factuelle
+   - "Qu'est-ce qu'il a dit sur..." → recherche sémantique
    - "Résume mes échanges avec Y" → analyse sémantique
+
+   RÈGLE D'OR:
+   - Si question = "Avons-nous parlé de X?" ou "Est-ce qu'on a mentionné Y?" → RETRIEVAL
+   - Ne confonds pas avec "Combien de fois?" qui est ANALYTICS
 
 2. REFORMULATION:
    - Rends la question autonome (compréhensible sans historique)
