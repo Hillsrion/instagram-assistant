@@ -1,77 +1,176 @@
 # Instagram Conversations Assistant
 
-Assistant IA local pour explorer et interroger vos conversations Instagram exportées.
+A production-ready local AI assistant to explore and query your exported Instagram conversations using advanced RAG (Retrieval-Augmented Generation).
 
-## Fonctionnalités
+## Features
 
-- **RAG avancé** : Recherche hybride (dense + BM25), reranking cross-encoder, context expansion
-- **Interface web moderne** : Conversations multiples, filtres, streaming
-- **100% local** : Aucune donnée envoyée sur Internet
-- **562k+ messages** indexés et recherchables
+- **Advanced RAG Pipeline**: Hybrid search (dense + BM25), cross-encoder reranking, context expansion
+- **Hierarchical Summaries**: Automatic fallback to conversation/period summaries for "big picture" queries
+- **Modern Web Interface**: Multiple conversations, filters, real-time streaming
+- **100% Local & Private**: No data sent to external servers
+- **Production-Ready**: Evaluation pipeline, incremental updates, PII filtering, robustness features
 
-## Quickstart
+## Quick Start
 
 ```bash
-# 1. Installer les dépendances
+# 0. Configure environment (first time only)
+python3 setup_env.py
+
+# 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Indexer les conversations (première fois uniquement)
+# 2. Convert Instagram conversations
+python3 instagram_to_text.py
+
+# 3. Index conversations
 python3 setup_rag_batch.py
 
-# 3. Lancer l'application web
+# 4. Launch web application (Backend)
 python3 app.py
 
-# 4. Ouvrir http://localhost:8000
+# 5. Launch web application (Frontend)
+cd frontend
+pnpm install && pnpm dev --open
 ```
 
 ## Architecture
 
-```
-instagram_conversations/     # 1218 conversations exportées
-rag_data/
-  ├── chunks.json           # 43k chunks avec métadonnées
-  ├── faiss_index/          # Index vectoriel (dense search)
-  ├── bm25_index.pkl        # Index lexical (keyword search)
-  └── metadata.db           # SQLite (filtrage rapide)
-rag_pipeline/               # Modules du pipeline RAG
-web/                        # Interface web
-app.py                      # Serveur FastAPI
+### High-Level Flow
+
+```mermaid
+flowchart LR
+    subgraph Input
+        A[Instagram<br/>Export JSON]
+    end
+
+    subgraph Indexing
+        B[Chunker] --> C[Enricher<br/>LLM]
+        C --> D[Embeddings<br/>BGE-M3]
+        D --> E[(FAISS +<br/>BM25 +<br/>Summaries)]
+    end
+
+    subgraph Query
+        F[User<br/>Question] --> G[Hybrid<br/>Search]
+        G --> H[Reranker]
+        H --> I{Confidence?}
+        I -->|Low| J[Summary<br/>Fallback]
+        I -->|High| K[LLM<br/>Response]
+        J --> K
+    end
+
+    A --> B
+    E --> G
+    K --> L[Answer +<br/>Sources]
+
+    style A fill:#e3f2fd
+    style E fill:#fff9c4
+    style L fill:#c8e6c9
 ```
 
-## Commandes utiles
+### Directory Structure
+
+```
+instagram_conversations/     # Exported Instagram conversations
+rag_data/
+  ├── faiss_index/          # Vector store (dense search)
+  ├── bm25_index.pkl        # Lexical index (keyword search)
+  ├── metadata.db           # SQLite (metadata filtering)
+  ├── file_state.json       # Delta tracker for incremental updates
+  ├── eval_dataset.json     # Evaluation dataset
+  ├── conversation_summaries.json  # Hierarchical summaries (conversation level)
+  ├── period_summaries.json        # Hierarchical summaries (monthly)
+  └── summary_index/        # FAISS indexes for summary search
+rag_pipeline/               # Core RAG components
+frontend/                   # React web interface (Vite + TanStack)
+eval/                       # Evaluation pipeline (RAGAS metrics)
+web/                        # Legacy web interface
+app.py                      # FastAPI server
+```
+
+## Configuration
+
+All paths are now configurable via environment variables:
 
 ```bash
-# Voir l'état de l'indexation
-python3 setup_rag_batch.py --status
+# Interactive setup (recommended for first time)
+python3 setup_env.py
 
-# Réindexer depuis zéro
-python3 setup_rag_batch.py --reset
-
-# Chat CLI (sans interface web)
-python3 chat_instagram_advanced.py
+# Or copy and edit manually
+cp .env.example .env
 ```
 
-## Filtres disponibles
+See [Configuration Guide](docs/CONFIGURATION.md) for details.
 
-Dans l'interface ou le CLI, vous pouvez filtrer par :
-- `@nom` : Participant
-- `#2023` : Année
-- `[2023-01:2023-06]` : Période
+## Key Commands
 
-Exemple : "de quoi on a parlé @pauline #2023 ?"
+```bash
+# Merge multiple Instagram exports (preserves all messages)
+python3 merge_instagram_exports.py export1/ export2/ -o merged/
 
-## Stack technique
+# Convert Instagram JSON to text
+python3 instagram_to_text.py
 
-- **Embeddings** : BGE-M3 (multilingue FR/EN)
-- **Vector Store** : FAISS
-- **Reranker** : BGE-reranker-base
-- **LLM** : Ollama (Qwen3)
-- **Backend** : FastAPI
-- **Frontend** : HTML/CSS/JS (Vanilla)
+# View indexing status
+python3 setup_rag_batch.py --status
 
-## Confidentialité
+# Incremental update (after adding/modifying files)
+python3 update_index.py
 
-Tout fonctionne en local :
-- Modèles téléchargés une seule fois
-- Aucune API externe
-- Données stockées uniquement sur votre machine
+# Full reindex from scratch
+python3 setup_rag_batch.py --reset
+
+# CLI chat interface
+python3 cli.py
+
+# Run evaluation benchmark
+python -m eval.run_eval --benchmark
+```
+
+## Tech Stack
+
+- **Embeddings**: BGE-M3 (multilingual FR/EN)
+- **Vector Store**: FAISS
+- **Reranker**: BGE-reranker-base
+- **LLM**: Ollama (local)
+- **Backend**: FastAPI
+- **Frontend**: React 19, Vite, TanStack Router, Tailwind CSS v4, Shadcn UI
+
+## Merging Multiple Exports
+
+Instagram limits exports to ~10k messages. To preserve all history when re-exporting:
+
+```bash
+# Merge old and new exports
+python3 merge_instagram_exports.py \
+    ~/Documents/old_export/messages/inbox \
+    ~/Documents/new_export/messages/inbox \
+    -o ~/Documents/merged/messages/inbox
+
+# Preview without merging
+python3 merge_instagram_exports.py old/ new/ -o merged/ --dry-run
+
+# Update your .env to point to merged directory
+# Then convert and reindex
+python3 instagram_to_text.py
+python3 update_index.py
+```
+
+The merge script:
+- Deduplicates messages by timestamp
+- Preserves all media files
+- Keeps the most complete version of each message
+- Shows statistics on duplicates removed
+
+## Documentation
+
+- [Configuration Guide](docs/CONFIGURATION.md)
+- [Quick Start Guide](docs/QUICKSTART.md)
+- [Features Documentation](docs/FEATURES.md)
+- [API Reference](docs/API.md)
+
+## Privacy
+
+Everything runs locally:
+- Models downloaded once
+- No external APIs
+- Data stored only on your machine

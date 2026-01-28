@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from collections import defaultdict
 
 from .config import Config, default_config
@@ -32,19 +32,25 @@ class Chunk:
     date_start: str
     date_end: str
     message_count: int
-    summary: str
     content: str
     file_source: str
     # Nouveaux champs pour le RAG "Gold Standard"
     narrative_summary: Optional[str] = None
     hypothetical_questions: Optional[List[str]] = None
+    speaker_intents: Optional[Dict[str, str]] = None
+    temporal_context: Optional[str] = None
+    emotions: Optional[Dict[str, Any]] = None  # {dominant, tone, tension_level}
+    entities: Optional[Dict[str, List[str]]] = None  # {locations: [], people: [], media: [], events: []}
     
     def to_dict(self) -> dict:
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "Chunk":
-        return cls(**data)
+        # Filter out any unknown fields (e.g., 'summary' from old chunks)
+        valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        return cls(**filtered_data)
     
     def get_embedding_text(self) -> str:
         """
@@ -58,16 +64,47 @@ class Chunk:
             text_parts.append("Questions auxquelles ce document répond :")
             text_parts.extend(self.hypothetical_questions)
             text_parts.append("")
-            
-        # 2. Résumé narratif (Contexte sémantique)
+
+        # 2. Contexte temporel sémantique
+        if self.temporal_context:
+            text_parts.append(f"Période : {self.temporal_context}")
+            text_parts.append("")
+
+        # 3. Entités nommées (Lieux, Personnes, etc.)
+        if self.entities:
+            text_parts.append("Entités mentionnées :")
+            for category, items in self.entities.items():
+                if items:
+                    text_parts.append(f"  - {category}: {', '.join(items)}")
+            text_parts.append("")
+
+        # 4. Intentions des participants
+        if self.speaker_intents:
+            text_parts.append("Intentions des participants :")
+            for participant, intent in self.speaker_intents.items():
+                text_parts.append(f"  - {participant} : {intent}")
+            text_parts.append("")
+
+        # 5. Émotions (Contexte émotionnel)
+        if self.emotions:
+            emotion_parts = []
+            if self.emotions.get("dominant"):
+                emotion_parts.append(f"émotion dominante: {self.emotions['dominant']}")
+            if self.emotions.get("tone"):
+                emotion_parts.append(f"ton: {self.emotions['tone']}")
+            if self.emotions.get("tension_level"):
+                emotion_parts.append(f"tension: {self.emotions['tension_level']}")
+            if emotion_parts:
+                text_parts.append(f"Ambiance : {', '.join(emotion_parts)}")
+                text_parts.append("")
+
+        # 6. Résumé narratif (Contexte sémantique)
         if self.narrative_summary:
             text_parts.append(f"Résumé : {self.narrative_summary}")
-        else:
-            text_parts.append(f"Résumé statistique : {self.summary}")
-            
+
         text_parts.append("")
-        
-        # 3. Contenu brut (Détails)
+
+        # 7. Contenu brut (Détails)
         text_parts.append("Contenu de la conversation :")
         text_parts.append(self.content)
         
@@ -163,59 +200,6 @@ class ConversationChunker:
         
         return metadata, messages
     
-    def generate_summary(self, messages: List[Message], participants: List[str]) -> str:
-        """Génère un résumé court du chunk."""
-        if not messages:
-            return "Chunk vide"
-        
-        # Participants actifs dans ce chunk
-        active_authors = set(m.author for m in messages)
-        other_participants = [p for p in active_authors if p != self.config.user_name]
-        
-        # Période
-        start = messages[0].timestamp.strftime('%d/%m/%Y')
-        end = messages[-1].timestamp.strftime('%d/%m/%Y')
-        period = f"{start}" if start == end else f"{start} - {end}"
-        
-        # Comptage par auteur
-        author_counts = defaultdict(int)
-        for m in messages:
-            author_counts[m.author] += 1
-        
-        # Mots-clés simples (les mots les plus fréquents > 4 caractères)
-        all_words = []
-        for m in messages:
-            words = re.findall(r'\b[a-zA-ZÀ-ÿ]{5,}\b', m.content.lower())
-            all_words.extend(words)
-        
-        word_freq = defaultdict(int)
-        stopwords = {'avoir', 'être', 'faire', 'cette', 'aussi', 'comme', 'encore', 
-                     'toujours', 'jamais', 'alors', 'quand', 'après', 'avant', 'depuis',
-                     'comment', 'pourquoi', 'parce', 'vraiment', 'tellement', 'quelque'}
-        for w in all_words:
-            if w not in stopwords:
-                word_freq[w] += 1
-        
-        top_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:5]
-        keywords = [w for w, _ in top_words] if top_words else []
-        
-        # Construire le résumé
-        summary_parts = [
-            f"Conversation entre {self.config.user_name} et {', '.join(other_participants) if other_participants else 'participants'}.",
-            f"Période: {period}.",
-            f"{len(messages)} messages échangés.",
-        ]
-        
-        if keywords:
-            summary_parts.append(f"Sujets abordés: {', '.join(keywords)}.")
-        
-        # Média
-        media_count = sum(1 for m in messages if m.has_media)
-        if media_count > 0:
-            summary_parts.append(f"Contient {media_count} média(s).")
-        
-        return " ".join(summary_parts)
-    
     def format_chunk_content(self, messages: List[Message]) -> str:
         """Formate le contenu d'un chunk pour l'indexation."""
         lines = []
@@ -239,31 +223,49 @@ class ConversationChunker:
         return '\n'.join(lines)
     
     def chunk_conversation(self, file_path: Path) -> List[Chunk]:
-        """Découpe une conversation en chunks."""
+        """Découpe une conversation en chunks adaptatifs."""
         metadata, messages = self.parse_conversation(file_path)
-        
+
         if not messages:
+            return []
+
+        # Skip les conversations avec comptes désactivés
+        conversation_id = metadata['conversation_id']
+        if self.config.skip_deactivated_accounts and conversation_id.startswith('utilisateurinstagram_'):
+            return []
+
+        # Skip les conversations avec trop peu de messages
+        if len(messages) < self.config.min_messages_per_conversation:
             return []
         
         chunks = []
         chunk_idx = 0
         current_chunk_messages = []
         chunk_start_time = None
+        last_msg_time = None
         
-        for msg in messages:
+        for i, msg in enumerate(messages):
             if not current_chunk_messages:
                 chunk_start_time = msg.timestamp
                 current_chunk_messages.append(msg)
+                last_msg_time = msg.timestamp
                 continue
             
-            # Calculer la durée depuis le début du chunk
-            days_elapsed = (msg.timestamp - chunk_start_time).days
+            # 1. Calculer les deltas
+            hours_since_last_msg = (msg.timestamp - last_msg_time).total_seconds() / 3600
+            days_elapsed_chunk = (msg.timestamp - chunk_start_time).days
             
-            # Conditions de création d'un nouveau chunk
-            should_split = (
+            # 2. Critères de découpage
+            # A. Rupture temporelle (Conversation interrompue > Gap)
+            is_time_gap = hours_since_last_msg >= self.config.chunk_time_gap
+            
+            # B. Limites de taille (Sécurité pour éviter les chunks géants)
+            is_too_long = (
                 len(current_chunk_messages) >= self.config.chunk_max_messages or
-                days_elapsed >= self.config.chunk_max_days
+                days_elapsed_chunk >= self.config.chunk_max_days
             )
+            
+            should_split = is_time_gap or is_too_long
             
             if should_split:
                 # Créer le chunk actuel
@@ -273,12 +275,23 @@ class ConversationChunker:
                 chunks.append(chunk)
                 chunk_idx += 1
                 
-                # Commencer un nouveau chunk avec overlap
-                overlap_start = max(0, len(current_chunk_messages) - self.config.chunk_overlap)
-                current_chunk_messages = current_chunk_messages[overlap_start:]
-                chunk_start_time = current_chunk_messages[0].timestamp if current_chunk_messages else msg.timestamp
+                if is_time_gap:
+                    # Si c'est une rupture temporelle, on repart de zéro (pas d'overlap nécessaire/pertinent)
+                    current_chunk_messages = []
+                    # Mais on ajoute le message actuel comme début du nouveau chunk
+                else:
+                    # Si c'est juste trop long, on fait un overlap pour la continuité
+                    overlap_start = max(0, len(current_chunk_messages) - self.config.chunk_overlap)
+                    current_chunk_messages = current_chunk_messages[overlap_start:]
+                
+                # Réinitialiser pour le nouveau chunk
+                if not current_chunk_messages:
+                    chunk_start_time = msg.timestamp
+                else:
+                    chunk_start_time = current_chunk_messages[0].timestamp
             
             current_chunk_messages.append(msg)
+            last_msg_time = msg.timestamp
         
         # Dernier chunk
         if current_chunk_messages:
@@ -304,16 +317,19 @@ class ConversationChunker:
             date_start=messages[0].timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             date_end=messages[-1].timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             message_count=len(messages),
-            summary=self.generate_summary(messages, metadata['participants']),
             content=self.format_chunk_content(messages),
             file_source=file_path.name
         )
     
-    def chunk_all_conversations(self, progress_callback=None) -> List[Chunk]:
+    def chunk_all_conversations(self, progress_callback=None, limit: int = None) -> List[Chunk]:
         """Découpe toutes les conversations du dossier."""
         all_chunks = []
         files = list(self.config.conversations_dir.glob('*.txt'))
         
+        if limit:
+            files = files[:limit]
+            print(f"⚠️  Limite activée: traitement de {len(files)} conversations seulement")
+
         for i, file_path in enumerate(files):
             try:
                 chunks = self.chunk_conversation(file_path)

@@ -99,15 +99,34 @@ class CrossEncoderReranker:
                 # On concatène les questions pour que le reranker voie la similarité
                 text_parts.append("Questions abordées: " + " ".join(chunk.hypothetical_questions))
             
-            # 2. Résumé Narratif (Contexte fort)
+            # 2. Contexte temporel (Signal temporel)
+            if chunk.temporal_context:
+                text_parts.append(f"Période: {chunk.temporal_context}")
+
+            # 3. Intentions des participants
+            if chunk.speaker_intents:
+                intents_str = ", ".join(f"{p}: {i}" for p, i in chunk.speaker_intents.items())
+                text_parts.append(f"Intentions: {intents_str}")
+
+            # 4. Émotions (Contexte émotionnel)
+            if chunk.emotions:
+                emotion_parts = []
+                if chunk.emotions.get("dominant"):
+                    emotion_parts.append(chunk.emotions["dominant"])
+                if chunk.emotions.get("tone"):
+                    emotion_parts.append(f"ton {chunk.emotions['tone']}")
+                if chunk.emotions.get("tension_level"):
+                    emotion_parts.append(f"tension {chunk.emotions['tension_level']}")
+                if emotion_parts:
+                    text_parts.append(f"Ambiance: {', '.join(emotion_parts)}")
+
+            # 5. Résumé Narratif (Contexte fort)
             if chunk.narrative_summary:
                 text_parts.append(f"Résumé: {chunk.narrative_summary}")
-            else:
-                text_parts.append(f"Résumé: {chunk.summary}")
-            
-            # 3. Contenu (Preuve)
-            # On garde un extrait significatif (1000 chars) pour ne pas tronquer les autres signaux
-            text_parts.append(chunk.content[:1000])
+
+            # 6. Contenu (Preuve)
+            # On garde un extrait significatif (900 chars) pour compenser les nouveaux champs
+            text_parts.append(chunk.content[:900])
             
             doc_text = "\n".join(text_parts)
             pairs.append([query, doc_text])
@@ -153,7 +172,8 @@ class CrossEncoderReranker:
 
         pairs = []
         for chunk, _ in candidates:
-            doc_text = f"{chunk.summary}\n\n{chunk.content[:1500]}"
+            summary = chunk.narrative_summary if chunk.narrative_summary else chunk.summary
+            doc_text = f"{summary}\n\n{chunk.content[:1500]}"
             pairs.append([query, doc_text])
 
         rerank_scores = self.model.predict(pairs, show_progress_bar=False)

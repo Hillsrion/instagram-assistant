@@ -10,7 +10,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
 parts/
 sdist/
@@ -95,8 +95,14 @@ conversations.db
 temp/
 tmp/
 
-# Evaluation data
-eval/
+# Evaluation data (keep the module, ignore generated data)
+eval/__pycache__/
+eval/*.json
+!eval/eval_dataset.sample.json
+eval/*.html
+
+# Evaluation results (organized output)
+eval_results/
 
 # macOS
 .DS_Store
@@ -123,8 +129,9 @@ embeddings_checkpoint_*.npy
 *.backup
 *~
 
-# Documentation build
+# Documentation build (keep .md files)
 docs/_build/
+docs/site/
 site/
 
 # Coverage reports
@@ -134,3 +141,10 @@ coverage.xml
 
 # Distribution
 *.whl
+
+# AI
+.claude
+
+# Imports and Exports
+original_import_folders/
+merged_instagram_export/

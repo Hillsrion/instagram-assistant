@@ -10,6 +10,7 @@ from pathlib import Path
 from rag_pipeline.config import Config
 from rag_pipeline.advanced_retriever import create_advanced_retriever
 from rag_pipeline.chat import ChatBot
+from rag_pipeline.query_analyzer import QueryAnalyzer
 
 
 # Couleurs ANSI pour le terminal
@@ -68,11 +69,12 @@ def print_sources(results, max_sources=5):
         print(f"    Période: {chunk.date_start[:10]} → {chunk.date_end[:10]}")
         print(f"    Score: {Colors.GREEN}{result.final_score:.2f}{Colors.RESET}")
 
-        # Afficher un extrait du résumé
-        summary = chunk.summary[:150]
-        if len(chunk.summary) > 150:
-            summary += "..."
-        print(f"    {Colors.DIM}{summary}{Colors.RESET}")
+        # Afficher un extrait du résumé narratif
+        if chunk.narrative_summary:
+            summary = chunk.narrative_summary[:150]
+            if len(chunk.narrative_summary) > 150:
+                summary += "..."
+            print(f"    {Colors.DIM}{summary}{Colors.RESET}")
 
     if len(results) > max_sources:
         print(f"\n{Colors.DIM}... et {len(results) - max_sources} autres sources{Colors.RESET}")
@@ -132,6 +134,7 @@ def main():
 
         # Créer le chatbot
         chatbot = ChatBot(retriever, config)
+        query_analyzer = QueryAnalyzer(config)
 
         print(f"{Colors.GREEN}✅ Système chargé ({components['vector_store'].size} chunks){Colors.RESET}\n")
 
@@ -184,13 +187,24 @@ def main():
                     continue
 
                 # Recherche
-                print(f"\n{Colors.DIM}🔍 Recherche en cours...{Colors.RESET}", end='\r')
+                print(f"\n{Colors.DIM}🔍 Analyse de la question...{Colors.RESET}", end='\r')
+                analysis = query_analyzer.analyze(query, chatbot.conversation_history)
+                
+                dyn_top_k = analysis.top_k
+                dyn_reranking = analysis.use_reranking
+                dyn_expand = analysis.expand_context
+                search_query = analysis.rewritten_query
+                
+                print(f"{Colors.DIM}🔍 Recherche ({analysis.intent}, k={dyn_top_k})...{Colors.RESET}", end='\r')
 
                 context = retriever.retrieve(
-                    query=query,
-                    use_reranking=use_reranking,
+                    query=search_query,
+                    top_k=dyn_top_k,
+                    date_start=analysis.date_start,
+                    date_end=analysis.date_end,
+                    use_reranking=dyn_reranking,
                     use_hybrid=use_hybrid,
-                    expand_context=expand_context
+                    expand_context=dyn_expand
                 )
 
                 if not context.has_results:

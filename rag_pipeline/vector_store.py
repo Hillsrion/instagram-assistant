@@ -5,7 +5,7 @@ Stockage et recherche efficace d'embeddings.
 import json
 import numpy as np
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Set
 from dataclasses import dataclass
 
 from .config import Config, default_config
@@ -174,3 +174,165 @@ class VectorStore:
         if self.index is None:
             return 0
         return self.index.ntotal
+
+    def add_vectors(
+        self,
+        new_chunks: List[Chunk],
+        new_embeddings: np.ndarray
+    ):
+        """
+        Add new vectors to the existing index (incremental update).
+
+        Args:
+            new_chunks: New chunks to add
+            new_embeddings: Embeddings for new chunks (n_new, dim)
+        """
+        if self.index is None:
+            # No existing index, create new one
+            self.build_index(new_chunks, new_embeddings)
+            return
+
+        self._load_faiss()
+
+        if len(new_chunks) != len(new_embeddings):
+            raise ValueError(
+                f"Number of chunks ({len(new_chunks)}) != "
+                f"number of embeddings ({len(new_embeddings)})"
+            )
+
+        # Normalize new embeddings
+        embeddings = new_embeddings.astype(np.float32)
+        self._faiss.normalize_L2(embeddings)
+
+        # Add to index
+        self.index.add(embeddings)
+
+        # Add chunks
+        self.chunks.extend(new_chunks)
+
+        print(f"Added {len(new_chunks)} vectors to index (total: {self.index.ntotal})")
+
+    def remove_vectors(self, chunk_ids: List[str]) -> int:
+        """
+        Remove vectors by chunk ID (requires index rebuild).
+
+        Note: FAISS IndexFlatIP doesn't support direct removal,
+        so this rebuilds the index without the specified chunks.
+
+        Args:
+            chunk_ids: List of chunk IDs to remove
+
+        Returns:
+            Number of chunks actually removed
+        """
+        if self.index is None or not chunk_ids:
+            return 0
+
+        self._load_faiss()
+
+        # Find indices to keep
+        chunk_ids_set = set(chunk_ids)
+        indices_to_keep = []
+        new_chunks = []
+
+        for i, chunk in enumerate(self.chunks):
+            if chunk.chunk_id not in chunk_ids_set:
+                indices_to_keep.append(i)
+                new_chunks.append(chunk)
+
+        removed_count = len(self.chunks) - len(new_chunks)
+
+        if removed_count == 0:
+            return 0
+
+        # Reconstruct embeddings for kept indices
+        # Note: This requires reconstructing vectors from FAISS
+        dim = self.index.d
+        kept_embeddings = np.zeros((len(indices_to_keep), dim), dtype=np.float32)
+
+        for new_idx, old_idx in enumerate(indices_to_keep):
+            kept_embeddings[new_idx] = self.index.reconstruct(old_idx)
+
+        # Rebuild index
+        self.index = self._faiss.IndexFlatIP(dim)
+        self.index.add(kept_embeddings)
+        self.chunks = new_chunks
+
+        print(f"Removed {removed_count} vectors (remaining: {self.index.ntotal})")
+        return removed_count
+
+    def update_vectors(
+        self,
+        chunk_ids_to_remove: List[str],
+        new_chunks: List[Chunk],
+        new_embeddings: np.ndarray
+    ) -> Tuple[int, int]:
+        """
+        Combined remove and add operation for efficient updates.
+
+        Args:
+            chunk_ids_to_remove: Chunk IDs to remove
+            new_chunks: New chunks to add
+            new_embeddings: Embeddings for new chunks
+
+        Returns:
+            Tuple of (removed_count, added_count)
+        """
+        if self.index is None:
+            # No existing index
+            self.build_index(new_chunks, new_embeddings)
+            return 0, len(new_chunks)
+
+        self._load_faiss()
+
+        # Find indices to keep
+        chunk_ids_set = set(chunk_ids_to_remove)
+        indices_to_keep = []
+        kept_chunks = []
+
+        for i, chunk in enumerate(self.chunks):
+            if chunk.chunk_id not in chunk_ids_set:
+                indices_to_keep.append(i)
+                kept_chunks.append(chunk)
+
+        removed_count = len(self.chunks) - len(kept_chunks)
+
+        # Reconstruct kept embeddings
+        dim = self.index.d
+        kept_embeddings = np.zeros((len(indices_to_keep), dim), dtype=np.float32)
+
+        for new_idx, old_idx in enumerate(indices_to_keep):
+            kept_embeddings[new_idx] = self.index.reconstruct(old_idx)
+
+        # Normalize new embeddings
+        new_emb = new_embeddings.astype(np.float32)
+        self._faiss.normalize_L2(new_emb)
+
+        # Combine kept and new
+        if len(kept_embeddings) > 0 and len(new_emb) > 0:
+            all_embeddings = np.vstack([kept_embeddings, new_emb])
+        elif len(new_emb) > 0:
+            all_embeddings = new_emb
+        else:
+            all_embeddings = kept_embeddings
+
+        all_chunks = kept_chunks + list(new_chunks)
+
+        # Rebuild index
+        self.index = self._faiss.IndexFlatIP(dim)
+        self.index.add(all_embeddings)
+        self.chunks = all_chunks
+
+        print(f"Updated index: removed {removed_count}, added {len(new_chunks)} (total: {self.index.ntotal})")
+        return removed_count, len(new_chunks)
+
+    def get_chunk_by_id(self, chunk_id: str) -> Optional[Chunk]:
+        """Find a chunk by its ID."""
+        for chunk in self.chunks:
+            if chunk.chunk_id == chunk_id:
+                return chunk
+        return None
+
+    def get_chunks_by_file(self, file_source: str) -> List[Chunk]:
+        """Get all chunks from a specific file."""
+        return [c for c in self.chunks if c.file_source == file_source]

@@ -16,6 +16,8 @@ from .vector_store import VectorStore, SearchResult
 from .reranker import CrossEncoderReranker, RerankResult
 from .bm25_index import BM25Index
 from .metadata_store import MetadataStore
+from .summary_store import SummaryStore, SummarySearchResult
+from .query_extractor import QueryDateExtractor
 
 
 @dataclass
@@ -39,6 +41,11 @@ class AdvancedRetrievalContext:
     has_results: bool
     filters_applied: dict = field(default_factory=dict)
     search_mode: str = "hybrid"  # dense, bm25, hybrid
+    low_confidence: bool = False  # True if max score < confidence_threshold
+    max_confidence_score: float = 0.0  # Highest score among results
+    # Summary fallback fields
+    summary_results: List[SummarySearchResult] = field(default_factory=list)
+    used_summary_fallback: bool = False
 
     def get_sources(self) -> List[str]:
         """Retourne la liste des sources."""
@@ -71,6 +78,7 @@ class AdvancedRetriever:
         bm25_index: Optional[BM25Index] = None,
         metadata_store: Optional[MetadataStore] = None,
         reranker: Optional[CrossEncoderReranker] = None,
+        summary_store: Optional[SummaryStore] = None,
         config: Config = None
     ):
         self.config = config or default_config
@@ -79,12 +87,15 @@ class AdvancedRetriever:
         self.bm25_index = bm25_index
         self.metadata_store = metadata_store
         self.reranker = reranker
+        self.summary_store = summary_store
+        self.date_extractor = QueryDateExtractor(self.config)
 
         # Configuration par défaut
         self.default_top_k = 5
         self.initial_k = 20  # Pour le reranking
         self.hybrid_alpha = 0.5  # Poids dense vs BM25
         self.context_window = 1  # Chunks adjacents
+        self.fallback_threshold = self.config.fallback_threshold  # Seuil pour fallback summaries
 
     def retrieve(
         self,
@@ -126,6 +137,17 @@ class AdvancedRetriever:
         min_score = min_score or self.config.min_similarity
 
         filters_applied = {}
+
+        # ========================================
+        # Étape 0: Extraction temporelle automatique
+        # ========================================
+        # Si aucune date n'est fournie explicitement, on essaie de la deviner
+        if not date_start and not date_end and not year_filter:
+            extracted_start, extracted_end = self.date_extractor.extract_dates(query)
+            if extracted_start or extracted_end:
+                date_start = extracted_start
+                date_end = extracted_end
+                print(f"🕒 Période détectée: {date_start} -> {date_end}")
 
         # ========================================
         # Étape 1: Pre-filtering par métadonnées
@@ -250,16 +272,42 @@ class AdvancedRetriever:
                 is_expanded=is_expanded
             ))
 
-        # Formater le contexte
-        formatted_context = self._format_context(results)
+        # Compute confidence score
+        max_confidence_score = max((r.final_score for r in results), default=0.0)
+        low_confidence = max_confidence_score < self.config.confidence_threshold if results else True
+
+        # ========================================
+        # Étape 6: Fallback vers résumés si confiance basse
+        # ========================================
+        summary_results = []
+        used_summary_fallback = False
+
+        if max_confidence_score < self.fallback_threshold and self.summary_store:
+            # Rechercher dans les résumés hiérarchiques
+            query_embedding = self.embedding_model.encode_single(query)
+            summary_results = self.summary_store.search_by_embedding(
+                query_embedding,
+                level="all",
+                top_k=3,
+                min_score=0.2
+            )
+            if summary_results:
+                used_summary_fallback = True
+
+        # Formater le contexte (inclut les résumés si fallback)
+        formatted_context = self._format_context(results, summary_results)
 
         return AdvancedRetrievalContext(
             query=query,
             results=results,
             formatted_context=formatted_context,
-            has_results=len(results) > 0,
+            has_results=len(results) > 0 or len(summary_results) > 0,
             filters_applied=filters_applied,
-            search_mode=search_mode
+            search_mode=search_mode,
+            low_confidence=low_confidence,
+            max_confidence_score=max_confidence_score,
+            summary_results=summary_results,
+            used_summary_fallback=used_summary_fallback
         )
 
     def _search_dense(
@@ -392,18 +440,27 @@ class AdvancedRetriever:
         candidates: List[Tuple[int, float, float, float, bool]],
         top_k: int
     ) -> List[Tuple[int, float, float, float, bool]]:
-        """Applique le reranking cross-encoder."""
+        """Applique le reranking cross-encoder avec fusion des scores."""
         # Préparer les paires pour le reranker
+        # On passe le score combiné (hybrid) comme score de densité
         chunks_for_rerank = [(self.vector_store.chunks[idx], score) for idx, _, _, score, _ in candidates]
 
-        reranked = self.reranker.rerank(query, chunks_for_rerank, top_k=top_k)
+        # Utiliser rerank_with_fusion pour combiner les scores correctement
+        # (dense + rerank avec normalisation)
+        reranked = self.reranker.rerank_with_fusion(
+            query,
+            chunks_for_rerank,
+            top_k=top_k,
+            alpha=0.5  # Équilibre entre score hybride (50%) et reranker (50%)
+        )
 
-        # Reconstruire la liste avec les nouveaux scores
+        # Reconstruire la liste avec les nouveaux scores fusionnés
         result = []
         for rr in reranked:
             # Retrouver l'index
             for idx, dense, bm25, combined, expanded in candidates:
                 if self.vector_store.chunks[idx].chunk_id == rr.chunk.chunk_id:
+                    # rr.rerank_score contient maintenant le score fusionné normalisé
                     result.append((idx, dense, bm25, rr.rerank_score, expanded))
                     break
 
@@ -432,13 +489,25 @@ class AdvancedRetriever:
 
         return expanded
 
-    def _format_context(self, results: List[AdvancedSearchResult]) -> str:
+    def _format_context(
+        self,
+        results: List[AdvancedSearchResult],
+        summary_results: List[SummarySearchResult] = None
+    ) -> str:
         """Formate les résultats en contexte pour le LLM."""
-        if not results:
-            return "Aucun document pertinent trouvé."
-
         context_parts = []
 
+        # Ajouter les résumés hiérarchiques en premier (vue d'ensemble)
+        if summary_results:
+            context_parts.append("=== RÉSUMÉS GLOBAUX (VUE D'ENSEMBLE) ===\n")
+            summary_context = self.summary_store.format_summary_context(summary_results)
+            context_parts.append(summary_context)
+            context_parts.append("\n" + "=" * 50 + "\n")
+
+        if not results and not summary_results:
+            return "Aucun document pertinent trouvé."
+
+        # Ajouter les chunks détaillés
         for result in results:
             chunk = result.chunk
             expanded_tag = " [CONTEXTE ADJACENT]" if result.is_expanded else ""
@@ -448,7 +517,6 @@ class AdvancedRetriever:
                 f"Source: {chunk.file_source}\n"
                 f"Participants: {', '.join(chunk.participants)}\n"
                 f"Période: {chunk.date_start[:10]} → {chunk.date_end[:10]}\n"
-                f"Résumé: {chunk.summary}\n"
                 f"Score: {result.final_score:.2f}\n"
                 f"---\n"
             )
@@ -467,7 +535,8 @@ def create_advanced_retriever(
     config: Config = None,
     enable_reranking: bool = True,
     enable_bm25: bool = True,
-    enable_metadata: bool = True
+    enable_metadata: bool = True,
+    enable_summaries: bool = True
 ) -> Tuple[AdvancedRetriever, dict]:
     """
     Factory pour créer un AdvancedRetriever avec toutes ses dépendances.
@@ -521,12 +590,24 @@ def create_advanced_retriever(
         reranker = CrossEncoderReranker(config)
         components['reranker'] = reranker
 
+    # Summary store (hierarchical summaries)
+    summary_store = None
+    if enable_summaries:
+        summary_store = SummaryStore(config, embedding_model)
+        if summary_store.load():
+            print(f"✅ Summary index chargé: {len(summary_store.conversation_summaries)} conversations, {len(summary_store.period_summaries)} périodes")
+            components['summary_store'] = summary_store
+        else:
+            print("⚠️  Index des résumés non trouvé. Lancez setup_rag_batch.py pour le générer.")
+            summary_store = None
+
     retriever = AdvancedRetriever(
         embedding_model=embedding_model,
         vector_store=vector_store,
         bm25_index=bm25_index,
         metadata_store=metadata_store,
         reranker=reranker,
+        summary_store=summary_store,
         config=config
     )
 

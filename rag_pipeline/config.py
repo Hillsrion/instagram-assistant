@@ -1,16 +1,21 @@
 """
 Configuration centralisée du RAG Pipeline.
 """
+import os
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement depuis .env
+load_dotenv()
 
 @dataclass
 class Config:
     """Configuration du pipeline RAG."""
-    
+
     # === Chemins ===
-    base_dir: Path = Path("/Users/ismaelsebbane/dev/lab/instagram-assistant")
+    base_dir: Path = field(default_factory=lambda: Path(os.getenv('BASE_DIR', Path(__file__).parent.parent)))
     conversations_dir: Path = field(default=None)
     index_dir: Path = field(default=None)
     vector_store_path: Path = field(default=None)
@@ -18,25 +23,31 @@ class Config:
     
     # === Chunking ===
     # Nombre max de messages par chunk
-    chunk_max_messages: int = 50
+    chunk_max_messages: int = field(default_factory=lambda: int(os.getenv('CHUNK_MAX_MESSAGES', '50')))
     # Durée max d'un chunk en jours (prioritaire sur max_messages)
-    chunk_max_days: int = 3
+    chunk_max_days: int = field(default_factory=lambda: int(os.getenv('CHUNK_MAX_DAYS', '3')))
     # Chevauchement entre chunks (en messages)
-    chunk_overlap: int = 5
-    
+    chunk_overlap: int = field(default_factory=lambda: int(os.getenv('CHUNK_OVERLAP', '5')))
+    # Pause (en heures) qui déclenche un nouveau chunk
+    chunk_time_gap: float = field(default_factory=lambda: float(os.getenv('CHUNK_TIME_GAP', '6.0')))
+    # Nombre minimum de messages par conversation (skip si inférieur)
+    min_messages_per_conversation: int = field(default_factory=lambda: int(os.getenv('MIN_MESSAGES_PER_CONVERSATION', '2')))
+    # Skip les conversations avec comptes désactivés (utilisateurinstagram_*)
+    skip_deactivated_accounts: bool = field(default_factory=lambda: os.getenv('SKIP_DEACTIVATED_ACCOUNTS', 'true').lower() == 'true')
+
     # === Embeddings ===
     # Modèle d'embeddings (bge-m3 recommandé pour multilingue)
-    embedding_model: str = "BAAI/bge-m3"
+    embedding_model: str = field(default_factory=lambda: os.getenv('EMBEDDING_MODEL', 'BAAI/bge-m3'))
     # Dimension des embeddings (1024 pour bge-m3)
     embedding_dim: int = 1024
     # Utiliser GPU si disponible
-    use_gpu: bool = True
-    
+    use_gpu: bool = field(default_factory=lambda: os.getenv('USE_GPU', 'true').lower() == 'true')
+
     # === Retrieval ===
     # Nombre de chunks à récupérer
-    top_k: int = 5
+    top_k: int = field(default_factory=lambda: int(os.getenv('TOP_K', '5')))
     # Score minimum de similarité (cosine)
-    min_similarity: float = 0.3
+    min_similarity: float = field(default_factory=lambda: float(os.getenv('MIN_SIMILARITY', '0.3')))
 
     # === Advanced Retrieval ===
     # Nombre initial de candidats pour le reranking
@@ -48,38 +59,67 @@ class Config:
     # Modèle de reranking
     reranker_model: str = "BAAI/bge-reranker-base"
     # Activer le reranking par défaut
-    use_reranking: bool = True
+    use_reranking: bool = field(default_factory=lambda: os.getenv('USE_RERANKING', 'true').lower() == 'true')
     # Activer la recherche hybride par défaut
-    use_hybrid: bool = True
+    use_hybrid: bool = field(default_factory=lambda: os.getenv('USE_HYBRID', 'true').lower() == 'true')
     # Activer le context expansion par défaut
     use_context_expansion: bool = True
+
+    # === Robustness & Confidence ===
+    # Seuil de confiance minimum (en dessous, on refuse de répondre)
+    confidence_threshold: float = 0.25
+    # Activer le filtrage PII dans les réponses
+    enable_pii_filter: bool = True
+
+    # === Summary Index (Hierarchical Summaries) ===
+    # Seuil pour déclencher le fallback vers les résumés
+    fallback_threshold: float = 0.35
+    # Pondération des résultats summary dans le score final
+    summary_boost: float = 0.8
     
     # === LLM ===
     # Modèle Ollama à utiliser
-    llm_model: str = "qwen3:latest"
+    llm_model: str = field(default_factory=lambda: os.getenv('LLM_MODEL', 'qwen3:latest'))
     # URL du serveur Ollama
-    ollama_url: str = "http://localhost:11434"
+    ollama_url: str = field(default_factory=lambda: os.getenv('OLLAMA_URL', 'http://localhost:11434'))
     # Température (basse = plus factuel)
     temperature: float = 0.1
     # Top-p sampling
     top_p: float = 0.9
     # Tokens max en sortie
     max_tokens: int = 1024
-    
+
     # === Utilisateur ===
-    user_name: str = "Ismaël"
+    user_name: str = field(default_factory=lambda: os.getenv('USER_NAME', 'Ismaël'))
     
     def __post_init__(self):
         """Initialise les chemins dérivés."""
+        # Convertir base_dir en Path si c'est une string
+        if isinstance(self.base_dir, str):
+            self.base_dir = Path(self.base_dir)
+
         if self.conversations_dir is None:
-            self.conversations_dir = self.base_dir / "instagram_conversations"
+            conv_dir = os.getenv('CONVERSATIONS_DIR', 'instagram_conversations')
+            self.conversations_dir = self.base_dir / conv_dir if not Path(conv_dir).is_absolute() else Path(conv_dir)
+        elif isinstance(self.conversations_dir, str):
+            self.conversations_dir = Path(self.conversations_dir)
+
         if self.index_dir is None:
-            self.index_dir = self.base_dir / "rag_data"
+            idx_dir = os.getenv('INDEX_DIR', 'rag_data')
+            self.index_dir = self.base_dir / idx_dir if not Path(idx_dir).is_absolute() else Path(idx_dir)
+        elif isinstance(self.index_dir, str):
+            self.index_dir = Path(self.index_dir)
+
         if self.vector_store_path is None:
             self.vector_store_path = self.index_dir / "faiss_index"
+        elif isinstance(self.vector_store_path, str):
+            self.vector_store_path = Path(self.vector_store_path)
+
         if self.chunks_cache_path is None:
             self.chunks_cache_path = self.index_dir / "chunks.json"
-        
+        elif isinstance(self.chunks_cache_path, str):
+            self.chunks_cache_path = Path(self.chunks_cache_path)
+
         # Créer les dossiers nécessaires
         self.index_dir.mkdir(exist_ok=True)
 
