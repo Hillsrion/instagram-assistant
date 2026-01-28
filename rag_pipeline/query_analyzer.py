@@ -14,6 +14,7 @@ class AnalysisResult:
     """Résultat consolidé de l'analyse d'une requête."""
     rewritten_query: str
     intent: str
+    mode: str # 'retrieval' ou 'analytics'
     top_k: int
     date_start: Optional[str] = None
     date_end: Optional[str] = None
@@ -47,24 +48,29 @@ Aujourd'hui nous sommes le : {today_str} (ISO: {iso_str}).
 
 Ta mission est de transformer la dernière question de l'utilisateur en une structure de recherche optimisée.
 
-1. REFORMULATION (rewritten_query) :
+1. MODE (mode) :
+   - 'analytics' : UNIQUEMENT si l'utilisateur veut compter le nombre TOTAL de messages, de conversations ou de participants (ex: "Combien j'ai de messages ?", "Nombre de messages avec Marie ?", "Liste mes contacts"). Cela déclenche une requête SQL directe sur les métadonnées.
+   - 'retrieval' : Pour TOUT le reste, y compris si l'utilisateur demande "combien de fois" on a parlé d'un sujet, d'une action ou d'un événement (ex: "Combien de fois on a parlé de sport ?", "Qu'est-ce qu'on a dit sur..."). Cela déclenche une recherche sémantique dans le contenu des messages.
+
+2. REFORMULATION (rewritten_query) :
    - Rends la question autonome (compréhensible sans l'historique).
    - Remplace les pronoms (il, ça, eux, ce moment-là) par les entités réelles mentionnées dans l'historique.
-   - Optimise pour la recherche de mots-clés.
+   - Optimise pour la recherche de mots-clés sémantiques.
 
-2. INTENTION (intent) :
+3. INTENTION (intent) :
    - 'specific_fact' : Recherche d'un fait précis (date, lieu, nom, événement ponctuel).
    - 'broad_summary' : Demande de résumé, d'ambiance, de thématiques générales ou d'évolution d'une relation.
    - 'complex_reasoning' : Question nécessitant de croiser plusieurs informations ou d'analyser en profondeur.
 
-3. DATES (date_range) :
+4. DATES (date_range) :
    - Extrais la période mentionnée explicitement ou implicitement.
-   - 'été dernier' -> 1er juin au 31 août de l'année précédente.
-   - 'le mois dernier' -> calculer par rapport à aujourd'hui.
+   - "l'été dernier" -> 1er juin au 31 août de l'année précédente.
+   - "le mois dernier" -> calculer par rapport à la date d'aujourd'hui.
    - Retourne null si aucune période n'est mentionnée.
 
-RÉPONDS UNIQUEMENT AU FORMAT JSON SUIVANT :
+RÉPONDS UNIQUEMENT AU FORMAT JSON :
 {{
+  "mode": "analytics|retrieval",
   "rewritten_query": "la question reformulée",
   "intent": "specific_fact|broad_summary|complex_reasoning",
   "date_range": {{
@@ -106,6 +112,7 @@ RÉPONDS UNIQUEMENT AU FORMAT JSON SUIVANT :
             return AnalysisResult(
                 rewritten_query=data.get("rewritten_query", query),
                 intent=intent,
+                mode=data.get("mode", "retrieval"),
                 top_k=params["top_k"],
                 use_reranking=params["use_reranking"],
                 expand_context=params["expand_context"],
@@ -119,6 +126,7 @@ RÉPONDS UNIQUEMENT AU FORMAT JSON SUIVANT :
             return AnalysisResult(
                 rewritten_query=query,
                 intent="complex_reasoning",
+                mode="retrieval",
                 top_k=self.config.top_k
             )
 

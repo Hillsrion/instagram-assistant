@@ -661,19 +661,25 @@ async def chat(request: ChatRequest):
     }
     conv['messages'].append(user_msg)
 
-    # Détection d'intention
-    intent_params = intent_detector.detect_intent(request.message)
-    dyn_top_k = intent_params.get("top_k", 5)
-    dyn_reranking = intent_params.get("use_reranking", request.use_reranking)
-    dyn_expand = intent_params.get("expand_context", request.expand_context)
+    # Omni-Analyse (Rewrite + Intent + Dates) en un seul appel LLM
+    analysis = query_analyzer.analyze(request.message, chatbot.conversation_history)
+    
+    dyn_top_k = analysis.top_k
+    dyn_reranking = analysis.use_reranking
+    dyn_expand = analysis.expand_context
+    search_query = analysis.rewritten_query
+
+    # On utilise les dates extraites par l'analyzer si présentes
+    final_date_start = request.date_start or analysis.date_start
+    final_date_end = request.date_end or analysis.date_end
 
     # Retrieve context
     context = retriever.retrieve(
-        query=request.message,
+        query=search_query,
         participant_filter=request.participant_filter,
         year_filter=request.year_filter,
-        date_start=request.date_start,
-        date_end=request.date_end,
+        date_start=final_date_start,
+        date_end=final_date_end,
         top_k=dyn_top_k,
         use_reranking=dyn_reranking,
         use_hybrid=request.use_hybrid,
@@ -724,29 +730,23 @@ async def chat_stream(request: ChatRequest):
     if not retriever or not chatbot:
         raise HTTPException(status_code=503, detail="RAG not initialized")
 
-    # Classify query to determine routing
-    query_type = classify_query(request.message)
-
-    # Route to specialized handlers for computational/discovery queries
-    if query_type == QueryType.COMPUTATIONAL:
-        return StreamingResponse(
-            handle_computational_query(request),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-            }
-        )
-
-    if query_type == QueryType.DISCOVERY:
-        return StreamingResponse(
-            handle_discovery_query(request),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-            }
-        )
+    # Omni-Analyse (Rewrite + Intent + Dates + Mode) en un seul appel LLM
+    analysis = query_analyzer.analyze(request.message, chatbot.conversation_history)
+    
+    # Intelligent Routing based on LLM decision
+    if analysis.mode == "analytics":
+        # Check if it's discovery or computational based on intent/message
+        query_lower = request.message.lower()
+        if any(k in query_lower for k in ["liste", "qui", "participants"]):
+            return StreamingResponse(
+                handle_discovery_query(request),
+                media_type="text/event-stream"
+            )
+        else:
+            return StreamingResponse(
+                handle_computational_query(request),
+                media_type="text/event-stream"
+            )
 
     # Default: retrieval flow
     async def generate() -> AsyncGenerator[str, None]:
@@ -780,30 +780,24 @@ async def chat_stream(request: ChatRequest):
         conv['messages'].append(user_msg)
         
         # Synchroniser l'historique du chatbot avec la conversation actuelle
-        # On ne prend que les messages de texte pour le chatbot
         chatbot.conversation_history = [
             {"role": m["role"], "content": m["content"]} 
-            for m in conv['messages'][:-1] # Tout sauf le dernier message qu'on vient d'ajouter
+            for m in conv['messages'][:-1]
         ]
 
         # Progress: Search step
         yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Analyse de la question...'})}\n\n"
         
-        # Omni-Analyse (Rewrite + Intent + Dates) en un seul appel LLM
-        analysis = query_analyzer.analyze(request.message, chatbot.conversation_history)
-        
+        # L'analyse a déjà été faite pour le routing, on réutilise ses paramètres
         dyn_top_k = analysis.top_k
         dyn_reranking = analysis.use_reranking
         dyn_expand = analysis.expand_context
-        
-        # On utilise la requête reformulée pour la recherche
         search_query = analysis.rewritten_query
         
         intent_label = analysis.intent or 'info'
         yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': f'Recherche ({intent_label})...'})}\n\n"
 
-        # On utilise les dates extraites par l'analyzer si présentes
-        # Sinon on laisse le retriever essayer ses propres filtres (ou utiliser ceux de la requête)
+        # Dates
         final_date_start = request.date_start or analysis.date_start
         final_date_end = request.date_end or analysis.date_end
 
@@ -817,7 +811,6 @@ async def chat_stream(request: ChatRequest):
             use_reranking=dyn_reranking,
             use_hybrid=request.use_hybrid,
             expand_context=dyn_expand
-        )
         )
 
         # Send sources with chunk_id and preview
