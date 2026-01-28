@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from rag_pipeline.config import Config
 from rag_pipeline.chunker import ConversationChunker, Chunk
 from eval.metrics import RAGASMetrics
+from eval._output_paths import get_generation_report_path
 
 def escape_html(text: str) -> str:
     """Escape HTML special characters."""
@@ -260,7 +261,7 @@ def display_missing_models_help(missing_models: List[str]):
     print("\n💡 Note: Make sure Ollama is running before installing models.")
     print("   Run 'ollama serve' in another terminal if needed.\n")
 
-def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_synthesis: str, judge_model: str, chunks_map: Dict[str, Chunk] = None):
+def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_synthesis: str, judge_model: str, chunks_map: Dict[str, Chunk] = None, models: List[str] = None, trials: int = 0):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     chunks_map = chunks_map or {}
 
@@ -500,7 +501,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
 </html>
     """
 
-    report_path = Path(__file__).parent / "generation_report.html"
+    report_path = get_generation_report_path(models or list(results.keys()), trials or len(qa_pairs))
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write(html)
     return report_path
@@ -684,7 +685,7 @@ Examples:
         results[m]["avg_speed"] = sum(t["words_per_sec"] for t in results[m]["trials"]) / len(qa_pairs)
 
     if args.html:
-        path = generate_html_report(results, qa_pairs, synth_resp, judge_model, chunks_map)
+        path = generate_html_report(results, qa_pairs, synth_resp, judge_model, chunks_map, models=models, trials=args.trials)
         print(f"\n✅ Rapport HTML généré: {path}")
 
     print("\n" + synth_resp)

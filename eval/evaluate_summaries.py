@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from rag_pipeline.config import Config
 from rag_pipeline.summary_store import SummaryStore
 from rag_pipeline.summary_models import ConversationSummary, PeriodSummary
+from eval._output_paths import get_summaries_report_path
 
 
 @dataclass
@@ -296,7 +297,8 @@ Réponds en JSON:
 
 def generate_html_report(
     results: List[SummaryEvalResult],
-    report_type: str = "mixed"
+    conversations: int = 0,
+    periods: int = 0
 ) -> Path:
     """Generate HTML report for summary evaluation."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -485,7 +487,7 @@ def generate_html_report(
 </html>
     """
 
-    report_path = Path("rag_data/summary_evaluation_report.html")
+    report_path = get_summaries_report_path(conversations, periods)
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write(html)
 
@@ -532,14 +534,17 @@ Examples:
     evaluator = SummaryEvaluator(config)
 
     all_results = []
+    conv_count = 0
+    period_count = 0
 
     # Evaluate conversation summaries
     try:
         conv_summaries = evaluator.summary_store.get_all_conversation_summaries()[:args.conversations]
-        print(f"Evaluating {len(conv_summaries)} conversation summaries...")
+        conv_count = len(conv_summaries)
+        print(f"Evaluating {conv_count} conversation summaries...")
 
         for i, summary in enumerate(conv_summaries):
-            print(f"  [{i+1}/{len(conv_summaries)}] Evaluating {summary.summary_id}...", end="", flush=True)
+            print(f"  [{i+1}/{conv_count}] Evaluating {summary.summary_id}...", end="", flush=True)
             results = evaluator.evaluate_conversation_summary(summary)
             all_results.extend(results)
             print(" Done")
@@ -552,10 +557,11 @@ Examples:
     # Evaluate period summaries
     try:
         period_summaries = evaluator.summary_store.get_all_period_summaries()[:args.periods]
-        print(f"Evaluating {len(period_summaries)} period summaries...")
+        period_count = len(period_summaries)
+        print(f"Evaluating {period_count} period summaries...")
 
         for i, summary in enumerate(period_summaries):
-            print(f"  [{i+1}/{len(period_summaries)}] Evaluating {summary.summary_id}...", end="", flush=True)
+            print(f"  [{i+1}/{period_count}] Evaluating {summary.summary_id}...", end="", flush=True)
             results = evaluator.evaluate_period_summary(summary)
             all_results.extend(results)
             print(" Done")
@@ -583,7 +589,7 @@ Examples:
     print()
 
     if args.html:
-        path = generate_html_report(all_results)
+        path = generate_html_report(all_results, conversations=conv_count, periods=period_count)
         print(f"✅ HTML report generated: {path}")
 
 

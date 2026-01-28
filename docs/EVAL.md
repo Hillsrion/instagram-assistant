@@ -11,6 +11,7 @@ Le module `eval/` fournit un pipeline complet pour évaluer la qualité du syst�
 eval/
 ├── __init__.py               # Exports des classes principales
 ├── _cli_utils.py             # Utilitaires CLI partagés
+├── _output_paths.py          # Gestion centralisée des chemins de sortie
 ├── generate_dataset.py       # Script: génération de dataset
 ├── eval_retrieval.py         # Script: évaluation du retrieval
 ├── eval_generation.py        # Script: évaluation de la génération
@@ -21,6 +22,12 @@ eval/
 ├── metrics.py                # Bibliothèque: RAGASMetrics
 ├── eval_dataset.json         # Dataset généré (ignoré par git)
 └── eval_dataset.sample.json  # Dataset sample versionné
+
+eval_results/                 # Résultats d'évaluation (ignoré par git)
+├── eval_generation/          # Rapports comparaison LLMs
+├── eval_retrieval/           # Rapports benchmark retrieval
+├── evaluate_summaries/       # Rapports évaluation résumés
+└── compare_configs/          # Rapports comparaison configs
 ```
 
 ## Quick Start
@@ -185,7 +192,8 @@ python -m eval.eval_generation --models qwen3:latest,mistral --judge qwen3:lates
 
 **Rapport HTML:**
 
-Avec `--html`, un rapport interactif est généré dans `eval/generation_report.html`:
+Avec `--html`, un rapport interactif est généré dans `eval_results/eval_generation/`:
+- Nom du fichier: `gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.html`
 - Graphiques de comparaison
 - Détails par question avec réponses côte à côte
 - Observations du juge
@@ -324,13 +332,28 @@ class BenchmarkConfig:
 
 ## Fichiers Générés
 
+Tous les résultats d'évaluation sont stockés dans `eval_results/` (ignoré par git):
+
+```
+eval_results/
+├── eval_generation/
+│   └── gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.html
+├── eval_retrieval/
+│   └── retrieval_<config>_<timestamp>.json
+├── evaluate_summaries/
+│   └── summaries_<conv>conv_<periods>periods_<timestamp>.html
+└── compare_configs/
+    └── comparison_<timestamp>.json
+```
+
 | Fichier | Description | Versionné |
 |---------|-------------|-----------|
 | `eval/eval_dataset.json` | Dataset de paires QA | Non |
 | `eval/eval_dataset.sample.json` | Sample avec données fictives | Oui |
-| `eval/generation_report.html` | Rapport HTML comparaison LLMs | Non |
-| `rag_data/benchmark_*.json` | Rapports de benchmark | Non |
-| `rag_data/comparison_*.json` | Rapports de comparaison configs | Non |
+| `eval_results/eval_generation/*.html` | Rapports HTML comparaison LLMs | Non |
+| `eval_results/eval_retrieval/*.json` | Rapports de benchmark retrieval | Non |
+| `eval_results/evaluate_summaries/*.html` | Rapports évaluation résumés | Non |
+| `eval_results/compare_configs/*.json` | Rapports de comparaison configs | Non |
 
 ---
 

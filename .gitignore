@@ -100,7 +100,9 @@ eval/__pycache__/
 eval/*.json
 !eval/eval_dataset.sample.json
 eval/*.html
-eval/results/
+
+# Evaluation results (organized output)
+eval_results/
 
 # macOS
 .DS_Store

@@ -18,6 +18,7 @@ from rag_pipeline.chat import ChatBot
 
 from .synthetic_generator import QAPair, QuestionType
 from .metrics import RAGASMetrics, EvalResult, BenchmarkReport
+from ._output_paths import get_retrieval_report_path, get_comparison_report_path
 
 
 @dataclass
@@ -236,7 +237,7 @@ class BenchmarkRunner:
 
     def save_report(self, report: BenchmarkReport, path: Path = None):
         """Save benchmark report to JSON."""
-        path = path or (self.config.index_dir / f"benchmark_{report.config_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+        path = path or get_retrieval_report_path(report.config_name)
 
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(report.to_dict(), f, ensure_ascii=False, indent=2)
@@ -245,7 +246,7 @@ class BenchmarkRunner:
 
     def save_comparison(self, reports: Dict[str, BenchmarkReport], path: Path = None):
         """Save comparison results to JSON."""
-        path = path or (self.config.index_dir / f"comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+        path = path or get_comparison_report_path()
 
         comparison = {
             'timestamp': datetime.now().isoformat(),
