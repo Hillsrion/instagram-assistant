@@ -485,7 +485,11 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
 \"{first_message}\"
 
 Le titre doit être en français et refléter le sujet principal.
-Réponds UNIQUEMENT avec le titre, sans guillemets ni ponctuation finale."""
+RÈGLES STRICTES :
+- PAS de guillemets, PAS de markdown (**gras**, *italique*, etc.).
+- PAS de ponctuation finale.
+- Uniquement du texte brut.
+- Maximum 40 caractères."""
 
         payload = {
             "model": model or self.config.llm_model,
@@ -507,16 +511,18 @@ Réponds UNIQUEMENT avec le titre, sans guillemets ni ponctuation finale."""
             response.raise_for_status()
             title = response.json()["message"]["content"].strip()
             
-            # Nettoyage sommaire
-            title = title.strip('"').strip("'").strip()
-            if len(title) > 60:
-                title = title[:57] + "..."
+            # Nettoyage agressif
+            title = title.replace('"', '').replace("'", "").replace("*", "").replace("`", "").replace("#", "")
+            title = title.strip()
+            
+            if len(title) > 40:
+                title = title[:37] + "..."
             
             return title
         except Exception as e:
             print(f"Error generating title: {e}")
             # Fallback simple
-            return first_message[:47] + "..." if len(first_message) > 50 else first_message
+            return first_message[:30] + "..." if len(first_message) > 30 else first_message
 
     def generate_followup_questions(self, query: str, answer: str, model: str = None) -> List[str]:
         """Generate follow-up questions based on the conversation."""

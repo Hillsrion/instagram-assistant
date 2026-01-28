@@ -1,19 +1,27 @@
+import { useState } from 'react' // Added import
 import { Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, BarChart3 } from 'lucide-react'
+import { Plus, Trash2, BarChart3, Search } from 'lucide-react' // Added Search icon
 import { getConversations, createConversation, deleteConversation } from '@/lib/api'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input' // Added Input
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 
 export function Sidebar() {
   const queryClient = useQueryClient()
-  
+  const [search, setSearch] = useState('') // Search state
+
   const { data: conversations, isLoading } = useQuery({
     queryKey: ['conversations'],
     queryFn: getConversations
   })
+
+  // Filter conversations
+  const filteredConversations = conversations?.filter(conv => 
+    conv.title?.toLowerCase().includes(search.toLowerCase())
+  )
 
   const createMutation = useMutation({
     mutationFn: () => createConversation(),
@@ -32,41 +40,61 @@ export function Sidebar() {
   })
 
   return (
-    <div className="w-64 border-r bg-muted/10 flex flex-col h-full">
-      <div className="p-4 border-b space-y-2">
-        <Button
-          className="w-full justify-start gap-2"
-          onClick={() => createMutation.mutate()}
-          disabled={createMutation.isPending}
-        >
-          <Plus className="h-4 w-4" />
-          New Chat
-        </Button>
-        <Link
-          to="/analytics"
-          className="w-full"
-          activeProps={{
-            className: "bg-muted"
-          }}
-        >
+    <div className="w-64 border-r bg-muted/10 flex flex-col h-full bg-background">
+      <div className="p-3 border-b space-y-3">
+        {/* Buttons Row */}
+        <div className="flex gap-2">
           <Button
-            variant="outline"
-            className="w-full justify-start gap-2"
+            className="flex-1"
+            size="icon"
+            variant="default" // Keep primary for new chat
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isPending}
+            title="New Chat"
           >
-            <BarChart3 className="h-4 w-4" />
-            Analytics
+            <Plus className="h-5 w-5" />
           </Button>
-        </Link>
+          
+          <Link
+            to="/analytics"
+            className="flex-1"
+            activeProps={{
+              className: ""
+            }}
+          >
+            <Button
+              variant="outline"
+              size="icon"
+              className="w-full"
+              title="Analytics"
+            >
+              <BarChart3 className="h-5 w-5" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
+          <Input 
+            placeholder="Rechercher..." 
+            className="pl-9 h-9 bg-muted/50"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
       </div>
       
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">
           {isLoading ? (
             <div className="p-4 text-sm text-muted-foreground text-center">Loading...</div>
-          ) : conversations?.length === 0 ? (
-            <div className="p-4 text-sm text-muted-foreground text-center">No conversations yet</div>
+          ) : filteredConversations?.length === 0 ? (
+            <div className="p-4 text-sm text-muted-foreground text-center">
+              {search ? "No matches found" : "No conversations yet"}
+            </div>
           ) : (
-            conversations?.map((conv) => (
+            filteredConversations?.map((conv) => (
               <div key={conv.id} className="group flex items-center gap-2 rounded-lg hover:bg-muted/50 transition-colors p-1">
                 <Link
                   to="/chat/$chatId"

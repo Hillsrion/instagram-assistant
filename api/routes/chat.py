@@ -155,6 +155,8 @@ async def chat_stream(request: ChatRequest):
         raise HTTPException(status_code=503, detail="RAG not initialized")
 
     logger.info(f"📨 Chat stream request: '{request.message}'")
+    if request.group_filter:
+        logger.info(f"👥 Group filter received: '{request.group_filter}' (Not yet implemented in retrieval)")
 
     # Omni-Analyse (Rewrite + Intent + Dates + Mode) en un seul appel LLM
     analysis = query_analyzer.analyze(request.message, chatbot.conversation_history)
