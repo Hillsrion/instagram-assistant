@@ -1,5 +1,5 @@
 """
-Tests pour les fonctions de stockage JSON des conversations.
+Tests for JSON storage functions.
 """
 import unittest
 import tempfile
@@ -11,21 +11,21 @@ from api import storage
 
 
 class TestStorage(unittest.TestCase):
-    """Tests pour le module storage."""
+    """Tests for storage module."""
 
     def setUp(self):
-        """Crée un fichier temporaire pour les tests."""
+        """Creates a temporary file for tests."""
         self.temp_dir = tempfile.mkdtemp()
         self.temp_file = Path(self.temp_dir) / "test_conversations.json"
 
     def tearDown(self):
-        """Nettoie les fichiers temporaires."""
+        """Cleans up temporary files."""
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch.object(storage, 'CONVERSATIONS_FILE')
     def test_load_conversations_empty(self, mock_file):
-        """load_conversations retourne dict vide si fichier n'existe pas."""
+        """load_conversations returns empty dict if file doesn't exist."""
         mock_file.__class__ = Path
         mock_file.exists.return_value = False
         
@@ -36,9 +36,9 @@ class TestStorage(unittest.TestCase):
 
     @patch.object(storage, 'CONVERSATIONS_FILE')
     def test_save_and_load_conversations(self, mock_file):
-        """Sauvegarde et rechargement de conversations."""
+        """Saving and loading conversations."""
         with patch.object(storage, 'CONVERSATIONS_FILE', self.temp_file):
-            # Sauvegarder
+            # Save
             conversations = {
                 "abc123": {
                     "id": "abc123",
@@ -50,46 +50,46 @@ class TestStorage(unittest.TestCase):
             }
             storage.save_conversations(conversations)
             
-            # Vérifier que le fichier existe
+            # Verify file exists
             self.assertTrue(self.temp_file.exists())
             
-            # Recharger
+            # Load
             loaded = storage.load_conversations()
             self.assertEqual(loaded, conversations)
 
     @patch.object(storage, 'CONVERSATIONS_FILE')
     def test_get_conversation(self, mock_file):
-        """get_conversation retourne la conversation ou None."""
+        """get_conversation returns the conversation or None."""
         with patch.object(storage, 'CONVERSATIONS_FILE', self.temp_file):
-            # Créer des données
+            # Create data
             conversations = {
                 "abc123": {"id": "abc123", "title": "Test"}
             }
             storage.save_conversations(conversations)
             
-            # Test existant
+            # Test existing
             conv = storage.get_conversation("abc123")
             self.assertIsNotNone(conv)
             self.assertEqual(conv["title"], "Test")
             
-            # Test non existant
+            # Test non-existing
             conv = storage.get_conversation("nonexistent")
             self.assertIsNone(conv)
 
     @patch.object(storage, 'CONVERSATIONS_FILE')
     def test_save_conversation(self, mock_file):
-        """save_conversation ajoute/met à jour une conversation."""
+        """save_conversation adds/updates a conversation."""
         with patch.object(storage, 'CONVERSATIONS_FILE', self.temp_file):
-            # Sauvegarder première conversation
+            # Save first conversation
             conv1 = {"id": "abc123", "title": "First"}
             storage.save_conversation(conv1)
             
-            # Vérifier
+            # Verify
             loaded = storage.load_conversations()
             self.assertEqual(len(loaded), 1)
             self.assertEqual(loaded["abc123"]["title"], "First")
             
-            # Mettre à jour
+            # Update
             conv1_updated = {"id": "abc123", "title": "Updated"}
             storage.save_conversation(conv1_updated)
             
@@ -98,25 +98,25 @@ class TestStorage(unittest.TestCase):
 
     @patch.object(storage, 'CONVERSATIONS_FILE')
     def test_delete_conversation(self, mock_file):
-        """delete_conversation supprime une conversation."""
+        """delete_conversation removes a conversation."""
         with patch.object(storage, 'CONVERSATIONS_FILE', self.temp_file):
-            # Créer des données
+            # Create data
             conversations = {
                 "abc123": {"id": "abc123", "title": "Test"},
                 "def456": {"id": "def456", "title": "Other"}
             }
             storage.save_conversations(conversations)
             
-            # Supprimer
+            # Delete
             result = storage.delete_conversation("abc123")
             self.assertTrue(result)
             
-            # Vérifier
+            # Verify
             loaded = storage.load_conversations()
             self.assertEqual(len(loaded), 1)
             self.assertNotIn("abc123", loaded)
             
-            # Supprimer non existant
+            # Delete non-existing
             result = storage.delete_conversation("nonexistent")
             self.assertFalse(result)
 

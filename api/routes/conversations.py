@@ -49,7 +49,7 @@ async def create_conversation(data: ConversationCreate):
 
     conv = {
         "id": conv_id,
-        "title": data.title or "Nouvelle conversation",
+        "title": data.title or "New Conversation",
         "created_at": now,
         "updated_at": now,
         "messages": []

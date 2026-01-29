@@ -1,7 +1,5 @@
-"""
-Interface de chat pour le RAG Pipeline.
-Intègre le retriever avec un LLM via Ollama.
-"""
+"Chat interface for RAG Pipeline.
+Integrates the retriever with an LLM via Ollama."
 import json
 import requests
 from typing import Optional, Generator, List
@@ -17,8 +15,10 @@ from .logger import get_logger, RequestLogger
 logger = get_logger()
 
 
-# Prompt système optimisé pour Ministral - Anti-hallucination + chat interactif
-SYSTEM_PROMPT = """Tu es un assistant spécialisé dans l'analyse de conversations Instagram personnelles.
+# System prompt optimized for Ministral - Anti-hallucination + interactive chat
+# (Kept in French as the bot interacts in French with French data)
+SYSTEM_PROMPT = """
+Tu es un assistant spécialisé dans l'analyse de conversations Instagram personnelles.
 
 RÈGLES ABSOLUES:
 
@@ -53,11 +53,13 @@ RÈGLES ABSOLUES:
 
 7. HORS-SUJET - Tu analyses UNIQUEMENT ces conversations Instagram, rien d'autre
 
-L'utilisateur s'appelle {user_name}. Quand tu vois "{user_name}" dans les conversations, c'est lui qui parle."""
+L'utilisateur s'appelle {user_name}. Quand tu vois "{user_name}" dans les conversations, c'est lui qui parle."
 
 
-# Prompt pour générer des questions de suivi (optimisé Ministral)
-FOLLOWUP_PROMPT = """Tu génères 3 questions de suivi PERTINENTES et NATURELLES.
+# Follow-up questions generation prompt (optimized for Ministral)
+# (Kept in French)
+FOLLOWUP_PROMPT = """
+Tu génères 3 questions de suivi PERTINENTES et NATURELLES.
 
 Question initiale : {query}
 Réponse donnée : {answer}
@@ -75,25 +77,24 @@ RÉPONSE UNIQUEMENT:
 - Zéro autre texte"""
 
 
-# ============================================================
+# ============================================================ 
 # Query Classification & Intent Analysis
-# ============================================================
+# ============================================================ 
 
 class QueryType(Enum):
-    """Types de requêtes pour routage intelligent."""
-    RETRIEVAL = "retrieval"          # Rappel factuel, résumés (flux normal)
-    COMPUTATIONAL = "computational"  # Comptage, stats (APIs analytics)
-    DISCOVERY = "discovery"          # Liste, exploration (APIs analytics)
+    """Query types for intelligent routing."""
+    RETRIEVAL = "retrieval"          # Factual recall, summaries (normal flow)
+    COMPUTATIONAL = "computational"  # Counting, stats (Analytics APIs)
+    DISCOVERY = "discovery"          # List, exploration (Analytics APIs)
 
 
 def classify_query(query: str) -> QueryType:
     """
-    Classifie une requête pour déterminer le meilleur traitement.
-    ... (code inchangé pour classify_query)
+    Classifies a query to determine the best processing path.
     """
     query_lower = query.lower()
 
-    # Keywords pour questions de comptage
+    # Keywords for counting questions
     computational_keywords = [
         "combien",
         "nombre de",
@@ -104,7 +105,7 @@ def classify_query(query: str) -> QueryType:
         "total messages"
     ]
 
-    # Keywords pour questions de découverte
+    # Keywords for discovery questions
     discovery_keywords = [
         "liste",
         "qui a",
@@ -119,20 +120,20 @@ def classify_query(query: str) -> QueryType:
         "participants"
     ]
 
-    # Vérifier les heuristiques
+    # Check heuristics
     if any(keyword in query_lower for keyword in computational_keywords):
         return QueryType.COMPUTATIONAL
 
     if any(keyword in query_lower for keyword in discovery_keywords):
         return QueryType.DISCOVERY
 
-    # Par défaut: retrieval
+    # Default: retrieval
     return QueryType.RETRIEVAL
 
 
 @dataclass
 class ChatResponse:
-    """Réponse du chatbot."""
+    """Chatbot response."""
     answer: str
     context: RetrievalContext
     model: str
@@ -141,7 +142,7 @@ class ChatResponse:
 
 
 class ChatBot:
-    """Chatbot RAG avec Ollama."""
+    """RAG Chatbot with Ollama."""
 
     def __init__(self, retriever: Retriever = None, config: Config = None):
         self.config = config or default_config
@@ -153,38 +154,38 @@ class ChatBot:
     
     def _compact_history(self):
         """
-        Résume l'historique ancien pour libérer du contexte tout en gardant la mémoire.
-        Se déclenche si l'historique dépasse un certain seuil.
+        Summarizes old history to free up context while keeping memory.
+        Triggered if history exceeds a certain threshold.
         """
-        # Seuil: 10 messages (5 échanges complets)
+        # Threshold: 10 messages (5 complete exchanges)
         if len(self.conversation_history) <= 10:
             return
 
         print("🗜️ Compacting conversation history...")
         
-        # On garde les 4 derniers messages intacts (contexte immédiat)
-        # On résume tout ce qui précède
+        # Keep the last 4 messages intact (immediate context)
+        # Summarize everything before
         to_summarize = self.conversation_history[:-4]
         history_text = "\n".join([f"{m['role']}: {m['content']}" for m in to_summarize])
         
-        prompt = f"""Résume de manière très concise les points clés de cette conversation passée entre un utilisateur et un assistant. 
-Inclus les faits importants découverts sur les conversations Instagram.
-{f"Résumé précédent : {self.history_summary}" if self.history_summary else ""}
+        prompt = f"""Summarize very concisely the key points of this past conversation between a user and an assistant. 
+Include important facts discovered about Instagram conversations.
+{f"Previous summary : {self.history_summary}" if self.history_summary else ""}
 
-Conversation à résumer :
+Conversation to summarize:
 {history_text}
 
-Réponds avec un résumé d'un paragraphe maximum."""
+Answer with a one-paragraph summary maximum."""
 
         try:
             summary = self._call_ollama_direct(
-                system_prompt="Tu es un assistant qui synthétise des mémoires de conversation.",
+                system_prompt="You are an assistant who synthesizes conversation memories.",
                 user_prompt=prompt,
                 model=self.config.llm_model,
                 max_tokens=250
             )
             self.history_summary = summary.strip()
-            # On ne garde que les 4 derniers messages
+            # Keep only the last 4 messages
             self.conversation_history = self.conversation_history[-4:]
             print(f"✅ History compacted. Summary length: {len(self.history_summary)} chars")
         except Exception as e:
@@ -218,7 +219,7 @@ Réponds avec un résumé d'un paragraphe maximum."""
             raise
 
     def _build_prompt(self, query: str, context: RetrievalContext) -> str:
-        """Construit le prompt complet pour le LLM."""
+        """Builds the complete prompt for the LLM."""
         if context.has_results:
             return f"""Voici les documents de référence pour répondre à la question.
 
@@ -250,10 +251,10 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         stream: bool = False,
         model: str = None
     ) -> Generator[str, None, None] | str:
-        """Appelle l'API Ollama."""
+        """Calls the Ollama API."""
         system_prompt = SYSTEM_PROMPT.format(user_name=self.config.user_name)
         
-        # Ajouter le résumé de l'historique s'il existe
+        # Add history summary if it exists
         if self.history_summary:
             system_prompt += f"\n\nCONTEXTE DE LA CONVERSATION ACTUELLE (RÉSUMÉ) :\n{self.history_summary}"
 
@@ -261,11 +262,11 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
             {"role": "system", "content": system_prompt}
         ]
 
-        # Ajouter l'historique restant (qui a été compacté si nécessaire)
+        # Add remaining history (compacted if necessary)
         for msg in self.conversation_history:
             messages.append(msg)
 
-        # Ajouter la question actuelle
+        # Add current question
         messages.append({"role": "user", "content": prompt})
 
         payload = {
@@ -296,14 +297,14 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
                 
         except requests.exceptions.ConnectionError:
             raise ConnectionError(
-                f"Impossible de se connecter à Ollama ({self.config.ollama_url}). "
-                "Assurez-vous qu'Ollama est démarré avec: ollama serve"
+                f"Cannot connect to Ollama ({self.config.ollama_url}). "
+                "Make sure Ollama is running with: ollama serve"
             )
         except Exception as e:
-            raise RuntimeError(f"Erreur Ollama: {e}")
+            raise RuntimeError(f"Ollama Error: {e}")
     
     def _stream_response(self, response) -> Generator[str, None, None]:
-        """Génère les tokens en streaming."""
+        """Generates tokens in streaming."""
         for line in response.iter_lines():
             if line:
                 data = json.loads(line)
@@ -321,25 +322,25 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         model: str = None
     ) -> ChatResponse | Generator[str, None, ChatResponse]:
         """
-        Pose une question et obtient une réponse basée sur les conversations.
+        Asks a question and gets a response based on conversations.
 
         Args:
-            query: Question de l'utilisateur
-            stream: Si True, retourne un générateur pour le streaming
-            top_k: Nombre de documents à récupérer
-            use_rewriting: Activer la réécriture de question (via Analyzer)
-            model: Modèle Ollama à utiliser (optionnel)
+            query: User question
+            stream: If True, returns a generator for streaming
+            top_k: Number of documents to retrieve
+            use_rewriting: Enable query rewriting (via Analyzer)
+            model: Ollama model to use (optional)
 
         Returns:
-            ChatResponse ou générateur de tokens + ChatResponse final
+            ChatResponse or generator of tokens + final ChatResponse
         """
         request_logger = RequestLogger(query)
 
         logger.info(f"📝 Chat request: '{query}'")
 
         # Omni-Prompt Analysis (Rewrite + Intent + Dates)
-        # Si use_rewriting est False, on pourrait limiter l'analyse,
-        # mais l'Analyzer gère aussi l'intention et les dates.
+        # If use_rewriting is False, we could limit analysis,
+        # but Analyzer also handles intent and dates.
         analysis = self.query_analyzer.analyze(query, self.conversation_history)
 
         search_query = analysis.rewritten_query if use_rewriting else query
@@ -384,7 +385,7 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
 
         logger.info(f"📚 Retrieved {len(sources)} sources")
 
-        # Construire le prompt (avec la question ORIGINALE pour la réponse finale)
+        # Build prompt (with ORIGINAL question for final answer)
         prompt = self._build_prompt(query, context)
 
         if stream:
@@ -412,7 +413,7 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
         search_intent: str = None,
         request_logger: Optional[RequestLogger] = None
     ) -> Generator[str, None, ChatResponse]:
-        """Chat en mode streaming."""
+        """Chat in streaming mode."""
         full_response = []
 
         for token in self._call_ollama(prompt, stream=True, model=model):
@@ -428,7 +429,7 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
 
         logger.info(f"✅ Chat complete: response_length={len(answer)}")
 
-        # Le return final sera accessible via StopIteration.value
+        # Final return will be accessible via StopIteration.value
         return ChatResponse(
             answer=answer,
             context=context,
@@ -439,31 +440,31 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
     
     def _update_history(self, query: str, answer: str, skip_add: bool = False):
         """
-        Met à jour l'historique de conversation et déclenche le compactage.
+        Updates conversation history and triggers compaction.
         
         Args:
-            query: Question de l'utilisateur
-            answer: Réponse de l'assistant
-            skip_add: Si True, ne rajoute pas les messages (utile si déjà synchronisé)
+            query: User question
+            answer: Assistant response
+            skip_add: If True, does not add messages (useful if already synchronized)
         """
         if not skip_add:
             self.conversation_history.append({"role": "user", "content": query})
             self.conversation_history.append({"role": "assistant", "content": answer})
         
-        # Vérifier si on doit compacter l'historique
+        # Check if we need to compact history
         self._compact_history()
     
     def clear_history(self):
-        """Efface l'historique de conversation."""
+        """Clears conversation history."""
         self.conversation_history = []
         self.history_summary = None
     
     def get_sources_summary(self, context: RetrievalContext) -> str:
-        """Retourne un résumé des sources utilisées."""
+        """Returns a summary of sources used."""
         if not context.has_results:
-            return "Aucune source utilisée."
+            return "No sources used."
 
-        lines = ["Sources utilisees :"]
+        lines = ["Sources used:"]
         for source in context.get_sources():
             lines.append(f"  - {source}")
         return "\n".join(lines)
@@ -479,10 +480,10 @@ Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante da
 
     def evaluate_title(self, first_message: str, model: str = None) -> str:
         """
-        Génère un titre court et descriptif pour une conversation à partir du premier message.
+        Generates a short and descriptive title for a conversation from the first message.
         """
         prompt = f"""Génère un titre très court (3 à 5 mots maximum) et accrocheur pour une conversation qui commence par ce message :
-\"{first_message}\"
+\"{first_message}\" 
 
 Le titre doit être en français et refléter le sujet principal.
 RÈGLES STRICTES :
@@ -511,8 +512,8 @@ RÈGLES STRICTES :
             response.raise_for_status()
             title = response.json()["message"]["content"].strip()
             
-            # Nettoyage agressif
-            title = title.replace('"', '').replace("'", "").replace("*", "").replace("`", "").replace("#", "")
+            # Aggressive cleaning
+            title = title.replace('"', '').replace("'", '').replace("*", '').replace("`", '').replace("#", "")
             title = title.strip()
             
             if len(title) > 40:
@@ -521,7 +522,7 @@ RÈGLES STRICTES :
             return title
         except Exception as e:
             print(f"Error generating title: {e}")
-            # Fallback simple
+            # Simple fallback
             return first_message[:30] + "..." if len(first_message) > 30 else first_message
 
     def generate_followup_questions(self, query: str, answer: str, model: str = None) -> List[str]:
@@ -590,4 +591,3 @@ Reponds en te basant UNIQUEMENT sur les documents ci-dessus. Si tu ne trouves pa
         for token in self._call_ollama(prompt, stream=True, model=model):
             # Filter PII from each token (less efficient but real-time)
             yield token
-

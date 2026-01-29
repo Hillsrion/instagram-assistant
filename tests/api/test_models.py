@@ -1,5 +1,5 @@
 """
-Tests pour les modèles Pydantic de l'API.
+Tests for Pydantic API models.
 """
 import unittest
 from pydantic import ValidationError
@@ -8,10 +8,10 @@ from api.models import Message, Conversation, ChatRequest, ConversationCreate, T
 
 
 class TestMessage(unittest.TestCase):
-    """Tests pour le modèle Message."""
+    """Tests for Message model."""
 
     def test_valid_message(self):
-        """Message valide avec tous les champs requis."""
+        """Valid message with all required fields."""
         msg = Message(
             role="user",
             content="Hello",
@@ -22,7 +22,7 @@ class TestMessage(unittest.TestCase):
         self.assertIsNone(msg.sources)
 
     def test_message_with_sources(self):
-        """Message avec sources optionnelles."""
+        """Message with optional sources."""
         msg = Message(
             role="assistant",
             content="Response",
@@ -33,16 +33,16 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(msg.sources[0]["chunk_id"], "abc123")
 
     def test_missing_required_field(self):
-        """Erreur si champ requis manquant."""
+        """Error if required field missing."""
         with self.assertRaises(ValidationError):
-            Message(role="user", content="Hello")  # timestamp manquant
+            Message(role="user", content="Hello")  # missing timestamp
 
 
 class TestConversation(unittest.TestCase):
-    """Tests pour le modèle Conversation."""
+    """Tests for Conversation model."""
 
     def test_valid_conversation(self):
-        """Conversation valide."""
+        """Valid conversation."""
         conv = Conversation(
             id="abc123",
             title="Test conversation",
@@ -53,7 +53,7 @@ class TestConversation(unittest.TestCase):
         self.assertEqual(conv.messages, [])
 
     def test_conversation_with_messages(self):
-        """Conversation avec messages."""
+        """Conversation with messages."""
         conv = Conversation(
             id="abc123",
             title="Test",
@@ -71,12 +71,12 @@ class TestConversation(unittest.TestCase):
 
 
 class TestChatRequest(unittest.TestCase):
-    """Tests pour le modèle ChatRequest."""
+    """Tests for ChatRequest model."""
 
     def test_minimal_request(self):
-        """ChatRequest avec seulement le message requis."""
-        req = ChatRequest(message="Bonjour")
-        self.assertEqual(req.message, "Bonjour")
+        """ChatRequest with only required message."""
+        req = ChatRequest(message="Hello")
+        self.assertEqual(req.message, "Hello")
         self.assertIsNone(req.conversation_id)
         self.assertIsNone(req.model)
         self.assertTrue(req.use_reranking)
@@ -84,7 +84,7 @@ class TestChatRequest(unittest.TestCase):
         self.assertTrue(req.expand_context)
 
     def test_full_request(self):
-        """ChatRequest avec tous les champs."""
+        """ChatRequest with all fields."""
         req = ChatRequest(
             message="Question?",
             conversation_id="abc123",
@@ -103,30 +103,30 @@ class TestChatRequest(unittest.TestCase):
 
 
 class TestConversationCreate(unittest.TestCase):
-    """Tests pour le modèle ConversationCreate."""
+    """Tests for ConversationCreate model."""
 
     def test_empty_create(self):
-        """ConversationCreate sans titre."""
+        """ConversationCreate without title."""
         data = ConversationCreate()
         self.assertIsNone(data.title)
 
     def test_with_title(self):
-        """ConversationCreate avec titre."""
-        data = ConversationCreate(title="Ma conversation")
-        self.assertEqual(data.title, "Ma conversation")
+        """ConversationCreate with title."""
+        data = ConversationCreate(title="My conversation")
+        self.assertEqual(data.title, "My conversation")
 
 
 class TestTitleEvaluationRequest(unittest.TestCase):
-    """Tests pour le modèle TitleEvaluationRequest."""
+    """Tests for TitleEvaluationRequest model."""
 
     def test_minimal_request(self):
-        """TitleEvaluationRequest avec message seulement."""
-        req = TitleEvaluationRequest(message="Premier message")
-        self.assertEqual(req.message, "Premier message")
+        """TitleEvaluationRequest with message only."""
+        req = TitleEvaluationRequest(message="First message")
+        self.assertEqual(req.message, "First message")
         self.assertIsNone(req.model)
 
     def test_with_model(self):
-        """TitleEvaluationRequest avec modèle."""
+        """TitleEvaluationRequest with model."""
         req = TitleEvaluationRequest(message="Test", model="llama3:8b")
         self.assertEqual(req.model, "llama3:8b")
 

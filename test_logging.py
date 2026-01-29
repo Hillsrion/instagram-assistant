@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script de test pour vérifier le logging du pipeline RAG.
-Envoie des requêtes de test et affiche les logs correspondants.
+Test script to verify RAG pipeline logging.
+Sends test requests and displays corresponding logs.
 """
 import json
 import sys
@@ -9,7 +9,7 @@ import time
 import argparse
 from pathlib import Path
 
-# Ajouter le répertoire courant au path
+# Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from rag_pipeline.logger import RequestLogger, get_logger, initialize_logging
@@ -20,7 +20,7 @@ logger = get_logger()
 
 
 def test_query_analyzer():
-    """Test le QueryAnalyzer avec différentes requêtes."""
+    """Test the QueryAnalyzer with different queries."""
     print("\n" + "="*80)
     print("🧪 TESTING QUERY ANALYZER WITH LOGGING")
     print("="*80 + "\n")
@@ -29,11 +29,11 @@ def test_query_analyzer():
 
     # Test queries
     test_queries = [
-        "qui est ayoub ?",
-        "combien de messages on a échangé",
-        "est ce que ayoub est marocain",
-        "quels sont mes contacts",
-        "résume mes échanges avec Ayoub"
+        "who is ayoub ?",
+        "how many messages have we exchanged",
+        "is ayoub moroccan",
+        "what are my contacts",
+        "summarize my exchanges with Ayoub"
     ]
 
     print(f"Testing {len(test_queries)} queries...\n")
@@ -118,11 +118,11 @@ def main():
     parser.add_argument(
         '--log-verbose',
         action='store_true',
-        help='Activer les logs détaillés'
+        help='Enable verbose logging'
     )
     args = parser.parse_args()
 
-    # Initialiser le logging selon le flag
+    # Initialize logging according to flag
     initialize_logging(args.log_verbose)
 
     try:

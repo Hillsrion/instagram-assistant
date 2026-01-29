@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Étapes 4-6: Construction des index (FAISS, BM25, Métadonnées SQLite).
+Steps 4-6: Building indexes (FAISS, BM25, SQLite Metadata).
 
-Ce script construit les différents index nécessaires au RAG:
-- Index FAISS pour la recherche vectorielle
-- Index BM25 pour la recherche lexicale
-- Index SQLite pour le filtrage par métadonnées
+This script builds the various indexes needed for RAG:
+- FAISS Index for vector search
+- BM25 Index for lexical search
+- SQLite Index for metadata filtering
 
 Usage:
-    python setup_indexes.py              # Construit tous les index
-    python setup_indexes.py --reset      # Reconstruit tous les index
-    python setup_indexes.py --only faiss # Construit seulement FAISS
-    python setup_indexes.py --only bm25  # Construit seulement BM25
-    python setup_indexes.py --only metadata  # Construit seulement métadonnées
+    python setup_indexes.py              # Builds all indexes
+    python setup_indexes.py --reset      # Rebuilds all indexes
+    python setup_indexes.py --only faiss # Builds only FAISS
+    python setup_indexes.py --only bm25  # Builds only BM25
+    python setup_indexes.py --only metadata  # Builds only metadata
 """
 import sys
 import argparse
@@ -29,104 +29,104 @@ from rag_pipeline.cli_utils import print_header, load_all_checkpoints, CHECKPOIN
 
 
 def build_faiss_index(config: Config, chunks: list, embeddings) -> bool:
-    """Construit l'index FAISS."""
-    print_header("Construction de l'index FAISS", step="4/8")
+    """Builds the FAISS index."""
+    print_header("Building FAISS Index", step="4/8")
 
     if embeddings is None:
-        print("Erreur: Pas d'embeddings disponibles.")
+        print("Error: No embeddings available.")
         return False
 
     vector_store = VectorStore(config)
     vector_store.build_index(chunks, embeddings)
     vector_store.save()
-    print("Index FAISS construit et sauvegardé")
+    print("FAISS Index built and saved")
     print()
     return True
 
 
 def build_bm25_index(config: Config, chunks: list) -> bool:
-    """Construit l'index BM25."""
-    print_header("Index BM25 (recherche lexicale)", step="5/8")
+    """Builds the BM25 index."""
+    print_header("BM25 Index (lexical search)", step="5/8")
 
     bm25_index = BM25Index(config)
     bm25_index.chunks = chunks
     bm25_index.build_index(chunks)
     bm25_index.save()
-    print("Index BM25 construit et sauvegardé")
+    print("BM25 Index built and saved")
     print()
     return True
 
 
 def build_metadata_index(config: Config, chunks: list) -> bool:
-    """Construit l'index métadonnées SQLite."""
-    print_header("Index métadonnées (SQLite)", step="6/8")
+    """Builds the SQLite metadata index."""
+    print_header("Metadata Index (SQLite)", step="6/8")
 
     metadata_store = MetadataStore(config)
     metadata_store.build_index(chunks)
 
-    # Afficher quelques stats
+    # Show some stats
     participants = metadata_store.get_all_participants()[:10]
     date_range = metadata_store.get_date_range()
-    print(f"   - Période: {date_range[0][:10] if date_range[0] else 'N/A'} -> {date_range[1][:10] if date_range[1] else 'N/A'}")
+    print(f"   - Period: {date_range[0][:10] if date_range[0] else 'N/A'} -> {date_range[1][:10] if date_range[1] else 'N/A'}")
     print(f"   - Top participants: {', '.join(p[0] for p in participants[:5])}")
 
     metadata_store.close()
-    print("Index métadonnées construit et sauvegardé")
+    print("Metadata Index built and saved")
     print()
     return True
 
 
 def run(config: Config, reset: bool = False, only: str = None) -> bool:
-    """Point d'entrée appelable par l'orchestrateur.
+    """Entry point callable by the orchestrator.
 
     Args:
-        config: Configuration du pipeline
-        reset: Si True, reconstruit tous les index
-        only: Construit seulement un index spécifique ('faiss', 'bm25', 'metadata')
+        config: Pipeline configuration
+        reset: If True, rebuilds all indexes
+        only: Builds only a specific index ('faiss', 'bm25', 'metadata')
 
     Returns:
-        True si succès, False sinon
+        True if success, False otherwise
     """
-    # Charger les chunks
+    # Load chunks
     chunker = ConversationChunker(config)
     if not config.chunks_cache_path.exists():
-        print("Erreur: Pas de chunks trouvés. Exécutez d'abord setup_chunks.py")
+        print("Error: No chunks found. Run setup_chunks.py first")
         return False
 
     chunks = chunker.load_chunks()
-    print(f"{len(chunks)} chunks chargés")
+    print(f"{len(chunks)} chunks loaded")
 
-    # Charger les embeddings si nécessaire
+    # Load embeddings if necessary
     embeddings = None
     if only is None or only == 'faiss':
         embeddings = load_all_checkpoints(CHECKPOINT_DIR, verbose=False)
         if embeddings is None:
-            print("Erreur: Pas d'embeddings trouvés. Exécutez d'abord setup_embeddings.py")
+            print("Error: No embeddings found. Run setup_embeddings.py first")
             if only == 'faiss':
                 return False
 
-    # Reset si demandé
+    # Reset if requested
     if reset:
         import shutil
         if only is None or only == 'faiss':
             if config.vector_store_path.exists():
                 shutil.rmtree(config.vector_store_path)
-                print("Index FAISS supprimé")
+                print("FAISS Index deleted")
         if only is None or only == 'bm25':
             bm25_path = config.index_dir / "bm25_index.pkl"
             if bm25_path.exists():
                 bm25_path.unlink()
-                print("Index BM25 supprimé")
+                print("BM25 Index deleted")
         if only is None or only == 'metadata':
             metadata_path = config.index_dir / "metadata.db"
             if metadata_path.exists():
                 metadata_path.unlink()
-                print("Index métadonnées supprimé")
+                print("Metadata Index deleted")
         print()
 
     success = True
 
-    # Construire les index demandés
+    # Build requested indexes
     if only is None or only == 'faiss':
         if not build_faiss_index(config, chunks, embeddings):
             success = False
@@ -144,12 +144,12 @@ def run(config: Config, reset: bool = False, only: str = None) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Étapes 4-6: Construction des index (FAISS, BM25, Métadonnées)"
+        description="Steps 4-6: Building indexes (FAISS, BM25, Metadata)"
     )
     parser.add_argument("--reset", action="store_true",
-                        help="Reconstruit tous les index")
+                        help="Rebuilds all indexes")
     parser.add_argument("--only", choices=['faiss', 'bm25', 'metadata'],
-                        help="Construit seulement un index spécifique")
+                        help="Builds only a specific index")
 
     args = parser.parse_args()
     config = Config()

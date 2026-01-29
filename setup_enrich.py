@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Étape 2: Enrichissement sémantique des chunks via LLM.
+Step 2: Semantic enrichment of chunks via LLM.
 
-Ce script enrichit les chunks avec des résumés narratifs et des questions
-hypothétiques pour améliorer la qualité de la recherche RAG.
+This script enriches chunks with narrative summaries and hypothetical questions
+to improve RAG search quality.
 
 Usage:
-    python setup_enrich.py              # Enrichit les chunks non traités
-    python setup_enrich.py --reset      # Ré-enrichit tous les chunks
-    python setup_enrich.py --model qwen2.5:3b  # Override du modèle LLM
+    python setup_enrich.py              # Enriches untreated chunks
+    python setup_enrich.py --reset      # Re-enriches all chunks
+    python setup_enrich.py --model qwen2.5:3b  # Override LLM model
 """
 import sys
 import time
@@ -24,61 +24,61 @@ from rag_pipeline.cli_utils import print_header, format_duration
 
 
 def run(config: Config, reset: bool = False, model: str = None, total_shards: int = 1, shard_index: int = 0) -> bool:
-    """Point d'entrée appelable par l'orchestrateur.
+    """Entry point callable by the orchestrator.
 
     Args:
-        config: Configuration du pipeline
-        reset: Si True, ré-enrichit tous les chunks
-        model: Override du modèle LLM
-        total_shards: Nombre total de machines/processus
-        shard_index: Index de ce processus (0 à total_shards-1)
+        config: Pipeline configuration
+        reset: If True, re-enriches all chunks
+        model: Override LLM model
+        total_shards: Total number of machines/processes
+        shard_index: Index of this process (0 to total_shards-1)
 
     Returns:
-        True si succès, False sinon
+        True if success, False otherwise
     """
     if model:
         config.llm_model = model
-        print(f"Override modèle LLM: {config.llm_model}")
+        print(f"LLM Model Override: {config.llm_model}")
 
-    print_header("Enrichissement sémantique (LLM)", step="2/8")
+    print_header("Semantic Enrichment (LLM)", step="2/8")
     if total_shards > 1:
-        print(f"Mode distribué: Shard {shard_index + 1}/{total_shards}")
+        print(f"Distributed Mode: Shard {shard_index + 1}/{total_shards}")
 
-    # Charger les chunks
+    # Load chunks
     chunker = ConversationChunker(config)
     if not config.chunks_cache_path.exists():
-        print("Erreur: Pas de chunks trouvés. Exécutez d'abord setup_chunks.py")
+        print("Error: No chunks found. Run setup_chunks.py first")
         return False
 
     chunks = chunker.load_chunks()
-    print(f"{len(chunks)} chunks chargés")
+    print(f"{len(chunks)} chunks loaded")
 
-    # Déterminer quels chunks enrichir
+    # Determine which chunks to enrich
     if reset:
         to_enrich_all = chunks
-        print(f"Reset demandé: ré-enrichissement de tous les {len(chunks)} chunks")
-        # Reset les champs d'enrichissement
+        print(f"Reset requested: re-enriching all {len(chunks)} chunks")
+        # Reset enrichment fields
         for c in to_enrich_all:
             c.narrative_summary = None
             c.hypothetical_questions = []
     else:
         to_enrich_all = [c for c in chunks if not c.narrative_summary or not c.hypothetical_questions]
 
-    # Application du sharding
+    # Sharding application
     if total_shards > 1:
         to_enrich = [c for i, c in enumerate(to_enrich_all) if i % total_shards == shard_index]
-        print(f"Shard {shard_index}: Traitement de {len(to_enrich)} chunks sur les {len(to_enrich_all)} restants")
+        print(f"Shard {shard_index}: Processing {len(to_enrich)} chunks out of {len(to_enrich_all)} remaining")
     else:
         to_enrich = to_enrich_all
 
     if not to_enrich:
-        print("Tous les chunks assignés à ce shard sont déjà enrichis.")
+        print("All chunks assigned to this shard are already enriched.")
         print()
         return True
 
-    print(f"Enrichissement de {len(to_enrich)} chunks via Ollama ({config.llm_model})...")
-    print("   Cela améliore drastiquement la qualité de la recherche.")
-    print("   (Sauvegarde automatique tous les 20 chunks)")
+    print(f"Enriching {len(to_enrich)} chunks via Ollama ({config.llm_model})...")
+    print("   This drastically improves search quality.")
+    print("   (Auto-saving every 20 chunks)")
 
     enricher = ChunkEnricher(config)
 
@@ -93,12 +93,12 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
 
                 rem_str = format_duration(remaining)
 
-                sys.stdout.write(f"\r   [{current}/{total}] chunks | Vitesse: {speed:.1f} ch/s | Reste: {rem_str}   ")
+                sys.stdout.write(f"\r   [{current}/{total}] chunks | Speed: {speed:.1f} ch/s | Left: {rem_str}   ")
                 sys.stdout.flush()
 
         def save_progress():
-            # En mode shard, on sauvegarde quand même dans le fichier principal
-            # car on a chargé tous les chunks en mémoire, on ne modifie que les nôtres.
+            # In shard mode, we save to the main file anyway
+            # because we loaded all chunks into memory, we only modify ours.
             chunker.save_chunks(chunks)
             sys.stdout.write("\n")
 
@@ -110,19 +110,19 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
         )
 
         chunker.save_chunks(chunks)
-        print("\nChunks enrichis et sauvegardés en cache.")
+        print("\nChunks enriched and saved to cache.")
 
     except KeyboardInterrupt:
-        print("\n\nInterruption: Sauvegarde des chunks déjà enrichis...")
+        print("\n\nInterruption: Saving already enriched chunks...")
         chunker.save_chunks(chunks)
-        print("Sauvegarde effectuée. Relancez le script pour reprendre.")
+        print("Save complete. Rerun script to resume.")
         return False
 
     except Exception as e:
-        print(f"\n\nErreur pendant l'enrichissement: {e}")
-        print("   Tentative de sauvegarde du travail effectué...")
+        print(f"\n\nError during enrichment: {e}")
+        print("   Attempting to save done work...")
         chunker.save_chunks(chunks)
-        print("   Sauvegarde effectuée.")
+        print("   Save complete.")
         return False
 
     print()
@@ -131,16 +131,16 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Étape 2: Enrichissement sémantique des chunks via LLM"
+        description="Step 2: Semantic enrichment of chunks via LLM"
     )
     parser.add_argument("--reset", action="store_true",
-                        help="Ré-enrichit tous les chunks")
+                        help="Re-enriches all chunks")
     parser.add_argument("--model", type=str,
-                        help="Override du modèle LLM (ex: qwen2.5:3b)")
+                        help="Override LLM model (e.g. qwen2.5:3b)")
     parser.add_argument("--total-shards", type=int, default=1,
-                        help="Nombre total de machines participant")
+                        help="Total number of participating machines")
     parser.add_argument("--shard-index", type=int, default=0,
-                        help="Index de cette machine (0 à total-shards - 1)")
+                        help="Index of this machine (0 to total-shards - 1)")
 
     args = parser.parse_args()
     config = Config()

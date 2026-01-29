@@ -45,14 +45,14 @@ async def lifespan(app: FastAPI):
 
     # Check if index exists
     if not (state.config.vector_store_path / "index.faiss").exists():
-        print("Index FAISS non trouvé.")
-        print("Lancez d'abord: python3 setup_rag_batch.py")
+        print("FAISS index not found.")
+        print("Run first: python3 setup_rag_batch.py")
         print()
-        print("L'application démarre en mode limité...")
+        print("Application starting in limited mode...")
         yield
         return
 
-    print("Chargement des composants RAG...")
+    print("Loading RAG components...")
     try:
         state.retriever, state.components = create_advanced_retriever(
             state.config,
@@ -63,12 +63,12 @@ async def lifespan(app: FastAPI):
         )
         state.chatbot = ChatBot(state.retriever, state.config)
         state.query_analyzer = QueryAnalyzer(state.config)
-        print(f"Index chargé: {state.components['vector_store'].size} chunks")
+        print(f"Index loaded: {state.components['vector_store'].size} chunks")
         print()
-        print(f"Application prête sur http://localhost:8000")
+        print(f"Application ready at http://localhost:8000")
         print()
     except Exception as e:
-        print(f"Erreur lors du chargement: {e}")
+        print(f"Error during loading: {e}")
 
     yield
 

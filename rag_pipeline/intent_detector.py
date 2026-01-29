@@ -1,6 +1,6 @@
 """
-Détecteur d'intention pour optimiser les paramètres du RAG.
-Utilise le LLM pour classifier la requête utilisateur.
+Intent detector to optimize RAG parameters.
+Uses LLM to classify user query.
 """
 import requests
 from enum import Enum
@@ -10,37 +10,39 @@ from .config import Config, default_config
 
 
 class SearchIntent(str, Enum):
-    """Intention de recherche pour optimiser le retrieval."""
-    SPECIFIC_FACT = "specific_fact"      # Cherche une info précise -> top_k faible
-    BROAD_SUMMARY = "broad_summary"      # Cherche à comprendre un sujet large -> top_k élevé
-    COMPLEX_REASONING = "complex_reasoning" # Nécessite plusieurs points de vue -> top_k moyen
+    """Search intent for retrieval optimization."""
+    SPECIFIC_FACT = "specific_fact"      # Looking for precise info -> low top_k
+    BROAD_SUMMARY = "broad_summary"      # Looking to understand broad topic -> high top_k
+    COMPLEX_REASONING = "complex_reasoning" # Requires multiple viewpoints -> medium top_k
 
 
 class IntentDetector:
-    """Analyse l'intention de l'utilisateur pour adapter le RAG."""
+    """Analyzes user intent to adapt RAG."""
     
     def __init__(self, config: Config = None):
         self.config = config or default_config
     
     def detect_intent(self, query: str) -> Dict[str, Any]:
         """
-        Analyse la requête et retourne les paramètres recommandés.
+        Analyzes query and returns recommended parameters.
         """
-        system_prompt = """Tu es un classifieur d'intentions (STRICT, ultra-concis).
+        # Prompt kept in French/English mix as intent keywords are English in code but descriptions were French.
+        # Translating descriptions to English for consistency.
+        system_prompt = """You are an intent classifier (STRICT, ultra-concise).
 
-CLASSE LA QUESTION DANS UNE CATÉGORIE:
+CLASSIFY THE QUESTION INTO A CATEGORY:
 
-1. 'specific_fact' = Fait précis (date, lieu, nom, chiffre)
-2. 'broad_summary' = Résumé/ambiance/évolution d'un sujet large
-3. 'complex_reasoning' = Croiser plusieurs infos/points de vue
+1. 'specific_fact' = Precise fact (date, place, name, number)
+2. 'broad_summary' = Summary/atmosphere/evolution of a broad topic
+3. 'complex_reasoning' = Crossing multiple infos/viewpoints
 
-RÉPONSE OBLIGATOIRE:
-- UNE SEULE LIGNE
-- NOM DE CATÉGORIE UNIQUEMENT
-- ZÉRO texte supplémentaire"""
+MANDATORY ANSWER:
+- ONE LINE ONLY
+- CATEGORY NAME ONLY
+- ZERO extra text"""
 
         try:
-            # Appel direct à Ollama
+            # Direct call to Ollama
             payload = {
                 "model": self.config.llm_model_fast,
                 "messages": [
@@ -62,7 +64,7 @@ RÉPONSE OBLIGATOIRE:
             response.raise_for_status()
             intent_str = response.json()["message"]["content"].strip().lower()
             
-            # Mapping des paramètres
+            # Parameter mapping
             if "specific_fact" in intent_str:
                 return {
                     "intent": SearchIntent.SPECIFIC_FACT,
@@ -74,7 +76,7 @@ RÉPONSE OBLIGATOIRE:
                 return {
                     "intent": SearchIntent.BROAD_SUMMARY,
                     "top_k": 12,
-                    "use_reranking": False, # Trop de docs pour reranking efficace/rapide
+                    "use_reranking": False, # Too many docs for efficient/fast reranking
                     "expand_context": True
                 }
             elif "complex_reasoning" in intent_str:
@@ -93,7 +95,7 @@ RÉPONSE OBLIGATOIRE:
                 }
                 
         except Exception as e:
-            # Fallback silencieux sur les paramètres par défaut
+            # Silent fallback to default parameters
             return {
                 "intent": None,
                 "top_k": self.config.top_k,

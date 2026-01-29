@@ -12,7 +12,7 @@ def get_message_counts(directory):
                 with open(filepath, 'r', encoding='utf-8') as file:
                     content = file.read()
                     
-                    # Search for "Nombre de messages:"
+                    # Search for "Nombre de messages:" (keep in French as dataset is French)
                     match = re.search(r"Nombre de messages:\s*(\d+)", content)
                     if match:
                         count = int(match.group(1))

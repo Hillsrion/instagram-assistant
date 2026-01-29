@@ -1,6 +1,6 @@
 """
-Tests pour le module analytics.py
-Analytics et statistiques sur les conversations.
+Tests for analytics.py module.
+Analytics and statistics on conversations.
 """
 import unittest
 import tempfile
@@ -17,26 +17,26 @@ from rag_pipeline.chunker import Chunk
 class TestConversationAnalytics(unittest.TestCase):
 
     def setUp(self):
-        """Setup avec répertoire temporaire et base SQLite"""
+        """Setup with temporary directory and SQLite database."""
         self.test_dir = tempfile.mkdtemp()
         self.config = Config(
             base_dir=Path(self.test_dir),
             index_dir=Path(self.test_dir) / "rag_data"
         )
         
-        # Créer d'abord le MetadataStore pour peupler la base
+        # Create MetadataStore first to populate the DB
         self.metadata_store = MetadataStore(self.config)
         
-        # Créer et indexer des chunks de test
+        # Create and index test chunks
         self.chunks = self._create_sample_chunks()
         self.metadata_store.build_index(self.chunks)
         self.metadata_store.close()
         
-        # Maintenant créer l'analytics
+        # Now create analytics
         self.analytics = ConversationAnalytics(self.config)
 
     def tearDown(self):
-        """Nettoyage"""
+        """Cleanup."""
         self.analytics.close()
         shutil.rmtree(self.test_dir)
 
@@ -49,7 +49,7 @@ class TestConversationAnalytics(unittest.TestCase):
         conversation_id: str,
         message_count: int = 10
     ) -> Chunk:
-        """Helper pour créer un chunk"""
+        """Helper to create a chunk."""
         return Chunk(
             chunk_id=chunk_id,
             conversation_id=conversation_id,
@@ -62,7 +62,7 @@ class TestConversationAnalytics(unittest.TestCase):
         )
 
     def _create_sample_chunks(self) -> list:
-        """Crée un ensemble de chunks de test"""
+        """Creates a set of sample chunks."""
         return [
             self._create_chunk("c1", ["Alice", "Bob"], "2024-01-15", "2024-01-20", "conv_1", 50),
             self._create_chunk("c2", ["Alice", "Charlie"], "2024-02-01", "2024-02-10", "conv_2", 30),
@@ -73,21 +73,21 @@ class TestConversationAnalytics(unittest.TestCase):
 
     # --- Tests count_messages ---
     def test_count_messages_total(self):
-        """Comptage total des messages"""
+        """Total message count."""
         count = self.analytics.count_messages()
         
         # 50 + 30 + 40 + 25 + 60 = 205
         self.assertEqual(count, 205)
 
     def test_count_messages_by_participant(self):
-        """Comptage des messages par participant"""
+        """Message count by participant."""
         count = self.analytics.count_messages(participant="Alice")
         
         # Alice: c1 (50) + c2 (30) + c4 (25) = 105
         self.assertEqual(count, 105)
 
     def test_count_messages_by_date_range(self):
-        """Comptage des messages par période"""
+        """Message count by date range."""
         count = self.analytics.count_messages(
             date_start="2024-01-01",
             date_end="2024-01-31"
@@ -97,40 +97,40 @@ class TestConversationAnalytics(unittest.TestCase):
         self.assertEqual(count, 75)
 
     def test_count_messages_by_conversation(self):
-        """Comptage des messages par conversation"""
+        """Message count by conversation."""
         count = self.analytics.count_messages(conversation_id="conv_1")
         
         # conv_1: c1 (50) + c4 (25) = 75
         self.assertEqual(count, 75)
 
     def test_count_messages_combined_filters(self):
-        """Comptage avec filtres combinés"""
+        """Count with combined filters."""
         count = self.analytics.count_messages(
             participant="Bob",
             date_start="2024-01-01",
             date_end="2024-01-31"
         )
         
-        # Bob en janvier 2024: c1 (50) + c4 (25) = 75
+        # Bob in Jan 2024: c1 (50) + c4 (25) = 75
         self.assertEqual(count, 75)
 
     # --- Tests get_participant_stats ---
     def test_get_participant_stats(self):
-        """Statistiques par participant"""
+        """Stats per participant."""
         stats = self.analytics.get_participant_stats()
         
-        # Les noms sont stockés en lowercase
+        # Names are stored in lowercase
         self.assertIn("alice", stats)
         self.assertIn("bob", stats)
         
-        # Vérifier la structure
+        # Check structure
         alice_stats = stats["alice"]
         self.assertIn("message_count", alice_stats)
         self.assertIn("conversations", alice_stats)
         self.assertIn("chunks", alice_stats)
 
     def test_get_participant_stats_counts(self):
-        """Vérification des comptages par participant"""
+        """Verification of counts per participant."""
         stats = self.analytics.get_participant_stats()
         
         # alice: 3 chunks (c1, c2, c4), 105 messages (lowercase key)
@@ -139,7 +139,7 @@ class TestConversationAnalytics(unittest.TestCase):
 
     # --- Tests get_date_range ---
     def test_get_date_range(self):
-        """Récupération de la plage de dates globale"""
+        """Retrieval of global date range."""
         start, end = self.analytics.get_date_range()
         
         self.assertEqual(start, "2023-06-01")  # c5
@@ -147,7 +147,7 @@ class TestConversationAnalytics(unittest.TestCase):
 
     # --- Tests get_conversation_stats ---
     def test_get_conversation_stats(self):
-        """Statistiques globales des conversations"""
+        """Global conversation stats."""
         stats = self.analytics.get_conversation_stats()
         
         self.assertEqual(stats["total_messages"], 205)
@@ -158,7 +158,7 @@ class TestConversationAnalytics(unittest.TestCase):
         self.assertIn("date_end", stats)
 
     def test_get_conversation_stats_participants_count(self):
-        """Comptage des participants uniques"""
+        """Count of unique participants."""
         stats = self.analytics.get_conversation_stats()
         
         # Alice, Bob, Charlie, David, Eve = 5
@@ -166,13 +166,13 @@ class TestConversationAnalytics(unittest.TestCase):
 
     # --- Tests get_conversation_timeline ---
     def test_get_conversation_timeline(self):
-        """Timeline des conversations avec un participant"""
+        """Timeline of conversations with a participant."""
         timeline = self.analytics.get_conversation_timeline("Alice")
         
-        # Alice est dans conv_1 et conv_2
+        # Alice is in conv_1 and conv_2
         self.assertGreater(len(timeline), 0)
         
-        # Vérifier la structure
+        # Check structure
         for record in timeline:
             self.assertIn("conversation_id", record)
             self.assertIn("date_start", record)
@@ -180,24 +180,24 @@ class TestConversationAnalytics(unittest.TestCase):
 
     # --- Tests get_message_count_by_month ---
     def test_get_message_count_by_month(self):
-        """Messages par mois"""
+        """Messages per month."""
         monthly = self.analytics.get_message_count_by_month()
         
         self.assertGreater(len(monthly), 0)
         
-        # Vérifier la structure
+        # Check structure
         for record in monthly:
             self.assertIn("year", record)
             self.assertIn("month", record)
             self.assertIn("message_count", record)
 
     def test_get_message_count_by_month_filtered(self):
-        """Messages par mois filtrés par participant"""
+        """Messages per month filtered by participant."""
         monthly = self.analytics.get_message_count_by_month(participant="Alice")
         
-        # Vérifier que seuls les messages d'Alice sont comptés
+        # Check that only Alice's messages are counted
         total = sum(m["message_count"] for m in monthly)
-        self.assertEqual(total, 105)  # Total d'Alice
+        self.assertEqual(total, 105)  # Alice's total
 
 
 if __name__ == '__main__':

@@ -17,7 +17,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--log-verbose',
         action='store_true',
-        help='Activer les logs détaillés'
+        help='Enable verbose logging'
     )
     parser.add_argument(
         '--host',
@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Initialiser le logging selon le flag
+    # Initialize logging according to flag
     initialize_logging(args.log_verbose)
 
     uvicorn.run(app, host=args.host, port=args.port)

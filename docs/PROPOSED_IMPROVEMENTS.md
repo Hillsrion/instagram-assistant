@@ -1,33 +1,33 @@
-# Améliorations Futures Potentielles
+# Potential Future Improvements
 
-## Stratégies de Recherche
+## Search Strategies
 
-### Recherche Hybride Parallèle (Proactive) 🚀
+### Parallel Hybrid Search (Proactive) 🚀
 
-C'est une stratégie avancée pour gérer les changements de contexte brusques sans latence, proposée pour remplacer ou compléter le "Smart Fallback".
+This is an advanced strategy to handle abrupt context changes without latency, proposed to replace or complement the "Smart Fallback".
 
-**Le Problème :**
-Actuellement, si le `QueryAnalyzer` réécrit une requête en y ajoutant trop de contexte (ex: "Factures" devient "Factures avec Ayoub"), la recherche échoue si l'utilisateur parlait d'autre chose. Le "Smart Fallback" actuel corrige cela mais ajoute potentiellement de la latence (2 recherches séquentielles en cas d'échec).
+**The Problem:**
+Currently, if the `QueryAnalyzer` rewrites a query by adding too much context (e.g., "Bills" becomes "Bills with Ayoub"), the search fails if the user was talking about something else. The current "Smart Fallback" fixes this but potentially adds latency (2 sequential searches in case of failure).
 
-**La Solution : "Parallel Execution + Reciprocal Rank Fusion (RRF)"**
+**The Solution: "Parallel Execution + Reciprocal Rank Fusion (RRF)"**
 
-Au lieu d'attendre l'échec de la première recherche, le système lance **toujours** deux recherches en parallèle :
+Instead of waiting for the first search to fail, the system **always** launches two searches in parallel:
 
-1.  **Branche Contextuelle :** Recherche avec la requête réécrite par le LLM (Optimisée pour le suivi de conversation).
-2.  **Branche Brute :** Recherche avec la requête utilisateur originale (Optimisée pour le changement de sujet).
+1.  **Contextual Branch:** Search with the query rewritten by the LLM (Optimized for conversation follow-up).
+2.  **Raw Branch:** Search with the original user query (Optimized for topic change).
 
-**Algorithme de Fusion (RRF) :**
-On combine les résultats des deux branches.
-- Si un document apparaît dans les deux listes, son score augmente significativement.
-- Si un document n'apparaît que dans la branche "Brute" (car le sujet a changé) avec un fort score, il remonte naturellement en tête de liste, surpassant les résultats faibles de la branche contextuelle.
+**Fusion Algorithm (RRF):**
+We combine the results from both branches.
+- If a document appears in both lists, its score increases significantly.
+- If a document appears only in the "Raw" branch (because the topic changed) with a high score, it naturally rises to the top of the list, surpassing weak results from the contextual branch.
 
-**Avantages :**
-*   **Expérience Utilisateur Fluide :** Latence constante, pas d'attente "double" visible pour l'utilisateur.
-*   **Robustesse Maximale :** Gère automatiquement et implicitement l'ambiguïté entre "Même sujet" et "Nouveau sujet" sans heuristique complexe.
+**Advantages:**
+*   **Fluid User Experience:** Constant latency, no "double" wait visible to the user.
+*   **Maximum Robustness:** Automatically and implicitly handles ambiguity between "Same topic" and "New topic" without complex heuristics.
 
-**Inconvénients :**
-*   **Coût de calcul :** Double le nombre de recherches vectorielles (embeddings + search) par message utilisateur.
+**Disadvantages:**
+*   **Computational Cost:** Doubles the number of vector searches (embeddings + search) per user message.
 
-**Pistes d'Implémentation Technique :**
-*   Utiliser `asyncio.gather` dans `app.py` pour lancer les deux `retriever.retrieve()` simultanément.
-*   Implémenter une fonction de fusion RRF standard (ex: `score = 1 / (rank + k)`) ou une moyenne pondérée des scores de similarité.
+**Technical Implementation Paths:**
+*   Use `asyncio.gather` in `app.py` to launch both `retriever.retrieve()` calls simultaneously.
+*   Implement a standard RRF fusion function (e.g., `score = 1 / (rank + k)`) or a weighted average of similarity scores.

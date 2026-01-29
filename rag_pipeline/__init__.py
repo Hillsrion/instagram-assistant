@@ -1,6 +1,6 @@
 """
-RAG Pipeline pour conversations Instagram.
-Pipeline fiable avec chunking sémantique, embeddings de qualité et retrieval contrôlé.
+RAG Pipeline for Instagram conversations.
+Reliable pipeline with semantic chunking, high-quality embeddings, and controlled retrieval.
 """
 
 from .config import Config

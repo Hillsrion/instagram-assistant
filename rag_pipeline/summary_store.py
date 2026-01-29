@@ -1,6 +1,6 @@
 """
-Stockage et recherche des résumés hiérarchiques via FAISS.
-Gère deux index séparés : un pour ConversationSummary, un pour PeriodSummary.
+Storage and search for hierarchical summaries via FAISS.
+Manages two separate indexes: one for ConversationSummary, one for PeriodSummary.
 """
 import json
 import faiss
@@ -16,28 +16,28 @@ from .embeddings import EmbeddingModel
 
 @dataclass
 class SummarySearchResult:
-    """Résultat de recherche dans les résumés."""
+    """Search result in summaries."""
     summary: Union[ConversationSummary, PeriodSummary]
     score: float
-    level: str  # "conversation" ou "period"
+    level: str  # "conversation" or "period"
 
 
 class SummaryStore:
-    """Stockage et recherche des résumés hiérarchiques."""
+    """Storage and search for hierarchical summaries."""
 
     def __init__(self, config: Config = None, embedding_model: EmbeddingModel = None):
         self.config = config or default_config
         self.embedding_model = embedding_model
 
-        # Index FAISS
+        # FAISS Indexes
         self.conversation_index: Optional[faiss.Index] = None
         self.period_index: Optional[faiss.Index] = None
 
-        # Données
+        # Data
         self.conversation_summaries: List[ConversationSummary] = []
         self.period_summaries: List[PeriodSummary] = []
 
-        # Chemins
+        # Paths
         self.index_path = self.config.index_dir / "summary_index"
 
     def build_indexes(
@@ -46,14 +46,14 @@ class SummaryStore:
         period_summaries: List[PeriodSummary],
         show_progress: bool = True
     ):
-        """Construit les deux index FAISS pour les résumés."""
+        """Builds the two FAISS indexes for summaries."""
         self.conversation_summaries = conversation_summaries
         self.period_summaries = period_summaries
 
         if not self.embedding_model:
-            raise ValueError("EmbeddingModel requis pour construire les index")
+            raise ValueError("EmbeddingModel required to build indexes")
 
-        # 1. Index des ConversationSummary
+        # 1. ConversationSummary Index
         if conversation_summaries:
             if show_progress:
                 print(f"   Encoding {len(conversation_summaries)} conversation summaries...")
@@ -61,18 +61,18 @@ class SummaryStore:
             conv_texts = [s.get_embedding_text() for s in conversation_summaries]
             conv_embeddings = self.embedding_model.encode(conv_texts, show_progress=show_progress)
 
-            # Créer l'index FAISS (Inner Product pour cosine similarity sur vecteurs normalisés)
+            # Create FAISS index (Inner Product for cosine similarity on normalized vectors)
             dim = conv_embeddings.shape[1]
             self.conversation_index = faiss.IndexFlatIP(dim)
 
-            # Normaliser pour cosine similarity
+            # Normalize for cosine similarity
             faiss.normalize_L2(conv_embeddings)
             self.conversation_index.add(conv_embeddings)
 
             if show_progress:
                 print(f"   ✓ Conversation index: {self.conversation_index.ntotal} vectors")
 
-        # 2. Index des PeriodSummary
+        # 2. PeriodSummary Index
         if period_summaries:
             if show_progress:
                 print(f"   Encoding {len(period_summaries)} period summaries...")
@@ -97,28 +97,28 @@ class SummaryStore:
         min_score: float = 0.0
     ) -> List[SummarySearchResult]:
         """
-        Recherche dans les résumés.
+        Search in summaries.
 
         Args:
-            query: Question de l'utilisateur
-            level: "conversation", "period", ou "all"
-            top_k: Nombre de résultats par niveau
-            min_score: Score minimum pour retourner un résultat
+            query: User question
+            level: "conversation", "period", or "all"
+            top_k: Number of results per level
+            min_score: Minimum score to return a result
 
         Returns:
-            Liste de SummarySearchResult triée par score
+            List of SummarySearchResult sorted by score
         """
         if not self.embedding_model:
-            raise ValueError("EmbeddingModel requis pour la recherche")
+            raise ValueError("EmbeddingModel required for search")
 
-        # Encoder la requête
+        # Encode query
         query_embedding = self.embedding_model.encode_single(query)
         query_embedding = query_embedding.reshape(1, -1).astype(np.float32)
         faiss.normalize_L2(query_embedding)
 
         results = []
 
-        # Recherche dans les ConversationSummary
+        # Search in ConversationSummary
         if level in ("all", "conversation") and self.conversation_index and self.conversation_index.ntotal > 0:
             k = min(top_k, self.conversation_index.ntotal)
             scores, indices = self.conversation_index.search(query_embedding, k)
@@ -131,7 +131,7 @@ class SummaryStore:
                         level="conversation"
                     ))
 
-        # Recherche dans les PeriodSummary
+        # Search in PeriodSummary
         if level in ("all", "period") and self.period_index and self.period_index.ntotal > 0:
             k = min(top_k, self.period_index.ntotal)
             scores, indices = self.period_index.search(query_embedding, k)
@@ -144,7 +144,7 @@ class SummaryStore:
                         level="period"
                     ))
 
-        # Trier par score décroissant
+        # Sort by score descending
         results.sort(key=lambda r: r.score, reverse=True)
 
         return results[:top_k * 2] if level == "all" else results[:top_k]
@@ -157,16 +157,16 @@ class SummaryStore:
         min_score: float = 0.0
     ) -> List[SummarySearchResult]:
         """
-        Recherche avec un embedding pré-calculé.
+        Search using a pre-computed embedding.
 
         Args:
-            query_embedding: Vecteur de la requête (déjà encodé)
-            level: "conversation", "period", ou "all"
-            top_k: Nombre de résultats
-            min_score: Score minimum
+            query_embedding: Query vector (already encoded)
+            level: "conversation", "period", or "all"
+            top_k: Number of results
+            min_score: Minimum score
 
         Returns:
-            Liste de SummarySearchResult
+            List of SummarySearchResult
         """
         query_embedding = query_embedding.reshape(1, -1).astype(np.float32)
         faiss.normalize_L2(query_embedding)
@@ -201,10 +201,10 @@ class SummaryStore:
         return results[:top_k * 2] if level == "all" else results[:top_k]
 
     def save(self):
-        """Sauvegarde les index et les données."""
+        """Saves indexes and data."""
         self.index_path.mkdir(parents=True, exist_ok=True)
 
-        # Sauvegarder les index FAISS
+        # Save FAISS indexes
         if self.conversation_index and self.conversation_index.ntotal > 0:
             faiss.write_index(
                 self.conversation_index,
@@ -217,7 +217,7 @@ class SummaryStore:
                 str(self.index_path / "period_index.faiss")
             )
 
-        # Sauvegarder les données JSON
+        # Save JSON data
         conv_path = self.config.index_dir / "conversation_summaries.json"
         with open(conv_path, 'w', encoding='utf-8') as f:
             json.dump(
@@ -239,17 +239,17 @@ class SummaryStore:
         print(f"   💾 Saved to {self.index_path}")
 
     def load(self) -> bool:
-        """Charge les index et les données."""
+        """Loads indexes and data."""
         conv_index_path = self.index_path / "conversation_index.faiss"
         period_index_path = self.index_path / "period_index.faiss"
         conv_data_path = self.config.index_dir / "conversation_summaries.json"
         period_data_path = self.config.index_dir / "period_summaries.json"
 
-        # Vérifier que les fichiers existent
+        # Check if files exist
         if not conv_data_path.exists() and not period_data_path.exists():
             return False
 
-        # Charger les données JSON
+        # Load JSON data
         if conv_data_path.exists():
             with open(conv_data_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -260,7 +260,7 @@ class SummaryStore:
                 data = json.load(f)
                 self.period_summaries = [PeriodSummary.from_dict(d) for d in data]
 
-        # Charger les index FAISS
+        # Load FAISS indexes
         if conv_index_path.exists():
             self.conversation_index = faiss.read_index(str(conv_index_path))
 
@@ -270,7 +270,7 @@ class SummaryStore:
         return True
 
     def get_conversation_summary(self, conversation_id: str) -> Optional[ConversationSummary]:
-        """Récupère le résumé d'une conversation spécifique."""
+        """Gets summary for a specific conversation."""
         for summary in self.conversation_summaries:
             if summary.conversation_id == conversation_id:
                 return summary
@@ -280,7 +280,7 @@ class SummaryStore:
         self,
         conversation_id: str
     ) -> List[PeriodSummary]:
-        """Récupère tous les résumés de période pour une conversation."""
+        """Gets all period summaries for a conversation."""
         return [
             s for s in self.period_summaries
             if s.conversation_id == conversation_id
@@ -290,7 +290,7 @@ class SummaryStore:
         self,
         participant: str
     ) -> Tuple[List[ConversationSummary], List[PeriodSummary]]:
-        """Récupère tous les résumés impliquant un participant."""
+        """Gets all summaries involving a participant."""
         conv_results = [
             s for s in self.conversation_summaries
             if participant.lower() in [p.lower() for p in s.participants]
@@ -302,7 +302,7 @@ class SummaryStore:
         return conv_results, period_results
 
     def format_summary_context(self, results: List[SummarySearchResult]) -> str:
-        """Formate les résumés pour inclusion dans le contexte LLM."""
+        """Formats summaries for inclusion in LLM context."""
         if not results:
             return ""
 
@@ -312,28 +312,29 @@ class SummaryStore:
 
             if isinstance(summary, ConversationSummary):
                 header = (
-                    f"=== RÉSUMÉ CONVERSATION [{result.level.upper()}] ===\n"
+                    f"=== CONVERSATION SUMMARY [{result.level.upper()}] ===\n"
                     f"Participants: {', '.join(summary.participants)}\n"
-                    f"Période: {summary.date_start[:10]} → {summary.date_end[:10]}\n"
+                    f"Period: {summary.date_start[:10]} → {summary.date_end[:10]}\n"
                     f"Messages: {summary.total_messages} | Chunks: {summary.total_chunks}\n"
                     f"Score: {result.score:.2f}\n"
                     f"---\n"
-                    f"Résumé: {summary.summary}\n"
-                    f"Sujets: {', '.join(summary.main_topics)}\n"
-                    f"Relation: {summary.relationship_dynamic}\n"
-                    f"Événements: {', '.join(summary.notable_events)}"
+                    f"Summary: {summary.summary}\n"
+                    f"Topics: {', '.join(summary.main_topics)}\n"
+                    f"Relationship: {summary.relationship_dynamic}\n"
+                    f"Events: {', '.join(summary.notable_events)}"
                 )
             else:  # PeriodSummary
                 header = (
-                    f"=== RÉSUMÉ PÉRIODE [{result.level.upper()}] ===\n"
+                    f"=== PERIOD SUMMARY [{result.level.upper()}] ===\n"
                     f"Participants: {', '.join(summary.participants)}\n"
-                    f"Période: {summary.period} ({summary.date_start[:10]} → {summary.date_end[:10]})\n"
+                    f"Period: {summary.period} ({summary.date_start[:10]} → {summary.date_end[:10]})
+"
                     f"Messages: {summary.message_count}\n"
                     f"Score: {result.score:.2f}\n"
                     f"---\n"
-                    f"Résumé: {summary.summary}\n"
-                    f"Sujets: {', '.join(summary.topics)}\n"
-                    f"Ambiance: {summary.mood}"
+                    f"Summary: {summary.summary}\n"
+                    f"Topics: {', '.join(summary.topics)}\n"
+                    f"Mood: {summary.mood}"
                 )
 
             parts.append(header)

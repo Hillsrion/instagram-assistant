@@ -6,6 +6,7 @@ Welcome to the Instagram Assistant documentation, a production-ready RAG (Retrie
 
 | Document | Description |
 |----------|-------------|
+| [RAG Pipeline Summary](RAG_PIPELINE.md) | End-to-end pipeline architecture overview |
 | [Quick Start Guide](QUICKSTART.md) | Installation and first steps |
 | [Features Documentation](FEATURES.md) | Comprehensive feature guide |
 | [API Reference](API.md) | REST endpoints and SSE events |

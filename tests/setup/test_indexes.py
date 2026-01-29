@@ -1,5 +1,5 @@
 """
-Tests pour setup_indexes.py - Construction des index.
+Tests for setup_indexes.py - Index construction.
 """
 import unittest
 import tempfile
@@ -16,20 +16,20 @@ from rag_pipeline.chunker import Chunk
 
 
 class TestBuildFaissIndex(unittest.TestCase):
-    """Tests pour build_faiss_index()."""
+    """Tests for build_faiss_index()."""
 
     def setUp(self):
-        """Crée un répertoire temporaire pour les tests."""
+        """Creates a temporary directory for tests."""
         self.temp_dir = tempfile.mkdtemp()
         self.temp_path = Path(self.temp_dir)
         (self.temp_path / "rag_data").mkdir()
 
     def tearDown(self):
-        """Nettoie le répertoire temporaire."""
+        """Cleans up the temporary directory."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_build_faiss_index_no_embeddings(self):
-        """build_faiss_index() retourne False sans embeddings."""
+        """build_faiss_index() returns False without embeddings."""
         import setup_indexes
         
         config = Config(
@@ -41,7 +41,7 @@ class TestBuildFaissIndex(unittest.TestCase):
         self.assertFalse(result)
 
     def test_build_faiss_index_with_data(self):
-        """build_faiss_index() construit l'index avec données valides."""
+        """build_faiss_index() builds index with valid data."""
         import setup_indexes
         
         config = Config(
@@ -49,13 +49,13 @@ class TestBuildFaissIndex(unittest.TestCase):
             index_dir=self.temp_path / "rag_data"
         )
         
-        # Créer des chunks mockés
+        # Create mock chunks
         chunks = [
             MagicMock(spec=Chunk, chunk_id=f"chunk_{i}")
             for i in range(3)
         ]
         
-        # Créer des embeddings factices
+        # Create dummy embeddings
         embeddings = np.random.rand(3, 1024).astype(np.float32)
         
         # Mock VectorStore
@@ -71,20 +71,20 @@ class TestBuildFaissIndex(unittest.TestCase):
 
 
 class TestBuildBM25Index(unittest.TestCase):
-    """Tests pour build_bm25_index()."""
+    """Tests for build_bm25_index()."""
 
     def setUp(self):
-        """Crée un répertoire temporaire pour les tests."""
+        """Creates a temporary directory for tests."""
         self.temp_dir = tempfile.mkdtemp()
         self.temp_path = Path(self.temp_dir)
         (self.temp_path / "rag_data").mkdir()
 
     def tearDown(self):
-        """Nettoie le répertoire temporaire."""
+        """Cleans up the temporary directory."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_build_bm25_index(self):
-        """build_bm25_index() construit l'index BM25."""
+        """build_bm25_index() builds BM25 index."""
         import setup_indexes
         
         config = Config(
@@ -92,7 +92,7 @@ class TestBuildBM25Index(unittest.TestCase):
             index_dir=self.temp_path / "rag_data"
         )
         
-        # Créer des chunks mockés
+        # Create mock chunks
         chunks = [
             MagicMock(spec=Chunk, chunk_id=f"chunk_{i}")
             for i in range(3)
@@ -111,20 +111,20 @@ class TestBuildBM25Index(unittest.TestCase):
 
 
 class TestBuildMetadataIndex(unittest.TestCase):
-    """Tests pour build_metadata_index()."""
+    """Tests for build_metadata_index()."""
 
     def setUp(self):
-        """Crée un répertoire temporaire pour les tests."""
+        """Creates a temporary directory for tests."""
         self.temp_dir = tempfile.mkdtemp()
         self.temp_path = Path(self.temp_dir)
         (self.temp_path / "rag_data").mkdir()
 
     def tearDown(self):
-        """Nettoie le répertoire temporaire."""
+        """Cleans up the temporary directory."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_build_metadata_index(self):
-        """build_metadata_index() construit l'index SQLite."""
+        """build_metadata_index() builds SQLite index."""
         import setup_indexes
         
         config = Config(
@@ -132,7 +132,7 @@ class TestBuildMetadataIndex(unittest.TestCase):
             index_dir=self.temp_path / "rag_data"
         )
         
-        # Créer des chunks mockés
+        # Create mock chunks
         chunks = [
             MagicMock(spec=Chunk, chunk_id=f"chunk_{i}")
             for i in range(3)
@@ -153,20 +153,20 @@ class TestBuildMetadataIndex(unittest.TestCase):
 
 
 class TestRunFunction(unittest.TestCase):
-    """Tests pour la fonction run()."""
+    """Tests for run() function."""
 
     def setUp(self):
-        """Crée un répertoire temporaire pour les tests."""
+        """Creates a temporary directory for tests."""
         self.temp_dir = tempfile.mkdtemp()
         self.temp_path = Path(self.temp_dir)
         (self.temp_path / "rag_data").mkdir()
 
     def tearDown(self):
-        """Nettoie le répertoire temporaire."""
+        """Cleans up the temporary directory."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_run_no_chunks(self):
-        """run() échoue sans chunks."""
+        """run() fails without chunks."""
         import setup_indexes
         
         config = Config(
@@ -178,7 +178,7 @@ class TestRunFunction(unittest.TestCase):
         self.assertFalse(result)
 
     def test_run_only_bm25(self):
-        """run() avec only='bm25' ne construit que BM25."""
+        """run() with only='bm25' builds only BM25."""
         import setup_indexes
         
         config = Config(
@@ -186,13 +186,13 @@ class TestRunFunction(unittest.TestCase):
             index_dir=self.temp_path / "rag_data"
         )
         
-        # Mock le chunker pour retourner des chunks
+        # Mock chunker to return chunks
         with patch('setup_indexes.ConversationChunker') as MockChunker:
             mock_chunker = MagicMock()
             mock_chunker.load_chunks.return_value = [MagicMock()]
             MockChunker.return_value = mock_chunker
             
-            # Le fichier cache doit exister
+            # Cache file must exist
             config.chunks_cache_path.parent.mkdir(parents=True, exist_ok=True)
             config.chunks_cache_path.write_text("{}")
             
@@ -202,7 +202,7 @@ class TestRunFunction(unittest.TestCase):
                 
                 result = setup_indexes.run(config, only='bm25')
                 
-                # BM25 devrait être appelé
+                # BM25 should be called
                 mock_bm25.build_index.assert_called_once()
 
 

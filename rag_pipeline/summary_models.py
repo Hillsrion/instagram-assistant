@@ -1,8 +1,8 @@
 """
-Modèles de données pour les résumés hiérarchiques.
-Permet de répondre aux requêtes "big picture" comme :
-- "De quoi a-t-on parlé avec Marie cet été ?"
-- "Résume mes conversations avec Paul"
+Data models for hierarchical summaries.
+Allows answering "big picture" queries like:
+- "What did we talk about with Marie this summer?"
+- "Summarize my conversations with Paul"
 """
 from dataclasses import dataclass, asdict, field
 from typing import List, Optional
@@ -10,22 +10,22 @@ from typing import List, Optional
 
 @dataclass
 class ConversationSummary:
-    """Résumé global d'une conversation entière."""
+    """Global summary of an entire conversation."""
     summary_id: str                    # "{conversation_id}_summary"
     conversation_id: str
     participants: List[str]
-    date_start: str                    # Première date de la conversation (ISO)
-    date_end: str                      # Dernière date (ISO)
+    date_start: str                    # First date of conversation (ISO)
+    date_end: str                      # Last date (ISO)
     total_messages: int
     total_chunks: int
 
     # LLM-generated fields
-    summary: str                       # Résumé narratif (2-3 phrases)
-    main_topics: List[str]             # 3-5 sujets principaux
-    relationship_dynamic: str          # Type de relation/dynamique
-    notable_events: List[str]          # Événements marquants
+    summary: str                       # Narrative summary (2-3 sentences)
+    main_topics: List[str]             # 3-5 main topics
+    relationship_dynamic: str          # Relationship type/dynamic
+    notable_events: List[str]          # Notable events
 
-    chunk_ids: List[str]               # Chunks liés
+    chunk_ids: List[str]               # Linked chunks
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -35,50 +35,50 @@ class ConversationSummary:
         return cls(**data)
 
     def get_embedding_text(self) -> str:
-        """Retourne le texte à encoder pour la recherche vectorielle."""
+        """Returns text to encode for vector search."""
         parts = []
 
         # Participants
-        parts.append(f"Conversation avec {', '.join(self.participants)}")
+        parts.append(f"Conversation with {', '.join(self.participants)}")
 
-        # Période
-        parts.append(f"Période: {self.date_start[:10]} à {self.date_end[:10]}")
+        # Period
+        parts.append(f"Period: {self.date_start[:10]} to {self.date_end[:10]}")
 
-        # Résumé principal
-        parts.append(f"Résumé: {self.summary}")
+        # Summary
+        parts.append(f"Summary: {self.summary}")
 
-        # Sujets
+        # Topics
         if self.main_topics:
-            parts.append(f"Sujets principaux: {', '.join(self.main_topics)}")
+            parts.append(f"Main topics: {', '.join(self.main_topics)}")
 
-        # Dynamique relationnelle
+        # Relationship dynamic
         if self.relationship_dynamic:
-            parts.append(f"Type de relation: {self.relationship_dynamic}")
+            parts.append(f"Relationship type: {self.relationship_dynamic}")
 
-        # Événements
+        # Events
         if self.notable_events:
-            parts.append(f"Événements marquants: {', '.join(self.notable_events)}")
+            parts.append(f"Notable events: {', '.join(self.notable_events)}")
 
         return "\n".join(parts)
 
 
 @dataclass
 class PeriodSummary:
-    """Résumé d'une période (mois) pour une conversation."""
+    """Summary of a period (month) for a conversation."""
     summary_id: str                    # "{conversation_id}_period_{YYYY-MM}"
     conversation_id: str
     participants: List[str]
-    period: str                        # "2024-06" (format YYYY-MM)
+    period: str                        # "2024-06" (YYYY-MM format)
     date_start: str
     date_end: str
     message_count: int
 
     # LLM-generated fields
-    summary: str                       # Résumé de la période
-    topics: List[str]                  # Sujets de la période
-    mood: str                          # Ambiance générale
+    summary: str                       # Period summary
+    topics: List[str]                  # Topics during period
+    mood: str                          # General mood
 
-    chunk_ids: List[str]               # Chunks de cette période
+    chunk_ids: List[str]               # Chunks in this period
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -88,24 +88,24 @@ class PeriodSummary:
         return cls(**data)
 
     def get_embedding_text(self) -> str:
-        """Retourne le texte à encoder pour la recherche vectorielle."""
+        """Returns text to encode for vector search."""
         parts = []
 
-        # Participants et période
-        parts.append(f"Conversation avec {', '.join(self.participants)} en {self.period}")
+        # Participants and period
+        parts.append(f"Conversation with {', '.join(self.participants)} in {self.period}")
 
-        # Période précise
-        parts.append(f"Du {self.date_start[:10]} au {self.date_end[:10]}")
+        # Precise period
+        parts.append(f"From {self.date_start[:10]} to {self.date_end[:10]}")
 
-        # Résumé
-        parts.append(f"Résumé: {self.summary}")
+        # Summary
+        parts.append(f"Summary: {self.summary}")
 
-        # Sujets
+        # Topics
         if self.topics:
-            parts.append(f"Sujets abordés: {', '.join(self.topics)}")
+            parts.append(f"Topics discussed: {', '.join(self.topics)}")
 
-        # Ambiance
+        # Mood
         if self.mood:
-            parts.append(f"Ambiance: {self.mood}")
+            parts.append(f"Mood: {self.mood}")
 
         return "\n".join(parts)

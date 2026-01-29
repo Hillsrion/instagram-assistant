@@ -1,17 +1,17 @@
 """
-Utilitaires partagés pour les scripts CLI du pipeline RAG.
+Shared utilities for RAG pipeline CLI scripts.
 """
 import numpy as np
 from pathlib import Path
 from typing import Optional
 
-# Configuration du batching (partagée entre scripts)
+# Batching configuration (shared between scripts)
 CHECKPOINT_DIR = Path("rag_data/checkpoints")
 DEFAULT_BATCH_SIZE = 500
 
 
 def format_duration(seconds: float) -> str:
-    """Formate une durée en j h m s."""
+    """Formats a duration in d h m s."""
     if seconds is None or seconds < 0:
         return "0s"
 
@@ -22,7 +22,7 @@ def format_duration(seconds: float) -> str:
 
     parts = []
     if days > 0:
-        parts.append(f"{days}j")
+        parts.append(f"{days}d")
     if hours > 0:
         parts.append(f"{hours}h")
     if minutes > 0:
@@ -33,36 +33,36 @@ def format_duration(seconds: float) -> str:
 
 
 def print_header(title: str, step: Optional[str] = None, char: str = "=", width: int = 40):
-    """Affiche un en-tête de section formaté.
+    """Prints a formatted section header.
 
     Args:
-        title: Titre de la section
-        step: Numéro d'étape (ex: "1/8")
-        char: Caractère de bordure
-        width: Largeur de la bordure
+        title: Section title
+        step: Step number (e.g., "1/8")
+        char: Border character
+        width: Border width
     """
     print(char * width)
     if step:
-        print(f"{title} (Étape {step})")
+        print(f"{title} (Step {step})")
     else:
         print(title)
     print(char * width)
 
 
 def get_checkpoint_path(batch_idx: int, checkpoint_dir: Path = CHECKPOINT_DIR) -> Path:
-    """Retourne le chemin du fichier checkpoint pour un batch."""
+    """Returns the checkpoint file path for a batch."""
     return checkpoint_dir / f"embeddings_batch_{batch_idx:04d}.npy"
 
 
 def count_existing_checkpoints(checkpoint_dir: Path = CHECKPOINT_DIR) -> int:
-    """Compte le nombre de checkpoints existants."""
+    """Counts the number of existing checkpoints."""
     if not checkpoint_dir.exists():
         return 0
     return len(list(checkpoint_dir.glob("embeddings_batch_*.npy")))
 
 
 def count_existing_embeddings(checkpoint_dir: Path = CHECKPOINT_DIR) -> int:
-    """Compte le nombre réel d'embeddings dans les checkpoints."""
+    """Counts the actual number of embeddings in checkpoints."""
     if not checkpoint_dir.exists():
         return 0
 
@@ -74,14 +74,14 @@ def count_existing_embeddings(checkpoint_dir: Path = CHECKPOINT_DIR) -> int:
 
 
 def load_all_checkpoints(checkpoint_dir: Path = CHECKPOINT_DIR, verbose: bool = True) -> Optional[np.ndarray]:
-    """Charge et concatène tous les checkpoints.
+    """Loads and concatenates all checkpoints.
 
     Args:
-        checkpoint_dir: Répertoire des checkpoints
-        verbose: Afficher les messages de progression
+        checkpoint_dir: Checkpoints directory
+        verbose: Show progress messages
 
     Returns:
-        Array numpy contenant tous les embeddings, ou None si aucun checkpoint
+        Numpy array containing all embeddings, or None if no checkpoints
     """
     if not checkpoint_dir.exists():
         return None
@@ -91,7 +91,7 @@ def load_all_checkpoints(checkpoint_dir: Path = CHECKPOINT_DIR, verbose: bool = 
         return None
 
     if verbose:
-        print(f"   Chargement de {len(checkpoint_files)} checkpoints...")
+        print(f"   Loading {len(checkpoint_files)} checkpoints...")
 
     embeddings_list = []
     for f in checkpoint_files:
@@ -104,14 +104,14 @@ def load_all_checkpoints(checkpoint_dir: Path = CHECKPOINT_DIR, verbose: bool = 
 
 
 def reset_checkpoints(checkpoint_dir: Path = CHECKPOINT_DIR) -> bool:
-    """Supprime tous les checkpoints.
+    """Deletes all checkpoints.
 
     Returns:
-        True si des checkpoints ont été supprimés
+        True if checkpoints were deleted
     """
     if checkpoint_dir.exists():
         import shutil
         shutil.rmtree(checkpoint_dir)
-        print("Checkpoints supprimés")
+        print("Checkpoints deleted")
         return True
     return False

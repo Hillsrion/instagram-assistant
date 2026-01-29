@@ -1,6 +1,6 @@
 """
-Enrichisseur de chunks utilisant un LLM pour générer des résumés narratifs
-et des questions hypothétiques (techniques avancées de RAG).
+Chunk enricher using an LLM to generate narrative summaries
+and hypothetical questions (advanced RAG techniques).
 """
 import json
 import requests
@@ -8,6 +8,7 @@ from typing import List, Optional, Tuple, Dict
 from .config import Config, default_config
 from .chunker import Chunk
 
+# Prompt kept in French as it processes French data
 ENRICH_PROMPT = """Tu es un analyseur de conversations (STRICT, basé sur le texte uniquement).
 
 ANALYSE CETTE CONVERSATION ET GÉNÈRE JSON :
@@ -41,29 +42,31 @@ FORMAT JSON (les valeurs sont des exemples de format, PAS des données à recopi
 {{
   "narrative_summary": "<1 phrase décrivant l'échange>",
   "questions": ["<question 1>", "<question 2>", "<question 3>"],
-  "speaker_intents": {{"<participant>": "<son intention>"}},
+  "speaker_intents": {{
+    "<participant>": "<son intention>"
+  }},
   "temporal_context": "<moment ou période>",
-  "entities": {{"locations": [], "people": [], "media": [], "events": []}},
-  "emotions": {{"dominant": "<émotion>", "tone": "<ton>", "tension_level": "low|medium|high"}}
+  "entities": {{ "locations": [], "people": [], "media": [], "events": [] }},
+  "emotions": {{ "dominant": "<émotion>", "tone": "<ton>", "tension_level": "low|medium|high" }}
 }}
 """
 
 class ChunkEnricher:
-    """Utilise un LLM (via Ollama) pour enrichir les métadonnées des chunks."""
+    """Uses an LLM (via Ollama) to enrich chunk metadata."""
     
     def __init__(self, config: Config = None):
         self.config = config or default_config
-        # Modèle léger recommandé pour l'indexation de masse
+        # Lightweight model recommended for mass indexing
         self.model = self.config.llm_model 
         
     def enrich_chunk(self, chunk: Chunk) -> Tuple[str, List[str], Dict[str, str], str, Dict[str, List[str]], Dict[str, str]]:
         """
-        Génère un résumé narratif, des questions, les intentions, le contexte temporel, les entités et les émotions pour un chunk.
+        Generates narrative summary, questions, intents, temporal context, entities, and emotions for a chunk.
 
         Returns:
             (narrative_summary, hypothetical_questions, speaker_intents, temporal_context, entities, emotions)
         """
-        # Limiter la taille du texte pour éviter de saturer le context window du petit modèle
+        # Limit text size to avoid saturating context window of small models
         content_preview = chunk.content[:4000]
 
         prompt = ENRICH_PROMPT.format(content=content_preview)
@@ -72,10 +75,10 @@ class ChunkEnricher:
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
-            "format": "json", # Demander du JSON à Ollama
+            "format": "json", # Request JSON from Ollama
             "options": {
                 "temperature": 0.1,
-                "num_predict": 2048,  # Augmenté pour accommoder les émotions, entités et explications longues
+                "num_predict": 2048,  # Increased to accommodate emotions, entities, and long explanations
             }
         }
 
@@ -88,7 +91,7 @@ class ChunkEnricher:
             response.raise_for_status()
             result = response.json()["message"]["content"]
 
-            # Nettoyage de la réponse (au cas où le LLM ajoute des markdown code blocks)
+            # Clean response (in case LLM adds markdown code blocks)
             cleaned_result = result.strip()
             if cleaned_result.startswith("```json"):
                 cleaned_result = cleaned_result[7:]
@@ -98,59 +101,59 @@ class ChunkEnricher:
                 cleaned_result = cleaned_result[:-3]
             cleaned_result = cleaned_result.strip()
 
-            # Parser le JSON de réponse
+            # Parse response JSON
             if not cleaned_result:
                 print(f"[ENRICH LOG] Empty response for chunk {chunk.chunk_id}")
-                return "", [], {}, "", {}, {}
+                return "", [], {{}}, "", {{}}, {{}}
 
             data = json.loads(cleaned_result)
             summary = data.get("narrative_summary", "")
             questions = data.get("questions", [])
-            speaker_intents = data.get("speaker_intents", {})
+            speaker_intents = data.get("speaker_intents", {{}})
             temporal_context = data.get("temporal_context", "")
-            entities = data.get("entities", {})
-            emotions = data.get("emotions", {})
+            entities = data.get("entities", {{}})
+            emotions = data.get("emotions", {{}})
 
             return summary, questions, speaker_intents, temporal_context, entities, emotions
 
         except json.JSONDecodeError as e:
-            print(f"⚠️ Erreur décodage JSON pour chunk {chunk.chunk_id}: {e}")
+            print(f"⚠️ JSON decoding error for chunk {chunk.chunk_id}: {e}")
             print(f"[ENRICH LOG] Failed to parse JSON: {e}")
             if 'cleaned_result' in locals():
                 print(f"[ENRICH LOG] Cleaned result:\n{cleaned_result[:500]}...")
             elif 'result' in locals():
                  print(f"[ENRICH LOG] Raw result:\n{result[:500]}...")
-            return "", [], {}, "", {}, {}
+            return "", [], {{}}, "", {{}}, {{}}
         except Exception as e:
-            # En cas d'erreur, on retourne des valeurs vides (fallback sur le résumé statistique)
-            print(f"⚠️ Erreur enrichissement chunk {chunk.chunk_id}: {e}")
+            # In case of error, return empty values (fallback to statistical summary)
+            print(f"⚠️ Enrichment error chunk {chunk.chunk_id}: {e}")
             print(f"[ENRICH LOG] Error: {e}")
             if 'result' in locals():
                 print(f"[ENRICH LOG] Raw result:\n{result[:500]}...")
-            return "", [], {}, "", {}, {}
+            return "", [], {{}}, "", {{}}, {{}}
 
     def enrich_batch(
-        self, 
-        chunks: List[Chunk], 
+        self,
+        chunks: List[Chunk],
         progress_callback=None,
         save_callback=None,
         save_interval: int = 20
     ) -> List[Chunk]:
         """
-        Enrichit une liste de chunks avec reprise sur erreur.
+        Enriches a list of chunks with error recovery.
         
         Args:
-            chunks: Liste des chunks à traiter
-            progress_callback: Fonction(current, total) appelée à chaque étape
-            save_callback: Fonction() appelée périodiquement pour sauvegarder
-            save_interval: Sauvegarder tous les X chunks
+            chunks: List of chunks to process
+            progress_callback: Function(current, total) called at each step
+            save_callback: Function() called periodically to save
+            save_interval: Save every X chunks
         """
-        print(f"🔄 Démarrage de l'enrichissement par lots (Sauvegarde tous les {save_interval} items)")
+        print(f"🔄 Starting batch enrichment (Saving every {save_interval} items)")
         
         for i, chunk in enumerate(chunks):
-            # Si déjà enrichi (reprise), on saute
-            # Note: Si on ajoute de nouveaux champs (comme entities), il faudrait idéalement forcer la réindexation
-            # ou vérifier si le champ est manquant. Ici on assume que l'utilisateur fera --reset s'il veut les nouveaux champs.
+            # If already enriched (resume), skip
+            # Note: If we add new fields (like entities), ideally force re-indexing
+            # or check if field is missing. Here we assume user runs --reset if they want new fields.
             if chunk.narrative_summary and chunk.hypothetical_questions and chunk.entities:
                 if progress_callback:
                     progress_callback(i + 1, len(chunks))
@@ -164,16 +167,16 @@ class ChunkEnricher:
             chunk.entities = entities
             chunk.emotions = emotions
             
-            # Callback de progrès
+            # Progress callback
             if progress_callback:
                 progress_callback(i + 1, len(chunks))
             
-            # Sauvegarde périodique
+            # Periodic save
             if save_callback and (i + 1) % save_interval == 0:
-                print("   💾 Sauvegarde intermédiaire...")
+                print("   💾 Intermediate save...")
                 save_callback()
                 
-        # Sauvegarde finale
+        # Final save
         if save_callback:
             save_callback()
             

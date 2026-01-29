@@ -1,6 +1,6 @@
 """
-Tests pour le module query_analyzer.py
-Analyseur de requêtes consolidé (Omni-Prompt).
+Tests for query_analyzer.py module.
+Consolidated Query Analyzer (Omni-Prompt).
 """
 import unittest
 import json
@@ -17,7 +17,7 @@ class TestQueryAnalyzer(unittest.TestCase):
         self.analyzer = QueryAnalyzer(self.config)
 
     def _mock_ollama_response(self, content: dict):
-        """Helper pour créer une réponse Ollama mockée"""
+        """Helper to create a mocked Ollama response."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -28,15 +28,15 @@ class TestQueryAnalyzer(unittest.TestCase):
     # --- Tests mode detection ---
     @patch('requests.post')
     def test_analyze_retrieval_mode(self, mock_post):
-        """Mode retrieval détecté pour une question de recherche"""
+        """Retrieval mode detected for a research question."""
         mock_post.return_value = self._mock_ollama_response({
             "mode": "retrieval",
-            "rewritten_query": "Qui est Ayoub dans mes conversations",
+            "rewritten_query": "Who is Ayoub in my conversations",
             "intent": "specific_fact",
             "date_range": None
         })
         
-        result = self.analyzer.analyze("C'est qui Ayoub ?", [])
+        result = self.analyzer.analyze("Who is Ayoub?", [])
         
         self.assertEqual(result.mode, "retrieval")
         self.assertEqual(result.intent, "specific_fact")
@@ -44,74 +44,74 @@ class TestQueryAnalyzer(unittest.TestCase):
 
     @patch('requests.post')
     def test_analyze_analytics_mode(self, mock_post):
-        """Mode analytics détecté pour une question de comptage"""
+        """Analytics mode detected for a counting question."""
         mock_post.return_value = self._mock_ollama_response({
             "mode": "analytics",
-            "rewritten_query": "Compter le nombre total de messages",
+            "rewritten_query": "Count total number of messages",
             "intent": "specific_fact",
             "date_range": None
         })
         
-        result = self.analyzer.analyze("Combien j'ai de messages ?", [])
+        result = self.analyzer.analyze("How many messages do I have?", [])
         
         self.assertEqual(result.mode, "analytics")
 
     # --- Tests date extraction ---
     @patch('requests.post')
     def test_analyze_date_extraction(self, mock_post):
-        """Extraction correcte des dates"""
+        """Correct extraction of dates."""
         mock_post.return_value = self._mock_ollama_response({
             "mode": "retrieval",
-            "rewritten_query": "Conversations de l'été dernier",
+            "rewritten_query": "Conversations from last summer",
             "intent": "broad_summary",
             "date_range": {"start": "2025-06-01", "end": "2025-08-31"}
         })
         
-        result = self.analyzer.analyze("Qu'est-ce qu'on a fait l'été dernier ?", [])
+        result = self.analyzer.analyze("What did we do last summer?", [])
         
         self.assertEqual(result.date_start, "2025-06-01")
         self.assertEqual(result.date_end, "2025-08-31")
 
     @patch('requests.post')
     def test_analyze_ignores_vague_dates(self, mock_post):
-        """Les dates vagues (YYYY-01-01) sont ignorées"""
+        """Vague dates (YYYY-01-01) are ignored."""
         mock_post.return_value = self._mock_ollama_response({
             "mode": "retrieval",
-            "rewritten_query": "Question sans date particulière",
+            "rewritten_query": "Question without specific date",
             "intent": "complex_reasoning",
             "date_range": {"start": "2024-01-01", "end": "2024-12-31"}
         })
         
-        result = self.analyzer.analyze("De quoi on a parlé ?", [])
+        result = self.analyzer.analyze("What did we talk about?", [])
         
-        # Les dates vagues devraient être ignorées
+        # Vague dates should be ignored
         self.assertIsNone(result.date_start)
         self.assertIsNone(result.date_end)
 
     # --- Tests query rewriting ---
     @patch('requests.post')
     def test_analyze_rewrites_query(self, mock_post):
-        """La requête est reformulée"""
+        """Query is rewritten."""
         mock_post.return_value = self._mock_ollama_response({
             "mode": "retrieval",
-            "rewritten_query": "Informations sur le voyage au Maroc avec Ayoub",
+            "rewritten_query": "Information about the trip to Morocco with Ayoub",
             "intent": "broad_summary",
             "date_range": None
         })
         
         history = [
-            {"role": "user", "content": "Parle-moi de mon ami Ayoub"},
-            {"role": "assistant", "content": "Ayoub est un ami proche..."}
+            {"role": "user", "content": "Tell me about my friend Ayoub"},
+            {"role": "assistant", "content": "Ayoub is a close friend..."}
         ]
         
-        result = self.analyzer.analyze("Et le voyage au Maroc ?", history)
+        result = self.analyzer.analyze("And the trip to Morocco?", history)
         
-        self.assertIn("voyage", result.rewritten_query.lower())
-        self.assertIn("maroc", result.rewritten_query.lower())
+        self.assertIn("trip", result.rewritten_query.lower())
+        self.assertIn("morocco", result.rewritten_query.lower())
 
     # --- Tests intent to params mapping ---
     def test_get_params_for_specific_fact(self):
-        """Paramètres optimisés pour specific_fact"""
+        """Optimized parameters for specific_fact."""
         params = self.analyzer._get_params_for_intent("specific_fact")
         
         self.assertEqual(params["top_k"], 5)
@@ -119,15 +119,15 @@ class TestQueryAnalyzer(unittest.TestCase):
         self.assertFalse(params["expand_context"])
 
     def test_get_params_for_broad_summary(self):
-        """Paramètres optimisés pour broad_summary"""
+        """Optimized parameters for broad_summary."""
         params = self.analyzer._get_params_for_intent("broad_summary")
         
         self.assertEqual(params["top_k"], 15)
-        self.assertFalse(params["use_reranking"])  # Trop de docs
+        self.assertFalse(params["use_reranking"])  # Too many docs
         self.assertTrue(params["expand_context"])
 
     def test_get_params_for_complex_reasoning(self):
-        """Paramètres optimisés pour complex_reasoning"""
+        """Optimized parameters for complex_reasoning."""
         params = self.analyzer._get_params_for_intent("complex_reasoning")
         
         self.assertEqual(params["top_k"], 10)
@@ -137,19 +137,19 @@ class TestQueryAnalyzer(unittest.TestCase):
     # --- Tests fallback ---
     @patch('requests.post')
     def test_analyze_fallback_on_error(self, mock_post):
-        """Fallback vers paramètres par défaut en cas d'erreur"""
+        """Fallback to default parameters on error."""
         mock_post.side_effect = Exception("Connection error")
         
-        result = self.analyzer.analyze("Ma question", [])
+        result = self.analyzer.analyze("My question", [])
         
-        # Fallback avec valeurs par défaut
+        # Fallback with default values
         self.assertEqual(result.mode, "retrieval")
         self.assertEqual(result.intent, "complex_reasoning")
-        self.assertEqual(result.rewritten_query, "Ma question")  # Query non modifiée
+        self.assertEqual(result.rewritten_query, "My question")  # Unmodified query
 
     @patch('requests.post')
     def test_analyze_handles_invalid_json(self, mock_post):
-        """Gestion du JSON invalide"""
+        """Handling of invalid JSON."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -166,7 +166,7 @@ class TestQueryAnalyzer(unittest.TestCase):
 class TestAnalysisResult(unittest.TestCase):
     
     def test_analysis_result_defaults(self):
-        """AnalysisResult a des valeurs par défaut correctes"""
+        """AnalysisResult has correct default values."""
         result = AnalysisResult(
             rewritten_query="test",
             intent="simple",

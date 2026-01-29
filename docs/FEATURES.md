@@ -2,6 +2,8 @@
 
 This document describes the advanced features of the Instagram Assistant RAG system.
 
+> For a concise end-to-end overview of the pipeline, see [RAG_PIPELINE.md](RAG_PIPELINE.md).
+
 ---
 
 ## Table of Contents

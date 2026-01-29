@@ -1,10 +1,9 @@
-"""
-Retriever avancé avec toutes les améliorations:
-- Reranking cross-encoder
-- Context expansion (chunks adjacents)
+"Advanced Retriever with all improvements:
+- Cross-encoder reranking
+- Context expansion (adjacent chunks)
 - Hybrid search (BM25 + dense)
-- Pre-filtering par métadonnées
-"""
+- Metadata pre-filtering
+"
 import numpy as np
 from typing import List, Optional, Set, Tuple
 from dataclasses import dataclass, field
@@ -22,19 +21,19 @@ from .query_extractor import QueryDateExtractor
 
 @dataclass
 class AdvancedSearchResult:
-    """Résultat de recherche avancée."""
+    """Advanced search result."""
     chunk: Chunk
     dense_score: float
     bm25_score: float
     rerank_score: float
     final_score: float
     rank: int
-    is_expanded: bool = False  # True si ajouté par context expansion
+    is_expanded: bool = False  # True if added by context expansion
 
 
 @dataclass
 class AdvancedRetrievalContext:
-    """Contexte de retrieval avancé."""
+    """Advanced retrieval context."""
     query: str
     results: List[AdvancedSearchResult]
     formatted_context: str
@@ -48,14 +47,16 @@ class AdvancedRetrievalContext:
     used_summary_fallback: bool = False
 
     def get_sources(self) -> List[str]:
-        """Retourne la liste des sources."""
+        """Returns the list of sources."""
         sources = []
         for r in self.results:
             expanded = " [expanded]" if r.is_expanded else ""
             source = (
                 f"[{r.rank}] {r.chunk.file_source} "
-                f"({r.chunk.date_start[:10]})\n"
-                f"    📝 {r.chunk.narrative_summary if r.chunk.narrative_summary else r.chunk.summary}\n"
+                f"({r.chunk.date_start[:10]})
+"
+                f"    📝 {r.chunk.narrative_summary if r.chunk.narrative_summary else r.chunk.summary}
+"
                 f"    🎯 Score: {r.final_score:.2f}{expanded}"
             )
             sources.append(source)
@@ -64,11 +65,11 @@ class AdvancedRetrievalContext:
 
 class AdvancedRetriever:
     """
-    Retriever avancé avec:
+    Advanced Retriever with:
     - Hybrid search (dense + BM25)
     - Cross-encoder reranking
     - Context expansion
-    - Pre-filtering par métadonnées
+    - Metadata pre-filtering
     """
 
     def __init__(
@@ -90,19 +91,19 @@ class AdvancedRetriever:
         self.summary_store = summary_store
         self.date_extractor = QueryDateExtractor(self.config)
 
-        # Configuration par défaut
+        # Default configuration
         self.default_top_k = 5
-        self.initial_k = 20  # Pour le reranking
-        self.hybrid_alpha = 0.5  # Poids dense vs BM25
-        self.context_window = 1  # Chunks adjacents
-        self.fallback_threshold = self.config.fallback_threshold  # Seuil pour fallback summaries
+        self.initial_k = 20  # For reranking
+        self.hybrid_alpha = 0.5  # Dense vs BM25 weight
+        self.context_window = 1  # Adjacent chunks
+        self.fallback_threshold = self.config.fallback_threshold  # Threshold for summary fallback
 
     def retrieve(
         self,
         query: str,
         top_k: int = None,
         min_score: float = None,
-        # Filtres
+        # Filters
         participant_filter: Optional[str] = None,
         date_start: Optional[str] = None,
         date_end: Optional[str] = None,
@@ -115,23 +116,23 @@ class AdvancedRetriever:
         search_mode: str = "auto"  # auto, dense, bm25, hybrid
     ) -> AdvancedRetrievalContext:
         """
-        Recherche avancée avec toutes les options.
+        Advanced search with all options.
 
         Args:
-            query: Question de l'utilisateur
-            top_k: Nombre final de résultats
-            min_score: Score minimum
-            participant_filter: Filtrer par participant
-            date_start/date_end: Filtrer par période
-            year_filter: Filtrer par année
-            conversation_filter: Filtrer par conversation
-            use_reranking: Utiliser le cross-encoder
-            use_hybrid: Combiner dense + BM25
-            expand_context: Ajouter les chunks adjacents
-            search_mode: Force un mode de recherche
+            query: User question
+            top_k: Final number of results
+            min_score: Minimum score
+            participant_filter: Filter by participant
+            date_start/date_end: Filter by period
+            year_filter: Filter by year
+            conversation_filter: Filter by conversation
+            use_reranking: Use cross-encoder
+            use_hybrid: Combine dense + BM25
+            expand_context: Add adjacent chunks
+            search_mode: Force a search mode
 
         Returns:
-            AdvancedRetrievalContext avec les résultats
+            AdvancedRetrievalContext with results
         """
         top_k = top_k or self.default_top_k
         min_score = min_score or self.config.min_similarity
@@ -139,18 +140,18 @@ class AdvancedRetriever:
         filters_applied = {}
 
         # ========================================
-        # Étape 0: Extraction temporelle automatique
+        # Step 0: Automatic temporal extraction
         # ========================================
-        # Si aucune date n'est fournie explicitement, on essaie de la deviner
+        # If no date explicitly provided, try to guess
         if not date_start and not date_end and not year_filter:
             extracted_start, extracted_end = self.date_extractor.extract_dates(query)
             if extracted_start or extracted_end:
                 date_start = extracted_start
                 date_end = extracted_end
-                print(f"🕒 Période détectée: {date_start} -> {date_end}")
+                print(f"🕒 Period detected: {date_start} -> {date_end}")
 
         # ========================================
-        # Étape 1: Pre-filtering par métadonnées
+        # Step 1: Metadata Pre-filtering
         # ========================================
         allowed_indices: Optional[Set[int]] = None
 
@@ -190,24 +191,24 @@ class AdvancedRetriever:
                 return AdvancedRetrievalContext(
                     query=query,
                     results=[],
-                    formatted_context="Aucun document ne correspond aux filtres appliqués.",
+                    formatted_context="No documents match the applied filters.",
                     has_results=False,
                     filters_applied=filters_applied,
                     search_mode="filtered_empty"
                 )
 
         # ========================================
-        # Étape 2: Recherche (dense, BM25, ou hybrid)
+        # Step 2: Search (dense, BM25, or hybrid)
         # ========================================
 
-        # Déterminer le mode de recherche
+        # Determine search mode
         if search_mode == "auto":
             if use_hybrid and self.bm25_index:
                 search_mode = "hybrid"
             else:
                 search_mode = "dense"
 
-        # Nombre de candidats à récupérer (plus si reranking)
+        # Number of candidates to fetch (more if reranking)
         fetch_k = self.initial_k if (use_reranking and self.reranker) else top_k * 2
 
         candidates: List[Tuple[int, float, float, float]] = []  # (idx, dense, bm25, combined)
@@ -223,29 +224,29 @@ class AdvancedRetriever:
             return AdvancedRetrievalContext(
                 query=query,
                 results=[],
-                formatted_context="Aucun document pertinent trouvé.",
+                formatted_context="No relevant documents found.",
                 has_results=False,
                 filters_applied=filters_applied,
                 search_mode=search_mode
             )
 
         # ========================================
-        # Étape 3: Reranking (optionnel)
+        # Step 3: Reranking (optional)
         # ========================================
         if use_reranking and self.reranker and len(candidates) > 1:
             candidates = self._apply_reranking(query, candidates, top_k)
         else:
-            # Garder les top_k
+            # Keep top_k
             candidates = candidates[:top_k]
 
         # ========================================
-        # Étape 4: Context expansion (optionnel)
+        # Step 4: Context expansion (optional)
         # ========================================
         if expand_context and self.metadata_store:
             candidates = self._expand_context(candidates)
 
         # ========================================
-        # Étape 5: Construire les résultats
+        # Step 5: Build results
         # ========================================
         results = []
         seen_chunk_ids = set()
@@ -253,12 +254,12 @@ class AdvancedRetriever:
         for rank, (idx, dense_score, bm25_score, final_score, is_expanded) in enumerate(candidates):
             chunk = self.vector_store.chunks[idx]
 
-            # Éviter les doublons
+            # Avoid duplicates
             if chunk.chunk_id in seen_chunk_ids:
                 continue
             seen_chunk_ids.add(chunk.chunk_id)
 
-            # Filtrer par score minimum (sauf pour les expanded)
+            # Filter by minimum score (except for expanded)
             if not is_expanded and final_score < min_score:
                 continue
 
@@ -277,13 +278,13 @@ class AdvancedRetriever:
         low_confidence = max_confidence_score < self.config.confidence_threshold if results else True
 
         # ========================================
-        # Étape 6: Fallback vers résumés si confiance basse
+        # Step 6: Fallback to summaries if low confidence
         # ========================================
         summary_results = []
         used_summary_fallback = False
 
         if max_confidence_score < self.fallback_threshold and self.summary_store:
-            # Rechercher dans les résumés hiérarchiques
+            # Search in hierarchical summaries
             query_embedding = self.embedding_model.encode_single(query)
             summary_results = self.summary_store.search_by_embedding(
                 query_embedding,
@@ -294,7 +295,7 @@ class AdvancedRetriever:
             if summary_results:
                 used_summary_fallback = True
 
-        # Formater le contexte (inclut les résumés si fallback)
+        # Format context (includes summaries if fallback)
         formatted_context = self._format_context(results, summary_results)
 
         return AdvancedRetrievalContext(
@@ -316,10 +317,10 @@ class AdvancedRetriever:
         top_k: int,
         allowed_indices: Optional[Set[int]]
     ) -> List[Tuple[int, float, float, float, bool]]:
-        """Recherche dense uniquement."""
+        """Dense search only."""
         query_embedding = self.embedding_model.encode_single(query)
 
-        # Récupérer plus de résultats si on filtre
+        # Fetch more results if filtering
         fetch_k = top_k * 3 if allowed_indices else top_k
 
         results = self.vector_store.search(query_embedding, top_k=fetch_k, min_score=0.1)
@@ -344,7 +345,7 @@ class AdvancedRetriever:
         top_k: int,
         allowed_indices: Optional[Set[int]]
     ) -> List[Tuple[int, float, float, float, bool]]:
-        """Recherche BM25 uniquement."""
+        """BM25 search only."""
         if not self.bm25_index:
             return []
 
@@ -368,7 +369,7 @@ class AdvancedRetriever:
         top_k: int,
         allowed_indices: Optional[Set[int]]
     ) -> List[Tuple[int, float, float, float, bool]]:
-        """Recherche hybride (dense + BM25)."""
+        """Hybrid search (dense + BM25)."""
         # Dense search
         query_embedding = self.embedding_model.encode_single(query)
         dense_results = self.vector_store.search(query_embedding, top_k=top_k * 3, min_score=0.0)
@@ -379,20 +380,20 @@ class AdvancedRetriever:
         else:
             bm25_scores = np.zeros(len(self.vector_store.chunks))
 
-        # Construire un dictionnaire des scores dense
+        # Build dictionary of dense scores
         dense_dict = {}
         for r in dense_results:
             idx = self.vector_store.chunks.index(r.chunk)
             dense_dict[idx] = r.score
 
-        # Fusionner les scores
+        # Merge scores
         all_indices = set(dense_dict.keys())
         if self.bm25_index:
-            # Ajouter les indices avec un score BM25 significatif
+            # Add indices with significant BM25 score
             bm25_top = np.argsort(bm25_scores)[-top_k * 3:]
             all_indices.update(bm25_top)
 
-        # Normaliser et combiner
+        # Normalize and combine
         dense_values = np.array([dense_dict.get(i, 0.0) for i in all_indices])
         bm25_values = np.array([bm25_scores[i] for i in all_indices])
         indices = list(all_indices)
@@ -408,10 +409,10 @@ class AdvancedRetriever:
         else:
             bm25_norm = bm25_values
 
-        # Fusion avec alpha
+        # Fusion with alpha
         combined = self.hybrid_alpha * dense_norm + (1 - self.hybrid_alpha) * bm25_norm
 
-        # Trier par score combiné
+        # Sort by combined score
         sorted_indices = np.argsort(combined)[::-1]
 
         candidates = []
@@ -440,27 +441,27 @@ class AdvancedRetriever:
         candidates: List[Tuple[int, float, float, float, bool]],
         top_k: int
     ) -> List[Tuple[int, float, float, float, bool]]:
-        """Applique le reranking cross-encoder avec fusion des scores."""
-        # Préparer les paires pour le reranker
-        # On passe le score combiné (hybrid) comme score de densité
+        """Applies cross-encoder reranking with score fusion."""
+        # Prepare pairs for reranker
+        # Pass combined (hybrid) score as density score
         chunks_for_rerank = [(self.vector_store.chunks[idx], score) for idx, _, _, score, _ in candidates]
 
-        # Utiliser rerank_with_fusion pour combiner les scores correctement
-        # (dense + rerank avec normalisation)
+        # Use rerank_with_fusion to combine scores correctly
+        # (dense + rerank with normalization)
         reranked = self.reranker.rerank_with_fusion(
             query,
             chunks_for_rerank,
             top_k=top_k,
-            alpha=0.5  # Équilibre entre score hybride (50%) et reranker (50%)
+            alpha=0.5  # Balance between hybrid score (50%) and reranker (50%)
         )
 
-        # Reconstruire la liste avec les nouveaux scores fusionnés
+        # Reconstruct list with new fused scores
         result = []
         for rr in reranked:
-            # Retrouver l'index
+            # Find index
             for idx, dense, bm25, combined, expanded in candidates:
                 if self.vector_store.chunks[idx].chunk_id == rr.chunk.chunk_id:
-                    # rr.rerank_score contient maintenant le score fusionné normalisé
+                    # rr.rerank_score now contains the normalized fused score
                     result.append((idx, dense, bm25, rr.rerank_score, expanded))
                     break
 
@@ -470,7 +471,7 @@ class AdvancedRetriever:
         self,
         candidates: List[Tuple[int, float, float, float, bool]]
     ) -> List[Tuple[int, float, float, float, bool]]:
-        """Ajoute les chunks adjacents (context expansion)."""
+        """Adds adjacent chunks (context expansion)."""
         expanded = list(candidates)
         seen_indices = {c[0] for c in candidates}
 
@@ -484,7 +485,7 @@ class AdvancedRetriever:
             for adj_idx in adjacent_indices:
                 if adj_idx not in seen_indices:
                     seen_indices.add(adj_idx)
-                    # Score réduit pour les chunks expandés
+                    # Reduced score for expanded chunks
                     expanded.append((adj_idx, 0.0, 0.0, score * 0.5, True))
 
         return expanded
@@ -494,29 +495,29 @@ class AdvancedRetriever:
         results: List[AdvancedSearchResult],
         summary_results: List[SummarySearchResult] = None
     ) -> str:
-        """Formate les résultats en contexte pour le LLM."""
+        """Formats results into context for the LLM."""
         context_parts = []
 
-        # Ajouter les résumés hiérarchiques en premier (vue d'ensemble)
+        # Add hierarchical summaries first (overview)
         if summary_results:
-            context_parts.append("=== RÉSUMÉS GLOBAUX (VUE D'ENSEMBLE) ===\n")
+            context_parts.append("=== GLOBAL SUMMARIES (OVERVIEW) ===\n")
             summary_context = self.summary_store.format_summary_context(summary_results)
             context_parts.append(summary_context)
             context_parts.append("\n" + "=" * 50 + "\n")
 
         if not results and not summary_results:
-            return "Aucun document pertinent trouvé."
+            return "No relevant documents found."
 
-        # Ajouter les chunks détaillés
+        # Add detailed chunks
         for result in results:
             chunk = result.chunk
-            expanded_tag = " [CONTEXTE ADJACENT]" if result.is_expanded else ""
+            expanded_tag = " [ADJACENT CONTEXT]" if result.is_expanded else ""
 
             header = (
                 f"=== DOCUMENT {result.rank}{expanded_tag} ===\n"
                 f"Source: {chunk.file_source}\n"
                 f"Participants: {', '.join(chunk.participants)}\n"
-                f"Période: {chunk.date_start[:10]} → {chunk.date_end[:10]}\n"
+                f"Period: {chunk.date_start[:10]} → {chunk.date_end[:10]}\n"
                 f"Score: {result.final_score:.2f}\n"
                 f"---\n"
             )
@@ -524,7 +525,7 @@ class AdvancedRetriever:
             content = chunk.content
             max_chars = 2500 if not result.is_expanded else 1500
             if len(content) > max_chars:
-                content = content[:max_chars] + "\n[... tronqué ...]"
+                content = content[:max_chars] + "\n[... truncated ...]"
 
             context_parts.append(header + content)
 
@@ -539,14 +540,14 @@ def create_advanced_retriever(
     enable_summaries: bool = True
 ) -> Tuple[AdvancedRetriever, dict]:
     """
-    Factory pour créer un AdvancedRetriever avec toutes ses dépendances.
+    Factory to create an AdvancedRetriever with all its dependencies.
 
     Returns:
         (retriever, components_dict)
     """
     config = config or default_config
 
-    # Charger les composants
+    # Load components
     from .embeddings import EmbeddingModel
     from .vector_store import VectorStore
 
@@ -554,7 +555,7 @@ def create_advanced_retriever(
     vector_store = VectorStore(config)
 
     if not vector_store.load():
-        raise RuntimeError("Index FAISS non trouvé. Lancez d'abord setup_rag_batch.py")
+        raise RuntimeError("FAISS index not found. Run setup_rag_batch.py first")
 
     components = {
         'embedding_model': embedding_model,
@@ -566,7 +567,7 @@ def create_advanced_retriever(
     if enable_bm25:
         bm25_index = BM25Index(config)
         if not bm25_index.load():
-            print("⚠️  Index BM25 non trouvé, construction...")
+            print("⚠️  BM25 index not found, building...")
             bm25_index.chunks = vector_store.chunks
             bm25_index.build_index(vector_store.chunks)
             bm25_index.save()
@@ -580,7 +581,7 @@ def create_advanced_retriever(
     if enable_metadata:
         metadata_store = MetadataStore(config)
         if not (config.index_dir / "metadata.db").exists():
-            print("⚠️  Index métadonnées non trouvé, construction...")
+            print("⚠️  Metadata index not found, building...")
             metadata_store.build_index(vector_store.chunks)
         components['metadata_store'] = metadata_store
 
@@ -595,10 +596,10 @@ def create_advanced_retriever(
     if enable_summaries:
         summary_store = SummaryStore(config, embedding_model)
         if summary_store.load():
-            print(f"✅ Summary index chargé: {len(summary_store.conversation_summaries)} conversations, {len(summary_store.period_summaries)} périodes")
+            print(f"✅ Summary index loaded: {len(summary_store.conversation_summaries)} conversations, {len(summary_store.period_summaries)} periods")
             components['summary_store'] = summary_store
         else:
-            print("⚠️  Index des résumés non trouvé. Lancez setup_rag_batch.py pour le générer.")
+            print("⚠️  Summary index not found. Run setup_rag_batch.py to generate it.")
             summary_store = None
 
     retriever = AdvancedRetriever(

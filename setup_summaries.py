@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Étapes 7-8: Génération des résumés hiérarchiques et leur index FAISS.
+Steps 7-8: Generating hierarchical summaries and their FAISS index.
 
-Ce script génère les résumés de conversations et de périodes via LLM,
-puis construit un index FAISS dédié pour la recherche dans ces résumés.
+This script generates conversation and period summaries via LLM,
+then builds a dedicated FAISS index for searching these summaries.
 
 Usage:
-    python setup_summaries.py              # Génère les résumés et leur index
-    python setup_summaries.py --reset      # Régénère tous les résumés
-    python setup_summaries.py --model qwen2.5:3b  # Override du modèle LLM
+    python setup_summaries.py              # Generate summaries and their index
+    python setup_summaries.py --reset      # Regenerate all summaries
+    python setup_summaries.py --model qwen2.5:3b  # Override LLM model
 """
 import sys
 import time
@@ -28,70 +28,70 @@ from rag_pipeline.cli_utils import print_header, format_duration
 
 
 def run(config: Config, reset: bool = False, model: str = None) -> bool:
-    """Point d'entrée appelable par l'orchestrateur.
+    """Entry point callable by the orchestrator.
 
     Args:
-        config: Configuration du pipeline
-        reset: Si True, régénère tous les résumés
-        model: Override du modèle LLM
+        config: Pipeline configuration
+        reset: If True, regenerates all summaries
+        model: Override LLM model
 
     Returns:
-        True si succès, False sinon
+        True if success, False otherwise
     """
     if model:
         config.llm_model = model
-        print(f"Override modèle LLM: {config.llm_model}")
+        print(f"Override LLM model: {config.llm_model}")
 
-    # Charger les chunks
+    # Load chunks
     chunker = ConversationChunker(config)
     if not config.chunks_cache_path.exists():
-        print("Erreur: Pas de chunks trouvés. Exécutez d'abord setup_chunks.py")
+        print("Error: No chunks found. Run setup_chunks.py first")
         return False
 
     chunks = chunker.load_chunks()
-    print(f"{len(chunks)} chunks chargés")
+    print(f"{len(chunks)} chunks loaded")
 
-    # Chemins des fichiers de résumés
+    # Summary file paths
     conv_summaries_path = config.index_dir / "conversation_summaries.json"
     period_summaries_path = config.index_dir / "period_summaries.json"
     summary_index_path = config.index_dir / "summary_index"
 
-    # Reset si demandé
+    # Reset if requested
     if reset:
         import shutil
         if conv_summaries_path.exists():
             conv_summaries_path.unlink()
-            print("Résumés de conversation supprimés")
+            print("Conversation summaries deleted")
         if period_summaries_path.exists():
             period_summaries_path.unlink()
-            print("Résumés de période supprimés")
+            print("Period summaries deleted")
         if summary_index_path.exists():
             shutil.rmtree(summary_index_path)
-            print("Index des résumés supprimé")
+            print("Summary index deleted")
         print()
 
     # ========================================
-    # Étape 7: Génération des résumés
+    # Step 7: Summary Generation
     # ========================================
-    print_header("Génération des résumés hiérarchiques (LLM)", step="7/8")
+    print_header("Generating Hierarchical Summaries (LLM)", step="7/8")
 
     conversation_summaries = []
     period_summaries = []
 
     if conv_summaries_path.exists() and period_summaries_path.exists() and not reset:
-        print("Résumés hiérarchiques déjà générés.")
+        print("Hierarchical summaries already generated.")
         with open(conv_summaries_path, 'r', encoding='utf-8') as f:
             conv_data = json.load(f)
         with open(period_summaries_path, 'r', encoding='utf-8') as f:
             period_data = json.load(f)
-        print(f"   - {len(conv_data)} résumés de conversation")
-        print(f"   - {len(period_data)} résumés de période")
+        print(f"   - {len(conv_data)} conversation summaries")
+        print(f"   - {len(period_data)} period summaries")
 
         conversation_summaries = [ConversationSummary.from_dict(d) for d in conv_data]
         period_summaries = [PeriodSummary.from_dict(d) for d in period_data]
     else:
-        print(f"Génération via Ollama ({config.llm_model})...")
-        print("   Cette étape peut prendre du temps selon le nombre de conversations.")
+        print(f"Generating via Ollama ({config.llm_model})...")
+        print("   This step may take time depending on the number of conversations.")
 
         summary_generator = SummaryGenerator(config)
 
@@ -103,7 +103,7 @@ def run(config: Config, reset: bool = False, model: str = None) -> bool:
                 speed = current / elapsed if elapsed > 0 else 0
                 remaining = (total - current) / speed if speed > 0 else 0
                 rem_str = format_duration(remaining)
-                sys.stdout.write(f"\r   [{current}/{total}] {desc[:40]:<40} | Reste: {rem_str}   ")
+                sys.stdout.write(f"\r   [{current}/{total}] {desc[:40]:<40} | Left: {rem_str}   ")
                 sys.stdout.flush()
 
             def save_summaries(conv_sums, period_sums):
@@ -118,38 +118,38 @@ def run(config: Config, reset: bool = False, model: str = None) -> bool:
                 save_callback=save_summaries
             )
 
-            print(f"\nRésumés générés: {len(conversation_summaries)} conversations, {len(period_summaries)} périodes")
+            print(f"\nSummaries generated: {len(conversation_summaries)} conversations, {len(period_summaries)} periods")
 
         except KeyboardInterrupt:
-            print("\n\nInterruption: les résumés partiels ont été sauvegardés.")
-            print("   Relancez le script pour reprendre.")
+            print("\n\nInterruption: Partial summaries saved.")
+            print("   Rerun script to resume.")
             return False
 
         except Exception as e:
-            print(f"\n\nErreur pendant la génération des résumés: {e}")
+            print(f"\n\nError during summary generation: {e}")
             return False
 
     print()
 
     # ========================================
-    # Étape 8: Index FAISS des résumés
+    # Step 8: FAISS Index for Summaries
     # ========================================
-    print_header("Index FAISS pour les résumés", step="8/8")
+    print_header("FAISS Index for Summaries", step="8/8")
 
     conv_index_exists = (summary_index_path / "conversation_index.faiss").exists()
     period_index_exists = (summary_index_path / "period_index.faiss").exists()
 
     if conv_index_exists and period_index_exists and not reset:
-        print("Index des résumés déjà construit.")
+        print("Summary index already built.")
     else:
         if conversation_summaries or period_summaries:
             embedding_model = EmbeddingModel(config)
             summary_store = SummaryStore(config, embedding_model)
             summary_store.build_indexes(conversation_summaries, period_summaries)
             summary_store.save()
-            print("Index des résumés construit et sauvegardé.")
+            print("Summary index built and saved.")
         else:
-            print("Aucun résumé à indexer.")
+            print("No summaries to index.")
 
     print()
     return True
@@ -157,12 +157,12 @@ def run(config: Config, reset: bool = False, model: str = None) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Étapes 7-8: Génération des résumés hiérarchiques et leur index"
+        description="Steps 7-8: Generating hierarchical summaries and their index"
     )
     parser.add_argument("--reset", action="store_true",
-                        help="Régénère tous les résumés")
+                        help="Regenerate all summaries")
     parser.add_argument("--model", type=str,
-                        help="Override du modèle LLM (ex: qwen2.5:3b)")
+                        help="Override LLM model (e.g. qwen2.5:3b)")
 
     args = parser.parse_args()
     config = Config()

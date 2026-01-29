@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Interface CLI pour converser avec vos conversations Instagram.
-Utilise le RAG Pipeline avancé avec Ollama.
+CLI interface to chat with your Instagram conversations.
+Uses advanced RAG Pipeline with Ollama.
 """
 import sys
-import readline  # Pour l'historique des commandes
+import readline  # For command history
 import argparse
 from pathlib import Path
 
@@ -15,7 +15,7 @@ from rag_pipeline.query_analyzer import QueryAnalyzer
 from rag_pipeline.logger import initialize_logging
 
 
-# Couleurs ANSI pour le terminal
+# ANSI colors for terminal
 class Colors:
     BLUE = '\033[94m'
     GREEN = '\033[92m'
@@ -29,33 +29,33 @@ class Colors:
 
 
 def print_header():
-    """Affiche l'en-tête du programme."""
+    """Displays program header."""
     print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*70}{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.CYAN}🤖 Instagram Assistant - Chat CLI{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.CYAN}{'='*70}{Colors.RESET}\n")
-    print(f"{Colors.DIM}Posez des questions sur vos conversations Instagram.{Colors.RESET}")
-    print(f"{Colors.DIM}Tapez 'exit', 'quit' ou Ctrl+D pour quitter.{Colors.RESET}")
-    print(f"{Colors.DIM}Tapez 'help' pour voir les commandes disponibles.{Colors.RESET}\n")
+    print(f"{Colors.DIM}Ask questions about your Instagram conversations.{Colors.RESET}")
+    print(f"{Colors.DIM}Type 'exit', 'quit' or Ctrl+D to quit.{Colors.RESET}")
+    print(f"{Colors.DIM}Type 'help' to see available commands.{Colors.RESET}\n")
 
 
 def print_help():
-    """Affiche l'aide."""
-    print(f"\n{Colors.BOLD}Commandes disponibles:{Colors.RESET}")
-    print(f"  {Colors.CYAN}help{Colors.RESET}              - Afficher cette aide")
-    print(f"  {Colors.CYAN}exit/quit{Colors.RESET}         - Quitter le programme")
-    print(f"  {Colors.CYAN}clear{Colors.RESET}             - Effacer l'historique de conversation")
-    print(f"  {Colors.CYAN}stats{Colors.RESET}             - Afficher les statistiques du système")
-    print(f"  {Colors.CYAN}filters on/off{Colors.RESET}    - Activer/désactiver les filtres avancés")
+    """Displays help."""
+    print(f"\n{Colors.BOLD}Available commands:{Colors.RESET}")
+    print(f"  {Colors.CYAN}help{Colors.RESET}              - Show this help")
+    print(f"  {Colors.CYAN}exit/quit{Colors.RESET}         - Quit the program")
+    print(f"  {Colors.CYAN}clear{Colors.RESET}             - Clear conversation history")
+    print(f"  {Colors.CYAN}stats{Colors.RESET}             - Show system statistics")
+    print(f"  {Colors.CYAN}filters on/off{Colors.RESET}    - Enable/disable advanced filters")
     print()
-    print(f"{Colors.BOLD}Exemples de questions:{Colors.RESET}")
-    print(f"  • Qu'ai-je discuté avec Marie en 2024 ?")
-    print(f"  • Résume mes conversations de janvier")
-    print(f"  • De quoi parlait ma dernière discussion ?")
+    print(f"{Colors.BOLD}Example questions:{Colors.RESET}")
+    print(f"  • What did I discuss with Marie in 2024?")
+    print(f"  • Summarize my January conversations")
+    print(f"  • What was my last discussion about?")
     print()
 
 
 def print_sources(results, max_sources=5):
-    """Affiche les sources utilisées."""
+    """Displays used sources."""
     if not results:
         return
 
@@ -64,14 +64,14 @@ def print_sources(results, max_sources=5):
 
     for i, result in enumerate(results[:max_sources], 1):
         chunk = result.chunk
-        expanded = f" {Colors.MAGENTA}[contexte adjacent]{Colors.RESET}" if result.is_expanded else ""
+        expanded = f" {Colors.MAGENTA}[adjacent context]{Colors.RESET}" if result.is_expanded else ""
 
         print(f"\n{Colors.BOLD}[{i}]{Colors.RESET} {Colors.CYAN}{chunk.file_source}{Colors.RESET}{expanded}")
         print(f"    Participants: {', '.join(chunk.participants)}")
-        print(f"    Période: {chunk.date_start[:10]} → {chunk.date_end[:10]}")
+        print(f"    Period: {chunk.date_start[:10]} → {chunk.date_end[:10]}")
         print(f"    Score: {Colors.GREEN}{result.final_score:.2f}{Colors.RESET}")
 
-        # Afficher un extrait du résumé narratif
+        # Show a snippet of narrative summary
         if chunk.narrative_summary:
             summary = chunk.narrative_summary[:150]
             if len(chunk.narrative_summary) > 150:
@@ -79,24 +79,24 @@ def print_sources(results, max_sources=5):
             print(f"    {Colors.DIM}{summary}{Colors.RESET}")
 
     if len(results) > max_sources:
-        print(f"\n{Colors.DIM}... et {len(results) - max_sources} autres sources{Colors.RESET}")
+        print(f"\n{Colors.DIM}... and {len(results) - max_sources} other sources{Colors.RESET}")
 
     print(f"{Colors.DIM}{'─'*70}{Colors.RESET}\n")
 
 
 def main_noninteractive(query):
-    """Exécute une seule question et quitte (mode --prompt)."""
+    """Executes a single question and exits (prompt mode)."""
     try:
         config = Config()
 
-        # Vérifier que l'index existe
+        # Check if index exists
         if not (config.vector_store_path / "index.faiss").exists():
-            print(f"{Colors.RED}❌ Erreur: Index FAISS non trouvé.{Colors.RESET}")
-            print(f"{Colors.YELLOW}Veuillez exécuter setup_rag_batch.py d'abord.{Colors.RESET}")
+            print(f"{Colors.RED}❌ Error: FAISS index not found.{Colors.RESET}")
+            print(f"{Colors.YELLOW}Please run setup_rag_batch.py first.{Colors.RESET}")
             sys.exit(1)
 
-        # Charger les composants RAG
-        print(f"{Colors.YELLOW}⏳ Chargement du système RAG...{Colors.RESET}")
+        # Load RAG components
+        print(f"{Colors.YELLOW}⏳ Loading RAG system...{Colors.RESET}")
         retriever, components = create_advanced_retriever(
             config,
             enable_reranking=True,
@@ -104,14 +104,14 @@ def main_noninteractive(query):
             enable_metadata=True
         )
 
-        # Créer le chatbot
+        # Create chatbot
         chatbot = ChatBot(retriever, config)
         query_analyzer = QueryAnalyzer(config)
-        print(f"{Colors.GREEN}✅ Système chargé ({components['vector_store'].size} chunks){Colors.RESET}\n")
+        print(f"{Colors.GREEN}✅ System loaded ({components['vector_store'].size} chunks){Colors.RESET}\n")
 
-        # Traiter la question
-        print(f"{Colors.BOLD}{Colors.BLUE}Vous:{Colors.RESET} {query}\n")
-        print(f"{Colors.DIM}🔍 Analyse de la question...{Colors.RESET}", end='\r')
+        # Process question
+        print(f"{Colors.BOLD}{Colors.BLUE}You:{Colors.RESET} {query}\n")
+        print(f"{Colors.DIM}🔍 Analyzing question...{Colors.RESET}", end='\r')
 
         analysis = query_analyzer.analyze(query, [])
 
@@ -120,7 +120,7 @@ def main_noninteractive(query):
         dyn_expand = analysis.expand_context
         search_query = analysis.rewritten_query
 
-        print(f"{Colors.DIM}🔍 Recherche ({analysis.intent}, k={dyn_top_k})...{Colors.RESET}", end='\r')
+        print(f"{Colors.DIM}🔍 Searching ({analysis.intent}, k={dyn_top_k})...{Colors.RESET}", end='\r')
 
         context = retriever.retrieve(
             query=search_query,
@@ -132,18 +132,18 @@ def main_noninteractive(query):
         )
 
         if not context.has_results:
-            print(f"{Colors.YELLOW}⚠️  Aucun document pertinent trouvé.{Colors.RESET}\n")
+            print(f"{Colors.YELLOW}⚠️  No relevant documents found.{Colors.RESET}\n")
             sys.exit(0)
 
-        # Afficher les sources
+        # Display sources
         print_sources(context.results)
 
-        # Générer la réponse
+        # Generate response
         print(f"{Colors.BOLD}{Colors.GREEN}Assistant:{Colors.RESET} ", end='', flush=True)
 
         prompt = chatbot._build_prompt(query, context)
 
-        # Streaming de la réponse
+        # Response streaming
         response_text = ""
         for token in chatbot._chat_stream(query, prompt, context):
             print(token, end='', flush=True)
@@ -152,24 +152,24 @@ def main_noninteractive(query):
         print("\n")
 
     except Exception as e:
-        print(f"\n{Colors.RED}❌ Erreur: {e}{Colors.RESET}\n")
+        print(f"\n{Colors.RED}❌ Error: {e}{Colors.RESET}\n")
         sys.exit(1)
 
 
 def print_stats(components):
-    """Affiche les statistiques du système."""
+    """Displays system statistics."""
     vector_store = components['vector_store']
     metadata_store = components.get('metadata_store')
 
-    print(f"\n{Colors.BOLD}{Colors.CYAN}📊 Statistiques du système:{Colors.RESET}")
-    print(f"  Chunks indexés: {Colors.GREEN}{vector_store.size}{Colors.RESET}")
+    print(f"\n{Colors.BOLD}{Colors.CYAN}📊 System Statistics:{Colors.RESET}")
+    print(f"  Indexed Chunks: {Colors.GREEN}{vector_store.size}{Colors.RESET}")
 
     if metadata_store:
-        # Requête pour obtenir le nombre de conversations
+        # Query to get conversation count
         cursor = metadata_store.conn.execute("SELECT COUNT(DISTINCT file_source) FROM chunks")
         conv_count = cursor.fetchone()[0]
 
-        # Obtenir la plage de dates
+        # Get date range
         cursor = metadata_store.conn.execute(
             "SELECT MIN(date_start), MAX(date_end) FROM chunks"
         )
@@ -177,14 +177,14 @@ def print_stats(components):
 
         print(f"  Conversations: {Colors.GREEN}{conv_count}{Colors.RESET}")
         if date_range[0] and date_range[1]:
-            print(f"  Période: {Colors.GREEN}{date_range[0][:10]} → {date_range[1][:10]}{Colors.RESET}")
+            print(f"  Period: {Colors.GREEN}{date_range[0][:10]} → {date_range[1][:10]}{Colors.RESET}")
 
     print()
 
 
 def main():
-    """Point d'entrée principal."""
-    # Parser les arguments
+    """Main entry point."""
+    # Parse arguments
     parser = argparse.ArgumentParser(
         description='Instagram Assistant - Chat CLI',
         add_help=False
@@ -192,22 +192,22 @@ def main():
     parser.add_argument(
         '--prompt',
         type=str,
-        help='Question à poser (mode non-interactif)'
+        help='Question to ask (non-interactive mode)'
     )
     parser.add_argument(
         '-h', '--help',
         action='store_true',
-        help='Afficher l\'aide'
+        help='Show help'
     )
     parser.add_argument(
         '--log-verbose',
         action='store_true',
-        help='Activer les logs détaillés'
+        help='Enable verbose logging'
     )
 
     args = parser.parse_args()
 
-    # Initialiser le logging selon le flag
+    # Initialize logging according to flag
     initialize_logging(args.log_verbose)
 
     if args.help:
@@ -216,24 +216,24 @@ def main():
         sys.exit(0)
 
     if args.prompt:
-        # Mode non-interactif: exécuter une seule question
+        # Non-interactive mode: execute single question
         return main_noninteractive(args.prompt)
 
     print_header()
 
-    # Initialisation
-    print(f"{Colors.YELLOW}⏳ Chargement du système RAG...{Colors.RESET}")
+    # Initialization
+    print(f"{Colors.YELLOW}⏳ Loading RAG system...{Colors.RESET}")
 
     try:
         config = Config()
 
-        # Vérifier que l'index existe
+        # Check if index exists
         if not (config.vector_store_path / "index.faiss").exists():
-            print(f"\n{Colors.RED}❌ Erreur: Index FAISS non trouvé.{Colors.RESET}")
-            print(f"{Colors.YELLOW}Veuillez exécuter setup_rag_batch.py d'abord.{Colors.RESET}\n")
+            print(f"\n{Colors.RED}❌ Error: FAISS index not found.{Colors.RESET}")
+            print(f"{Colors.YELLOW}Please run setup_rag_batch.py first.{Colors.RESET}\n")
             sys.exit(1)
 
-        # Charger les composants RAG
+        # Load RAG components
         retriever, components = create_advanced_retriever(
             config,
             enable_reranking=True,
@@ -241,34 +241,34 @@ def main():
             enable_metadata=True
         )
 
-        # Créer le chatbot
+        # Create chatbot
         chatbot = ChatBot(retriever, config)
         query_analyzer = QueryAnalyzer(config)
 
-        print(f"{Colors.GREEN}✅ Système chargé ({components['vector_store'].size} chunks){Colors.RESET}\n")
+        print(f"{Colors.GREEN}✅ System loaded ({components['vector_store'].size} chunks){Colors.RESET}\n")
 
     except Exception as e:
-        print(f"\n{Colors.RED}❌ Erreur lors du chargement: {e}{Colors.RESET}\n")
+        print(f"\n{Colors.RED}❌ Error loading: {e}{Colors.RESET}\n")
         sys.exit(1)
 
-    # Options de recherche
+    # Search options
     use_reranking = True
     use_hybrid = True
     expand_context = True
 
-    # Boucle principale
+    # Main loop
     try:
         while True:
             try:
-                # Demander la question
-                query = input(f"{Colors.BOLD}{Colors.BLUE}Vous:{Colors.RESET} ").strip()
+                # Ask question
+                query = input(f"{Colors.BOLD}{Colors.BLUE}You:{Colors.RESET} ").strip()
 
                 if not query:
                     continue
 
-                # Commandes spéciales
+                # Special commands
                 if query.lower() in ['exit', 'quit']:
-                    print(f"\n{Colors.CYAN}👋 Au revoir!{Colors.RESET}\n")
+                    print(f"\n{Colors.CYAN}👋 Goodbye!{Colors.RESET}\n")
                     break
 
                 elif query.lower() == 'help':
@@ -277,7 +277,7 @@ def main():
 
                 elif query.lower() == 'clear':
                     chatbot.conversation_history.clear()
-                    print(f"{Colors.GREEN}✅ Historique effacé{Colors.RESET}\n")
+                    print(f"{Colors.GREEN}✅ History cleared{Colors.RESET}\n")
                     continue
 
                 elif query.lower() == 'stats':
@@ -289,14 +289,14 @@ def main():
                     if len(parts) == 2:
                         if parts[1] == 'on':
                             use_reranking = use_hybrid = expand_context = True
-                            print(f"{Colors.GREEN}✅ Filtres avancés activés{Colors.RESET}\n")
+                            print(f"{Colors.GREEN}✅ Advanced filters enabled{Colors.RESET}\n")
                         elif parts[1] == 'off':
                             use_reranking = use_hybrid = expand_context = False
-                            print(f"{Colors.YELLOW}⚠️  Filtres avancés désactivés{Colors.RESET}\n")
+                            print(f"{Colors.YELLOW}⚠️  Advanced filters disabled{Colors.RESET}\n")
                     continue
 
-                # Recherche
-                print(f"\n{Colors.DIM}🔍 Analyse de la question...{Colors.RESET}", end='\r')
+                # Search
+                print(f"\n{Colors.DIM}🔍 Analyzing question...{Colors.RESET}", end='\r')
                 analysis = query_analyzer.analyze(query, chatbot.conversation_history)
                 
                 dyn_top_k = analysis.top_k
@@ -304,7 +304,7 @@ def main():
                 dyn_expand = analysis.expand_context
                 search_query = analysis.rewritten_query
                 
-                print(f"{Colors.DIM}🔍 Recherche ({analysis.intent}, k={dyn_top_k})...{Colors.RESET}", end='\r')
+                print(f"{Colors.DIM}🔍 Searching ({analysis.intent}, k={dyn_top_k})...{Colors.RESET}", end='\r')
 
                 context = retriever.retrieve(
                     query=search_query,
@@ -317,18 +317,18 @@ def main():
                 )
 
                 if not context.has_results:
-                    print(f"{Colors.YELLOW}⚠️  Aucun document pertinent trouvé.{Colors.RESET}\n")
+                    print(f"{Colors.YELLOW}⚠️  No relevant documents found.{Colors.RESET}\n")
                     continue
 
-                # Afficher les sources
+                # Display sources
                 print_sources(context.results)
 
-                # Générer la réponse
+                # Generate response
                 print(f"{Colors.BOLD}{Colors.GREEN}Assistant:{Colors.RESET} ", end='', flush=True)
 
                 prompt = chatbot._build_prompt(query, context)
 
-                # Streaming de la réponse
+                # Response streaming
                 response_text = ""
                 for token in chatbot._chat_stream(query, prompt, context):
                     print(token, end='', flush=True)
@@ -337,20 +337,20 @@ def main():
                 print("\n")
 
             except KeyboardInterrupt:
-                print(f"\n\n{Colors.YELLOW}Interruption (Ctrl+C détecté){Colors.RESET}")
-                print(f"{Colors.DIM}Tapez 'exit' pour quitter ou continuez à poser des questions.{Colors.RESET}\n")
+                print(f"\n\n{Colors.YELLOW}Interrupted (Ctrl+C detected){Colors.RESET}")
+                print(f"{Colors.DIM}Type 'exit' to quit or continue asking questions.{Colors.RESET}\n")
                 continue
 
             except Exception as e:
-                print(f"\n{Colors.RED}❌ Erreur: {e}{Colors.RESET}\n")
+                print(f"\n{Colors.RED}❌ Error: {e}{Colors.RESET}\n")
                 continue
 
     except EOFError:
         # Ctrl+D
-        print(f"\n\n{Colors.CYAN}👋 Au revoir!{Colors.RESET}\n")
+        print(f"\n\n{Colors.CYAN}👋 Goodbye!{Colors.RESET}\n")
 
     except Exception as e:
-        print(f"\n{Colors.RED}❌ Erreur fatale: {e}{Colors.RESET}\n")
+        print(f"\n{Colors.RED}❌ Fatal error: {e}{Colors.RESET}\n")
         sys.exit(1)
 
 

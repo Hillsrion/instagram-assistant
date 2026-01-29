@@ -1,6 +1,6 @@
 """
-Module d'embeddings pour le RAG Pipeline.
-Utilise sentence-transformers avec le modèle bge-m3 (multilingue).
+Embeddings module for RAG Pipeline.
+Uses sentence-transformers with bge-m3 model (multilingual).
 """
 import numpy as np
 from typing import List, Optional
@@ -10,7 +10,7 @@ from .config import Config, default_config
 
 
 class EmbeddingModel:
-    """Génère des embeddings de haute qualité avec bge-m3."""
+    """Generates high-quality embeddings with bge-m3."""
     
     def __init__(self, config: Config = None):
         self.config = config or default_config
@@ -18,7 +18,7 @@ class EmbeddingModel:
         self._device = None
     
     def _load_model(self):
-        """Charge le modèle d'embeddings (lazy loading)."""
+        """Loads the embedding model (lazy loading)."""
         if self.model is not None:
             return
         
@@ -27,11 +27,11 @@ class EmbeddingModel:
             import torch
         except ImportError:
             raise ImportError(
-                "sentence-transformers est requis. "
-                "Installez avec: pip install sentence-transformers"
+                "sentence-transformers is required. "
+                "Install with: pip install sentence-transformers"
             )
         
-        # Déterminer le device
+        # Determine device
         if self.config.use_gpu and torch.cuda.is_available():
             self._device = "cuda"
         elif self.config.use_gpu and torch.backends.mps.is_available():
@@ -39,7 +39,7 @@ class EmbeddingModel:
         else:
             self._device = "cpu"
         
-        print(f"📦 Chargement du modèle {self.config.embedding_model}...")
+        print(f"📦 Loading model {self.config.embedding_model}...")
         print(f"🖥️  Device: {self._device}")
         
         self.model = SentenceTransformer(
@@ -47,45 +47,45 @@ class EmbeddingModel:
             device=self._device
         )
         
-        print("✅ Modèle chargé")
+        print("✅ Model loaded")
     
     def encode(self, texts: List[str], show_progress: bool = True) -> np.ndarray:
         """
-        Encode une liste de textes en embeddings.
+        Encodes a list of texts into embeddings.
         
         Args:
-            texts: Liste de textes à encoder
-            show_progress: Afficher une barre de progression
+            texts: List of texts to encode
+            show_progress: Show progress bar
             
         Returns:
-            Matrice numpy de shape (n_texts, embedding_dim)
+            Numpy matrix of shape (n_texts, embedding_dim)
         """
         self._load_model()
         
         embeddings = self.model.encode(
             texts,
             show_progress_bar=show_progress,
-            normalize_embeddings=True,  # Normalisation pour cosine similarity
+            normalize_embeddings=True,  # Normalization for cosine similarity
             batch_size=32,
         )
         
         return embeddings
     
     def encode_single(self, text: str) -> np.ndarray:
-        """Encode un seul texte."""
+        """Encodes a single text."""
         return self.encode([text], show_progress=False)[0]
     
     @property
     def dimension(self) -> int:
-        """Retourne la dimension des embeddings."""
+        """Returns the embedding dimension."""
         self._load_model()
         return self.model.get_sentence_embedding_dimension()
 
 
 class OllamaEmbeddings:
     """
-    Alternative: utilise Ollama pour les embeddings (nomic-embed-text).
-    Plus lent mais ne nécessite pas sentence-transformers.
+    Alternative: uses Ollama for embeddings (nomic-embed-text).
+    Slower but does not require sentence-transformers.
     """
     
     def __init__(self, config: Config = None):
@@ -93,7 +93,7 @@ class OllamaEmbeddings:
         self.model_name = "nomic-embed-text"
     
     def _call_ollama(self, text: str) -> List[float]:
-        """Appelle l'API Ollama pour obtenir un embedding."""
+        """Calls Ollama API to get an embedding."""
         import requests
         
         response = requests.post(
@@ -107,7 +107,7 @@ class OllamaEmbeddings:
         return response.json()["embedding"]
     
     def encode(self, texts: List[str], show_progress: bool = True) -> np.ndarray:
-        """Encode une liste de textes via Ollama."""
+        """Encodes a list of texts via Ollama."""
         embeddings = []
         
         iterator = texts
@@ -125,10 +125,10 @@ class OllamaEmbeddings:
         return np.array(embeddings, dtype=np.float32)
     
     def encode_single(self, text: str) -> np.ndarray:
-        """Encode un seul texte."""
+        """Encodes a single text."""
         return np.array(self._call_ollama(text), dtype=np.float32)
     
     @property
     def dimension(self) -> int:
-        """Retourne la dimension des embeddings (768 pour nomic-embed-text)."""
+        """Returns the embedding dimension (768 for nomic-embed-text)."""
         return 768

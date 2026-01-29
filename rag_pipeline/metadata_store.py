@@ -1,6 +1,6 @@
 """
-Store de métadonnées SQLite pour pre-filtering.
-Permet de filtrer les chunks AVANT la recherche vectorielle.
+SQLite Metadata Store for pre-filtering.
+Allows filtering chunks BEFORE vector search.
 """
 import sqlite3
 import json
@@ -14,13 +14,13 @@ from .chunker import Chunk
 
 class MetadataStore:
     """
-    Store SQLite pour les métadonnées des chunks.
+    SQLite Store for chunk metadata.
 
-    Permet des requêtes rapides sur:
+    Allows fast queries on:
     - Participants
     - Dates
     - Conversation ID
-    - Nombre de messages
+    - Message count
     """
 
     def __init__(self, config: Config = None):
@@ -29,17 +29,17 @@ class MetadataStore:
         self.conn: Optional[sqlite3.Connection] = None
 
     def _connect(self):
-        """Connexion à la base SQLite."""
+        """Connection to SQLite database."""
         if self.conn is None:
             self.conn = sqlite3.connect(str(self.db_path))
             self.conn.row_factory = sqlite3.Row
 
     def _create_tables(self):
-        """Crée les tables nécessaires."""
+        """Creates necessary tables."""
         self._connect()
 
         self.conn.executescript("""
-            -- Table principale des chunks
+            -- Main chunks table
             CREATE TABLE IF NOT EXISTS chunks (
                 id INTEGER PRIMARY KEY,
                 chunk_id TEXT UNIQUE NOT NULL,
@@ -54,14 +54,14 @@ class MetadataStore:
                 month_end INTEGER
             );
 
-            -- Table de liaison chunks <-> participants
+            -- Chunks <-> participants link table
             CREATE TABLE IF NOT EXISTS chunk_participants (
                 chunk_idx INTEGER NOT NULL,
                 participant TEXT NOT NULL,
                 PRIMARY KEY (chunk_idx, participant)
             );
 
-            -- Table des entités nommées
+            -- Named entities table
             CREATE TABLE IF NOT EXISTS chunk_entities (
                 chunk_idx INTEGER NOT NULL,
                 category TEXT NOT NULL,
@@ -69,7 +69,7 @@ class MetadataStore:
                 PRIMARY KEY (chunk_idx, category, value)
             );
 
-            -- Index pour les recherches rapides
+            -- Indexes for fast lookups
             CREATE INDEX IF NOT EXISTS idx_conversation ON chunks(conversation_id);
             CREATE INDEX IF NOT EXISTS idx_date_start ON chunks(date_start);
             CREATE INDEX IF NOT EXISTS idx_year_start ON chunks(year_start);
@@ -81,24 +81,24 @@ class MetadataStore:
 
     def build_index(self, chunks: List[Chunk]):
         """
-        Construit l'index de métadonnées.
+        Builds the metadata index.
 
         Args:
-            chunks: Liste des chunks à indexer
+            chunks: List of chunks to index
         """
-        print(f"📋 Construction de l'index métadonnées ({len(chunks)} chunks)...")
+        print(f"📋 Building metadata index ({len(chunks)} chunks)...")
 
         self._connect()
         self._create_tables()
 
-        # Vider les tables existantes
+        # Clear existing tables
         self.conn.execute("DELETE FROM chunk_participants")
         self.conn.execute("DELETE FROM chunks")
         self.conn.execute("DELETE FROM chunk_entities")
 
-        # Insérer les chunks
+        # Insert chunks
         for idx, chunk in enumerate(chunks):
-            # Parser les dates
+            # Parse dates
             try:
                 dt_start = datetime.strptime(chunk.date_start, '%Y-%m-%d %H:%M:%S')
                 dt_end = datetime.strptime(chunk.date_end, '%Y-%m-%d %H:%M:%S')
@@ -118,14 +118,14 @@ class MetadataStore:
                 chunk.file_source, year_start, month_start, year_end, month_end
             ))
 
-            # Insérer les participants
+            # Insert participants
             for participant in chunk.participants:
                 self.conn.execute("""
                     INSERT OR IGNORE INTO chunk_participants (chunk_idx, participant)
                     VALUES (?, ?)
                 """, (idx, participant.lower()))
 
-            # Insérer les entités
+            # Insert entities
             if chunk.entities:
                 for category, values in chunk.entities.items():
                     for value in values:
@@ -135,7 +135,7 @@ class MetadataStore:
                         """, (idx, category.lower(), value.lower()))
 
         self.conn.commit()
-        print(f"✅ Index métadonnées construit")
+        print(f"✅ Metadata index built")
 
     def filter_by_participant(
         self,
@@ -143,14 +143,14 @@ class MetadataStore:
         chunk_indices: Optional[Set[int]] = None
     ) -> Set[int]:
         """
-        Filtre les chunks par participant.
+        Filter chunks by participant.
 
         Args:
-            participant: Nom (partiel) du participant
-            chunk_indices: Ensemble de départ (None = tous)
+            participant: Name (partial) of the participant
+            chunk_indices: Starting set (None = all)
 
         Returns:
-            Ensemble d'indices de chunks
+            Set of chunk indices
         """
         self._connect()
 
@@ -172,15 +172,15 @@ class MetadataStore:
         chunk_indices: Optional[Set[int]] = None
     ) -> Set[int]:
         """
-        Filtre les chunks par entité nommée.
+        Filter chunks by named entity.
         
         Args:
-            value: Valeur de l'entité (ex: "Paris")
-            category: Catégorie optionnelle (ex: "locations")
-            chunk_indices: Ensemble de départ
+            value: Entity value (e.g., "Paris")
+            category: Optional category (e.g., "locations")
+            chunk_indices: Starting set
             
         Returns:
-            Ensemble d'indices de chunks
+            Set of chunk indices
         """
         self._connect()
         
@@ -211,15 +211,15 @@ class MetadataStore:
         chunk_indices: Optional[Set[int]] = None
     ) -> Set[int]:
         """
-        Filtre les chunks par période.
+        Filter chunks by period.
 
         Args:
-            start_date: Date de début (format: YYYY, YYYY-MM, ou YYYY-MM-DD)
-            end_date: Date de fin
-            chunk_indices: Ensemble de départ
+            start_date: Start date (format: YYYY, YYYY-MM, or YYYY-MM-DD)
+            end_date: End date
+            chunk_indices: Starting set
 
         Returns:
-            Ensemble d'indices de chunks
+            Set of chunk indices
         """
         self._connect()
 
@@ -250,7 +250,7 @@ class MetadataStore:
         year: int,
         chunk_indices: Optional[Set[int]] = None
     ) -> Set[int]:
-        """Filtre les chunks par année."""
+        """Filter chunks by year."""
         self._connect()
 
         query = """
@@ -269,7 +269,7 @@ class MetadataStore:
         conversation_id: str,
         chunk_indices: Optional[Set[int]] = None
     ) -> Set[int]:
-        """Filtre les chunks par conversation."""
+        """Filter chunks by conversation."""
         self._connect()
 
         query = "SELECT id FROM chunks WHERE conversation_id LIKE ?"
@@ -282,10 +282,10 @@ class MetadataStore:
 
     def get_all_participants(self) -> List[Tuple[str, int]]:
         """
-        Liste tous les participants avec leur nombre de chunks.
+        List all participants with their chunk count.
 
         Returns:
-            Liste de (participant, count) triés par count
+            List of (participant, count) sorted by count
         """
         self._connect()
 
@@ -299,7 +299,7 @@ class MetadataStore:
         return [(row[0], row[1]) for row in cursor.fetchall()]
 
     def get_date_range(self) -> Tuple[str, str]:
-        """Retourne la plage de dates globale."""
+        """Returns the global date range."""
         self._connect()
 
         cursor = self.conn.execute("""
@@ -309,7 +309,7 @@ class MetadataStore:
         return (row[0], row[1]) if row else (None, None)
 
     def _count_chunks(self) -> int:
-        """Compte le nombre total de chunks."""
+        """Counts total chunks."""
         self._connect()
         cursor = self.conn.execute("SELECT COUNT(*) FROM chunks")
         return cursor.fetchone()[0]
@@ -320,18 +320,18 @@ class MetadataStore:
         window: int = 1
     ) -> List[int]:
         """
-        Récupère les indices des chunks adjacents (même conversation).
+        Retrieves indices of adjacent chunks (same conversation).
 
         Args:
-            chunk_id: ID du chunk central
-            window: Nombre de chunks avant/après
+            chunk_id: ID of the central chunk
+            window: Number of chunks before/after
 
         Returns:
-            Liste d'indices de chunks (incluant le chunk central)
+            List of chunk indices (including the central chunk)
         """
         self._connect()
 
-        # Parser le chunk_id pour extraire conversation_id et numéro
+        # Parse chunk_id to extract conversation_id and number
         parts = chunk_id.rsplit("_chunk_", 1)
         if len(parts) != 2:
             return []
@@ -342,13 +342,13 @@ class MetadataStore:
         except ValueError:
             return []
 
-        # Trouver les chunks adjacents
+        # Find adjacent chunks
         adjacent_ids = []
         for offset in range(-window, window + 1):
             target_id = f"{conv_id}_chunk_{chunk_num + offset:03d}"
             adjacent_ids.append(target_id)
 
-        # Récupérer les indices
+        # Retrieve indices
         placeholders = ','.join('?' * len(adjacent_ids))
         query = f"SELECT id FROM chunks WHERE chunk_id IN ({placeholders})"
         cursor = self.conn.execute(query, adjacent_ids)
@@ -356,7 +356,7 @@ class MetadataStore:
         return [row[0] for row in cursor.fetchall()]
 
     def close(self):
-        """Ferme la connexion."""
+        """Closes the connection."""
         if self.conn:
             self.conn.close()
             self.conn = None

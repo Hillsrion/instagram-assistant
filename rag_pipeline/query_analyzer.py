@@ -1,7 +1,4 @@
-"""
-Analyseur de requêtes consolidé (Omni-Prompt).
-Fusionne la réécriture, la détection d'intention et l'extraction de dates en un seul appel LLM.
-"""
+"Consolidated Query Analyzer (Omni-Prompt).\nMerges rewriting, intent detection, and date extraction into a single LLM call.\n"
 import json
 import requests
 from datetime import datetime
@@ -14,10 +11,10 @@ logger = get_logger()
 
 @dataclass
 class AnalysisResult:
-    """Résultat consolidé de l'analyse d'une requête."""
+    """Consolidated analysis result of a query."""
     rewritten_query: str
     intent: str
-    mode: str # 'retrieval' ou 'analytics'
+    mode: str # 'retrieval' or 'analytics'
     top_k: int
     date_start: Optional[str] = None
     date_end: Optional[str] = None
@@ -25,7 +22,7 @@ class AnalysisResult:
     expand_context: bool = True
 
 class QueryAnalyzer:
-    """Analyseur unique pour réduire la latence du pipeline RAG."""
+    """Unified analyzer to reduce RAG pipeline latency."""
 
     def __init__(self, config: Config = None):
         self.config = config or default_config
@@ -34,9 +31,9 @@ class QueryAnalyzer:
 
     def analyze(self, query: str, history: List[Dict[str, str]]) -> AnalysisResult:
         """
-        Effectue une analyse complète de la requête en un seul appel LLM.
+        Performs full query analysis in a single LLM call.
         """
-        # Formater l'historique récent
+        # Format recent history
         recent_history = history[-6:] if history else []
         formatted_history = ""
         for msg in recent_history:
@@ -46,6 +43,7 @@ class QueryAnalyzer:
         today_str = self.today.strftime('%A %d %B %Y')
         iso_str = self.today.strftime('%Y-%m-%d')
 
+        # Prompt kept in French mostly as it deals with French queries
         system_prompt = f"""Tu es un pré-processeur RAG (STRICT, JSON uniquement).
 Aujourd'hui: {today_str} (ISO: {iso_str}).
 
@@ -96,7 +94,7 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
   "mode": "analytics|retrieval",
   "rewritten_query": "la question reformulée",
   "intent": "specific_fact|broad_summary|complex_reasoning",
-  "date_range": {{"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}}
+  "date_range": {{"{'start'}": "YYYY-MM-DD", "{'end'}": "YYYY-MM-DD"}}
 }}"""
 
         user_content = f"HISTORIQUE :\n{formatted_history}\n\nDERNIÈRE QUESTION : {query}"
@@ -127,7 +125,7 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
             logger.debug(f"LLM raw response: {content}")
             data = json.loads(content)
 
-            # Mapping des paramètres selon l'intention
+            # Map parameters based on intent
             intent = data.get("intent", "complex_reasoning")
             params = self._get_params_for_intent(intent)
             mode = data.get("mode", "retrieval")
@@ -136,11 +134,11 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
             date_start = date_range.get("start")
             date_end = date_range.get("end")
 
-            # Validation: ignorer les dates vagues ou auto-détectées
-            # (Si la question ne mentionne pas de période spécifique, ne pas filtrer)
-            # Détection simple: si date_start = "YYYY-01-01" c'est probablement "depuis le début de l'année"
+            # Validation: ignore vague or auto-detected dates if suspicious
+            # (If query doesn't mention specific period, do not filter)
+            # Simple detection: if date_start = "YYYY-01-01" it's likely "since beginning of year"
             if date_start and "-01-01" in date_start:
-                # Pas une date spécifique, c'est une détection floue → ignorer
+                # Not a specific date, it's a fuzzy detection → ignore
                 logger.debug(f"  Ignoring vague date detection: {date_start}")
                 date_start = None
                 date_end = None
@@ -163,7 +161,7 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
         except Exception as e:
             logger.error(f"❌ Query Analysis Error: {e}", exc_info=True)
             logger.warning(f"⚠️ Falling back to default retrieval mode")
-            # Fallback sur les valeurs par défaut
+            # Fallback to default values
             return AnalysisResult(
                 rewritten_query=query,
                 intent="complex_reasoning",
@@ -172,7 +170,7 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
             )
 
     def _get_params_for_intent(self, intent: str) -> Dict[str, Any]:
-        """Retourne les paramètres de recherche optimisés pour une intention."""
+        """Returns optimized search parameters for an intent."""
         if intent == "specific_fact":
             return {
                 "top_k": 5,
@@ -182,10 +180,10 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
         elif intent == "broad_summary":
             return {
                 "top_k": 15,
-                "use_reranking": False, # Trop de docs, on privilégie la masse
+                "use_reranking": False, # Too many docs, prioritize mass
                 "expand_context": True
             }
-        else: # complex_reasoning ou fallback
+        else: # complex_reasoning or fallback
             return {
                 "top_k": 10,
                 "use_reranking": True,

@@ -121,11 +121,11 @@ def generate_dashboard_html(model_metrics: Dict[str, Dict[str, Any]], output_pat
         """
 
     html = f"""<!DOCTYPE html>
-<html lang="fr" class="h-full bg-slate-50">
+<html lang="en" class="h-full bg-slate-50">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Multi-Modeles</title>
+    <title>Multi-Model Dashboard</title>
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -139,17 +139,17 @@ def generate_dashboard_html(model_metrics: Dict[str, Dict[str, Any]], output_pat
             <!-- Header -->
             <div class="text-center mb-12">
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight sm:text-5xl">
-                    Dashboard Multi-Modeles
+                    Multi-Model Dashboard
                 </h1>
                 <p class="mt-4 text-lg text-slate-600">
-                    Comparaison de <span class="font-semibold text-indigo-600">{len(models)}</span> modeles
-                    sur <span class="font-semibold text-indigo-600">{sum(d['num_reports'] for d in model_metrics.values())}</span> rapports
+                    Comparing <span class="font-semibold text-indigo-600">{len(models)}</span> models
+                    across <span class="font-semibold text-indigo-600">{sum(d['num_reports'] for d in model_metrics.values())}</span> reports
                 </p>
             </div>
 
             <!-- Model Filters -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8">
-                <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Filtrer les modeles</h3>
+                <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Filter Models</h3>
                 <div class="flex flex-wrap">
                     {checkboxes}
                 </div>
@@ -166,7 +166,7 @@ def generate_dashboard_html(model_metrics: Dict[str, Dict[str, Any]], output_pat
                     <div class="h-64"><canvas id="relevChart"></canvas></div>
                 </div>
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 class="text-lg font-bold text-slate-900 mb-6">Vitesse (mots/sec)</h3>
+                    <h3 class="text-lg font-bold text-slate-900 mb-6">Speed (words/sec)</h3>
                     <div class="h-64"><canvas id="speedChart"></canvas></div>
                 </div>
             </div>
@@ -174,16 +174,16 @@ def generate_dashboard_html(model_metrics: Dict[str, Dict[str, Any]], output_pat
             <!-- Table -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-200">
-                    <h3 class="text-lg font-bold text-slate-900">Details par modele</h3>
+                    <h3 class="text-lg font-bold text-slate-900">Details per Model</h3>
                 </div>
                 <table class="min-w-full divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Modele</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Model</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Faithfulness</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Relevance</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Vitesse (m/s)</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Rapports</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Speed (w/s)</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Reports</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-slate-200">
@@ -278,7 +278,7 @@ def generate_dashboard_html(model_metrics: Dict[str, Dict[str, Any]], output_pat
         // Initialize charts
         faithChart = createChart('faithChart', 'Faithfulness', allFaiths, allModels, 1);
         relevChart = createChart('relevChart', 'Relevance', allRelevs, allModels, 1);
-        speedChart = createChart('speedChart', 'Vitesse', allSpeeds, allModels, null);
+        speedChart = createChart('speedChart', 'Speed', allSpeeds, allModels, null);
     </script>
 </body>
 </html>"""

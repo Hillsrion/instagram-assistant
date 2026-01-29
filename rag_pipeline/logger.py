@@ -1,6 +1,6 @@
 """
-Système de logging structuré pour déboguer le pipeline RAG.
-Enregistre chaque étape de traitement d'une requête.
+Structured logging system to debug the RAG pipeline.
+Records each step of request processing.
 """
 import json
 import logging
@@ -8,15 +8,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-# Créer le répertoire de logs s'il n'existe pas
+# Create logs directory if it doesn't exist
 LOG_DIR = Path("rag_data/logs")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-# Fichier de log principal
+# Main log file
 LOG_FILE = LOG_DIR / "rag_pipeline.log"
 DEBUG_LOG_FILE = LOG_DIR / "debug.jsonl"
 
-# Logger global - sera configuré par initialize_logging()
+# Global logger - will be configured by initialize_logging()
 logger = logging.getLogger("rag_pipeline")
 logger.setLevel(logging.DEBUG)
 _logging_initialized = False
@@ -24,46 +24,46 @@ _logging_initialized = False
 
 def initialize_logging(verbose: bool = False):
     """
-    Initialise le système de logging.
+    Initializes the logging system.
 
     Args:
-        verbose: Si True, affiche les logs en console et dans les fichiers.
-                Si False, n'affiche rien du tout.
+        verbose: If True, logs to console AND files.
+                If False, logs nothing to console.
     """
     global _logging_initialized
 
     if _logging_initialized:
         return
 
-    # Supprimer tous les handlers existants
+    # Clear existing handlers
     logger.handlers.clear()
 
     if verbose:
-        # Mode verbose: afficher dans console ET fichiers
+        # Verbose mode: console AND files
         formatter = logging.Formatter(
             '[%(asctime)s] %(levelname)-8s %(name)s - %(message)s'
         )
 
-        # Handler pour les fichiers
+        # File handler
         file_handler = logging.FileHandler(LOG_FILE)
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
-        # Handler pour la console
+        # Console handler
         stream_handler = logging.StreamHandler()
         stream_handler.setLevel(logging.DEBUG)
         stream_handler.setFormatter(formatter)
         logger.addHandler(stream_handler)
     else:
-        # Mode silencieux: NullHandler pour ne rien afficher
+        # Silent mode: NullHandler
         logger.addHandler(logging.NullHandler())
 
     _logging_initialized = True
 
 
 class RequestLogger:
-    """Logger structuré pour tracer une requête spécifique."""
+    """Structured logger to trace a specific request."""
 
     def __init__(self, query: str, request_id: Optional[str] = None):
         self.query = query
@@ -72,7 +72,7 @@ class RequestLogger:
         self.start_time = datetime.now()
 
     def log_event(self, event_type: str, data: Dict[str, Any]):
-        """Enregistre un événement dans la trace de requête."""
+        """Records an event in the request trace."""
         event = {
             "timestamp": datetime.now().isoformat(),
             "type": event_type,
@@ -80,11 +80,11 @@ class RequestLogger:
         }
         self.events.append(event)
 
-        # Log aussi en sortie console
+        # Log to console output as well
         logger.debug(f"[{self.request_id}] {event_type}: {json.dumps(data, ensure_ascii=False)}")
 
     def log_analysis(self, analysis_result: Dict[str, Any]):
-        """Enregistre le résultat de l'analyse de requête."""
+        """Records the query analysis result."""
         self.log_event("query_analysis", {
             "query": self.query,
             "mode": analysis_result.get("mode"),
@@ -96,21 +96,21 @@ class RequestLogger:
         })
 
     def log_retrieval(self, source_count: int, top_scores: list):
-        """Enregistre le résultat de la recherche."""
+        """Records the retrieval result."""
         self.log_event("retrieval", {
             "source_count": source_count,
             "top_scores": top_scores[:5] if top_scores else []
         })
 
     def log_llm_call(self, model: str, response_length: int):
-        """Enregistre l'appel LLM."""
+        """Records the LLM call."""
         self.log_event("llm_response", {
             "model": model,
             "response_length": response_length
         })
 
     def log_error(self, error_type: str, error_message: str, traceback: Optional[str] = None):
-        """Enregistre une erreur."""
+        """Records an error."""
         self.log_event("error", {
             "type": error_type,
             "message": error_message,
@@ -118,7 +118,7 @@ class RequestLogger:
         })
 
     def save(self):
-        """Sauvegarde la trace complète dans un fichier JSONL."""
+        """Saves the complete trace to a JSONL file."""
         duration = (datetime.now() - self.start_time).total_seconds()
 
         record = {
@@ -136,5 +136,5 @@ class RequestLogger:
 
 
 def get_logger():
-    """Retourne le logger principal."""
+    """Returns the main logger."""
     return logger

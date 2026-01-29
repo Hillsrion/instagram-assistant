@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Étape 3: Génération des embeddings avec batching et checkpoints.
+Step 3: Generating embeddings with batching and checkpoints.
 
-Ce script génère les embeddings pour tous les chunks avec sauvegarde
-incrémentale par checkpoints pour permettre la reprise.
+This script generates embeddings for all chunks with incremental saving
+via checkpoints to allow resumption.
 
 Usage:
-    python setup_embeddings.py              # Génère/reprend les embeddings
-    python setup_embeddings.py --reset      # Supprime les checkpoints et recommence
-    python setup_embeddings.py --batch-size 100  # Taille des batches
+    python setup_embeddings.py              # Generate/resume embeddings
+    python setup_embeddings.py --reset      # Delete checkpoints and restart
+    python setup_embeddings.py --batch-size 100  # Batch size
 """
 import sys
 import time
@@ -34,57 +34,57 @@ from rag_pipeline.cli_utils import (
 
 
 def run(config: Config, reset: bool = False, batch_size: int = DEFAULT_BATCH_SIZE) -> np.ndarray:
-    """Point d'entrée appelable par l'orchestrateur.
+    """Entry point callable by the orchestrator.
 
     Args:
-        config: Configuration du pipeline
-        reset: Si True, supprime les checkpoints et recommence
-        batch_size: Taille des batches
+        config: Pipeline configuration
+        reset: If True, deletes checkpoints and restarts
+        batch_size: Batch size
 
     Returns:
-        Array numpy des embeddings, ou None en cas d'erreur
+        Numpy array of embeddings, or None in case of error
     """
-    print_header("Génération des embeddings (batched)", step="3/8")
+    print_header("Generating embeddings (batched)", step="3/8")
 
-    # Charger les chunks
+    # Load chunks
     chunker = ConversationChunker(config)
     if not config.chunks_cache_path.exists():
-        print("Erreur: Pas de chunks trouvés. Exécutez d'abord setup_chunks.py")
+        print("Error: No chunks found. Run setup_chunks.py first")
         return None
 
     chunks = chunker.load_chunks()
-    print(f"{len(chunks)} chunks chargés")
+    print(f"{len(chunks)} chunks loaded")
 
-    # Reset si demandé
+    # Reset if requested
     if reset:
         reset_checkpoints(CHECKPOINT_DIR)
 
-    # Créer le dossier checkpoints
+    # Create checkpoints directory
     CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Déterminer où reprendre
+    # Determine where to resume
     existing_checkpoints = count_existing_checkpoints(CHECKPOINT_DIR)
     start_idx = count_existing_embeddings(CHECKPOINT_DIR) if existing_checkpoints > 0 else 0
 
     if start_idx >= len(chunks):
-        print(f"Tous les embeddings sont déjà générés ({existing_checkpoints} checkpoints)")
+        print(f"All embeddings are already generated ({existing_checkpoints} checkpoints)")
         embeddings = load_all_checkpoints(CHECKPOINT_DIR)
     else:
         if existing_checkpoints > 0:
-            print(f"Reprise depuis le checkpoint {existing_checkpoints}")
-            print(f"   Embeddings existants: {start_idx}")
-            print(f"   Chunks restants: {len(chunks) - start_idx}")
+            print(f"Resuming from checkpoint {existing_checkpoints}")
+            print(f"   Existing embeddings: {start_idx}")
+            print(f"   Remaining chunks: {len(chunks) - start_idx}")
 
         print()
 
-        # Charger le modèle d'embeddings
+        # Load embedding model
         embedding_model = EmbeddingModel(config)
 
-        # Calculer le nombre de batches restants
+        # Calculate remaining batches
         remaining_chunks = len(chunks) - start_idx
         n_batches = (remaining_chunks + batch_size - 1) // batch_size
 
-        print(f"{n_batches} batch(es) à traiter")
+        print(f"{n_batches} batch(es) to process")
         print()
 
         total_start_time = time.time()
@@ -99,38 +99,38 @@ def run(config: Config, reset: bool = False, batch_size: int = DEFAULT_BATCH_SIZ
 
             print(f"Batch {batch_num + 1}/{n_batches} (chunks {batch_start}-{batch_end})")
 
-            # Préparer les textes
+            # Prepare texts
             texts = [chunk.get_embedding_text() for chunk in batch_chunks]
 
-            # Encoder
+            # Encode
             batch_start_time = time.time()
             batch_embeddings = embedding_model.encode(texts, show_progress=True)
             batch_time = time.time() - batch_start_time
 
-            # Sauvegarder le checkpoint
+            # Save checkpoint
             np.save(checkpoint_path, batch_embeddings)
 
-            print(f"   Sauvegardé: {checkpoint_path.name}")
-            print(f"   Temps: {batch_time:.1f}s ({batch_time/len(batch_chunks):.2f}s/chunk)")
+            print(f"   Saved: {checkpoint_path.name}")
+            print(f"   Time: {batch_time:.1f}s ({batch_time/len(batch_chunks):.2f}s/chunk)")
             print()
 
         total_time = time.time() - total_start_time
-        print(f"Génération terminée en {total_time:.1f}s")
+        print(f"Generation completed in {total_time:.1f}s")
         print()
 
-        # Charger tous les embeddings
-        print("Chargement de tous les embeddings...")
+        # Load all embeddings
+        print("Loading all embeddings...")
         embeddings = load_all_checkpoints(CHECKPOINT_DIR)
 
-    print(f"\nShape finale: {embeddings.shape}")
-    print(f"   - {embeddings.shape[0]} vecteurs")
+    print(f"\nFinal shape: {embeddings.shape}")
+    print(f"   - {embeddings.shape[0]} vectors")
     print(f"   - {embeddings.shape[1]} dimensions")
     print(f"   - {embeddings.nbytes / 1024 / 1024:.1f} MB")
 
-    # Vérification de cohérence
+    # Consistency check
     if len(embeddings) != len(chunks):
-        print(f"ATTENTION: {len(embeddings)} embeddings != {len(chunks)} chunks")
-        print("   Utilisez --reset pour recommencer proprement")
+        print(f"WARNING: {len(embeddings)} embeddings != {len(chunks)} chunks")
+        print("   Use --reset to restart cleanly")
         return None
 
     print()
@@ -139,12 +139,12 @@ def run(config: Config, reset: bool = False, batch_size: int = DEFAULT_BATCH_SIZ
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Étape 3: Génération des embeddings avec batching et checkpoints"
+        description="Step 3: Generating embeddings with batching and checkpoints"
     )
     parser.add_argument("--reset", action="store_true",
-                        help="Supprime les checkpoints et recommence")
+                        help="Deletes checkpoints and restarts")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE,
-                        help=f"Taille des batches (défaut: {DEFAULT_BATCH_SIZE})")
+                        help=f"Batch size (default: {DEFAULT_BATCH_SIZE})")
 
     args = parser.parse_args()
     config = Config()

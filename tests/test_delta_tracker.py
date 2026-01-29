@@ -1,6 +1,6 @@
 """
-Tests pour le module delta_tracker.py
-Suivi des modifications de fichiers pour l'indexation incrémentale.
+Tests for delta_tracker.py module.
+File change tracking for incremental indexing.
 """
 import unittest
 import tempfile
@@ -16,7 +16,7 @@ from rag_pipeline.delta_tracker import DeltaTracker, FileState, DeltaResult
 class TestDeltaTracker(unittest.TestCase):
 
     def setUp(self):
-        """Création d'un répertoire temporaire"""
+        """Create temporary directory."""
         self.test_dir = tempfile.mkdtemp()
         self.conv_dir = Path(self.test_dir) / "conversations"
         self.conv_dir.mkdir()
@@ -32,25 +32,25 @@ class TestDeltaTracker(unittest.TestCase):
         self.tracker = DeltaTracker(self.config)
 
     def tearDown(self):
-        """Nettoyage du répertoire temporaire"""
+        """Cleanup temporary directory."""
         shutil.rmtree(self.test_dir)
 
     def _create_file(self, filename: str, content: str = "test content") -> Path:
-        """Helper pour créer un fichier"""
+        """Helper to create a file."""
         filepath = self.conv_dir / filename
         filepath.write_text(content, encoding='utf-8')
         return filepath
 
     # --- Tests compute_hash ---
     def test_compute_hash_consistent(self):
-        """Le hash est consistent pour le même contenu"""
+        """Hash is consistent for same content."""
         file1 = self._create_file("test1.txt", "Hello World")
         hash1 = self.tracker.compute_hash(file1)
         hash2 = self.tracker.compute_hash(file1)
         self.assertEqual(hash1, hash2)
 
     def test_compute_hash_different_content(self):
-        """Le hash change avec le contenu"""
+        """Hash changes with content."""
         file1 = self._create_file("test1.txt", "Hello")
         file2 = self._create_file("test2.txt", "World")
         hash1 = self.tracker.compute_hash(file1)
@@ -59,7 +59,7 @@ class TestDeltaTracker(unittest.TestCase):
 
     # --- Tests detect_changes ---
     def test_detect_new_files(self):
-        """Détection des nouveaux fichiers"""
+        """Detection of new files."""
         self._create_file("new_file.txt")
         
         result = self.tracker.detect_changes()
@@ -71,17 +71,17 @@ class TestDeltaTracker(unittest.TestCase):
         self.assertEqual(len(result.deleted_files), 0)
 
     def test_detect_modified_files(self):
-        """Détection des fichiers modifiés"""
+        """Detection of modified files."""
         filepath = self._create_file("conv.txt", "original content")
         
-        # Indexer le fichier
+        # Index the file
         self.tracker.update_file_state(filepath, ["chunk_1"])
         self.tracker.save_state()
         
-        # Modifier le fichier
+        # Modify the file
         filepath.write_text("modified content", encoding='utf-8')
         
-        # Recharger et détecter
+        # Reload and detect
         tracker2 = DeltaTracker(self.config)
         result = tracker2.detect_changes()
         
@@ -90,17 +90,17 @@ class TestDeltaTracker(unittest.TestCase):
         self.assertEqual(result.modified_files[0].name, "conv.txt")
 
     def test_detect_deleted_files(self):
-        """Détection des fichiers supprimés"""
+        """Detection of deleted files."""
         filepath = self._create_file("to_delete.txt")
         
-        # Indexer le fichier
+        # Index the file
         self.tracker.update_file_state(filepath, ["chunk_1"])
         self.tracker.save_state()
         
-        # Supprimer le fichier
+        # Delete the file
         filepath.unlink()
         
-        # Recharger et détecter
+        # Reload and detect
         tracker2 = DeltaTracker(self.config)
         result = tracker2.detect_changes()
         
@@ -109,14 +109,14 @@ class TestDeltaTracker(unittest.TestCase):
         self.assertIn("to_delete.txt", result.deleted_files[0])
 
     def test_detect_no_changes(self):
-        """Pas de changements si rien n'a bougé"""
+        """No changes if nothing moved."""
         filepath = self._create_file("stable.txt")
         
-        # Indexer
+        # Index
         self.tracker.update_file_state(filepath, ["chunk_1"])
         self.tracker.save_state()
         
-        # Recharger et vérifier
+        # Reload and check
         tracker2 = DeltaTracker(self.config)
         result = tracker2.detect_changes()
         
@@ -124,7 +124,7 @@ class TestDeltaTracker(unittest.TestCase):
 
     # --- Tests update_file_state ---
     def test_update_file_state(self):
-        """Mise à jour de l'état après indexation"""
+        """Update state after indexing."""
         filepath = self._create_file("indexed.txt")
         chunk_ids = ["chunk_1", "chunk_2"]
         
@@ -139,12 +139,12 @@ class TestDeltaTracker(unittest.TestCase):
 
     # --- Tests save/load state ---
     def test_save_load_state(self):
-        """Sauvegarde et rechargement de l'état"""
+        """Save and reload state."""
         filepath = self._create_file("persistent.txt")
         self.tracker.update_file_state(filepath, ["chunk_1"])
         self.tracker.save_state()
         
-        # Recharger
+        # Reload
         tracker2 = DeltaTracker(self.config)
         
         self.assertEqual(len(tracker2.file_states), 1)
@@ -153,7 +153,7 @@ class TestDeltaTracker(unittest.TestCase):
 
     # --- Tests get_chunk_ids_for_file ---
     def test_get_chunk_ids_for_file(self):
-        """Récupération des chunk IDs pour un fichier"""
+        """Get chunk IDs for a file."""
         filepath = self._create_file("with_chunks.txt")
         expected_chunks = ["chunk_a", "chunk_b", "chunk_c"]
         self.tracker.update_file_state(filepath, expected_chunks)
@@ -162,13 +162,13 @@ class TestDeltaTracker(unittest.TestCase):
         self.assertEqual(result, expected_chunks)
 
     def test_get_chunk_ids_unknown_file(self):
-        """Retourne liste vide pour fichier inconnu"""
+        """Returns empty list for unknown file."""
         result = self.tracker.get_chunk_ids_for_file("/unknown/file.txt")
         self.assertEqual(result, [])
 
     # --- Tests get_stats ---
     def test_get_stats(self):
-        """Statistiques de suivi"""
+        """Tracking statistics."""
         self._create_file("file1.txt", "a" * 100)
         self._create_file("file2.txt", "b" * 200)
         
@@ -183,7 +183,7 @@ class TestDeltaTracker(unittest.TestCase):
 
     # --- Tests clear ---
     def test_clear(self):
-        """Effacement de l'état"""
+        """Clear state."""
         filepath = self._create_file("to_clear.txt")
         self.tracker.update_file_state(filepath, ["chunk_1"])
         self.tracker.save_state()
@@ -197,7 +197,7 @@ class TestDeltaTracker(unittest.TestCase):
 class TestDeltaResult(unittest.TestCase):
     
     def test_has_changes_new(self):
-        """has_changes True si nouveaux fichiers"""
+        """has_changes True if new files."""
         result = DeltaResult(
             new_files=[Path("new.txt")],
             modified_files=[],
@@ -206,7 +206,7 @@ class TestDeltaResult(unittest.TestCase):
         self.assertTrue(result.has_changes)
 
     def test_has_changes_none(self):
-        """has_changes False si aucun changement"""
+        """has_changes False if no changes."""
         result = DeltaResult(
             new_files=[],
             modified_files=[],
@@ -215,7 +215,7 @@ class TestDeltaResult(unittest.TestCase):
         self.assertFalse(result.has_changes)
 
     def test_summary(self):
-        """summary retourne un résumé lisible"""
+        """summary returns a readable summary."""
         result = DeltaResult(
             new_files=[Path("a.txt"), Path("b.txt")],
             modified_files=[Path("c.txt")],

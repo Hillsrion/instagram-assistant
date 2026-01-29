@@ -32,7 +32,9 @@ async def handle_discovery_query(request: ChatRequest) -> AsyncGenerator[str, No
             "messages": []
         }
 
-    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
+    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}
+
+"
 
     # Add user message
     user_msg = {
@@ -43,24 +45,28 @@ async def handle_discovery_query(request: ChatRequest) -> AsyncGenerator[str, No
     conv['messages'].append(user_msg)
 
     try:
-        yield f"data: {json.dumps({'type': 'progress', 'step': 'analytics', 'message': 'Exploration des données...'})}\n\n"
+        yield f"data: {json.dumps({'type': 'progress', 'step': 'analytics', 'message': 'Exploring data...'})}\n\n"
 
         # Default: list all participants
         stats = analytics.get_participant_stats()
 
         # Format response
         if stats:
-            response_text = "**Participants et statistiques:**\n\n"
+            response_text = "**Participants and Statistics:**\n\n"
             for participant, info in list(stats.items())[:20]:  # Top 20
                 response_text += f"• **{participant}**: {info['message_count']} messages, {info['conversations']} conversations\n"
         else:
-            response_text = "Aucun participant trouvé dans les conversations."
+            response_text = "No participants found in conversations."
 
-        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}
+
+"
 
     except Exception as e:
-        response_text = f"Erreur lors de l'exploration: {str(e)}"
-        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
+        response_text = f"Exploration error: {str(e)}"
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}
+
+"
 
     # Save conversation
     assistant_msg = {

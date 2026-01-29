@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Script de merge d'exports Instagram multiples.
+Script to merge multiple Instagram exports.
 
-Permet de combiner plusieurs exports Instagram (ancien + nouveau) pour conserver
-tous les messages historiques, même avec la limite des 10k messages par export.
+Allows combining multiple Instagram exports (old + new) to preserve
+all historical messages, even with the 10k messages limit per export.
 
 Usage:
     python3 merge_instagram_exports.py [export1_dir export2_dir ...] [-o <output_dir>]
 
-    Si aucun dossier d'export n'est spécifié, le script cherchera automatiquement
-    dans le dossier 'original_import_folders/'.
-    La sortie par défaut est 'merged_instagram_export/'.
+    If no export directory is specified, the script will automatically search
+    in the 'original_import_folders/' directory.
+    Default output is 'merged_instagram_export/'.
 
-Exemple:
-    # Scan automatique et sortie par défaut
+Example:
+    # Automatic scan and default output
     python3 merge_instagram_exports.py
 
-    # Manuel avec sortie spécifique
+    # Manual with specific output
     python3 merge_instagram_exports.py \
         ~/Documents/export_2024_06/messages/inbox \
         -o ~/Documents/merged_inbox
@@ -32,7 +32,7 @@ import argparse
 
 
 def load_conversation_json(conversation_dir: Path) -> Dict:
-    """Charge le message_1.json d'une conversation."""
+    """Loads message_1.json from a conversation."""
     message_file = conversation_dir / "message_1.json"
 
     if not message_file.exists():
@@ -42,14 +42,14 @@ def load_conversation_json(conversation_dir: Path) -> Dict:
         with open(message_file, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
-        print(f"  ⚠️  Erreur lecture {message_file}: {e}")
+        print(f"  ⚠️  Error reading {message_file}: {e}")
         return None
 
 
 def merge_participants(participants_list: List[List[Dict]]) -> List[Dict]:
     """
-    Merge les listes de participants de plusieurs exports.
-    Déduplique par 'name'.
+    Merges participant lists from multiple exports.
+    Deduplicates by 'name'.
     """
     seen_names = set()
     merged = []
@@ -66,10 +66,10 @@ def merge_participants(participants_list: List[List[Dict]]) -> List[Dict]:
 
 def merge_messages(messages_lists: List[List[Dict]]) -> List[Dict]:
     """
-    Merge plusieurs listes de messages en déduplicant par timestamp_ms.
+    Merges multiple message lists by deduplicating via timestamp_ms.
 
-    Si deux messages ont le même timestamp, on garde celui avec le plus de contenu
-    (pour gérer les cas où un export serait incomplet).
+    If two messages have the same timestamp, we keep the one with more content
+    (to handle cases where an export might be incomplete).
     """
     messages_by_timestamp: Dict[int, Dict] = {}
 
@@ -78,44 +78,44 @@ def merge_messages(messages_lists: List[List[Dict]]) -> List[Dict]:
             timestamp = msg.get('timestamp_ms')
 
             if timestamp is None:
-                # Message sans timestamp, on le garde quand même
-                # On génère un timestamp unique artificiel
+                # Message without timestamp, keep it anyway
+                # Generate a unique artificial timestamp
                 timestamp = -1
                 while timestamp in messages_by_timestamp:
                     timestamp -= 1
                 messages_by_timestamp[timestamp] = msg
                 continue
 
-            # Si le timestamp existe déjà, on garde le message le plus complet
+            # If timestamp already exists, keep the most complete message
             if timestamp in messages_by_timestamp:
                 existing = messages_by_timestamp[timestamp]
                 existing_content_length = len(json.dumps(existing))
                 new_content_length = len(json.dumps(msg))
 
-                # Garder le message avec le plus de données
+                # Keep the message with more data
                 if new_content_length > existing_content_length:
                     messages_by_timestamp[timestamp] = msg
             else:
                 messages_by_timestamp[timestamp] = msg
 
-    # Retourner triés par timestamp (chronologique)
+    # Return sorted by timestamp (chronological)
     return sorted(messages_by_timestamp.values(), key=lambda m: m.get('timestamp_ms', 0))
 
 
 def merge_conversation(conversation_id: str, export_dirs: List[Path]) -> Dict:
     """
-    Merge une conversation spécifique depuis plusieurs exports.
+    Merges a specific conversation from multiple exports.
 
     Args:
-        conversation_id: ID de la conversation (nom du dossier)
-        export_dirs: Liste des dossiers d'export Instagram
+        conversation_id: ID of the conversation (folder name)
+        export_dirs: List of Instagram export directories
 
     Returns:
-        Dictionnaire JSON mergé de la conversation
+        Merged JSON dictionary of the conversation
     """
     all_data = []
 
-    # Charger les données de chaque export
+    # Load data from each export
     for export_dir in export_dirs:
         conv_dir = export_dir / conversation_id
         if conv_dir.exists():
@@ -126,24 +126,24 @@ def merge_conversation(conversation_id: str, export_dirs: List[Path]) -> Dict:
     if not all_data:
         return None
 
-    # Si un seul export a cette conversation, retourner directement
+    # If only one export has this conversation, return directly
     if len(all_data) == 1:
         return all_data[0]
 
-    # Merger les participants
+    # Merge participants
     all_participants = [data.get('participants', []) for data in all_data]
     merged_participants = merge_participants(all_participants)
 
-    # Merger les messages
+    # Merge messages
     all_messages = [data.get('messages', []) for data in all_data]
     merged_messages = merge_messages(all_messages)
 
-    # Créer le JSON mergé (prendre la structure du premier export comme base)
+    # Create merged JSON (take structure of first export as base)
     merged_data = all_data[0].copy()
     merged_data['participants'] = merged_participants
     merged_data['messages'] = merged_messages
 
-    # Ajouter des métadonnées sur le merge
+    # Add metadata about merge
     if 'title' not in merged_data:
         merged_data['title'] = conversation_id
 
@@ -152,7 +152,7 @@ def merge_conversation(conversation_id: str, export_dirs: List[Path]) -> Dict:
 
 def copy_media_files(conversation_id: str, export_dirs: List[Path], output_dir: Path):
     """
-    Copie tous les fichiers média (photos, vidéos, audio) d'une conversation.
+    Copies all media files (photos, videos, audio) of a conversation.
     """
     output_conv_dir = output_dir / conversation_id
     output_conv_dir.mkdir(parents=True, exist_ok=True)
@@ -164,9 +164,9 @@ def copy_media_files(conversation_id: str, export_dirs: List[Path], output_dir: 
         if not conv_dir.exists():
             continue
 
-        # Parcourir tous les éléments du dossier source
+        # Iterate through all items in source folder
         for item in conv_dir.iterdir():
-            # Si c'est un fichier (sauf les JSON de messages déjà traités)
+            # If it's a file (except message JSONs already processed)
             if item.is_file():
                 if not item.name.startswith("message_") or not item.name.endswith(".json"):
                     dest_path = output_conv_dir / item.name
@@ -175,20 +175,20 @@ def copy_media_files(conversation_id: str, export_dirs: List[Path], output_dir: 
                             shutil.copy2(item, dest_path)
                             copied_files.add(item.name)
                         except Exception as e:
-                            print(f"    ⚠️  Erreur copie fichier {item.name}: {e}")
+                            print(f"    ⚠️  Error copying file {item.name}: {e}")
             
-            # Si c'est un dossier (photos, videos, audio, etc.)
+            # If it's a folder (photos, videos, audio, etc.)
             elif item.is_dir():
                 dest_dir = output_conv_dir / item.name
                 dest_dir.mkdir(parents=True, exist_ok=True)
                 
-                # Copier le contenu du dossier récursivement
+                # Copy folder content recursively
                 try:
-                    # On utilise copytree avec dirs_exist_ok=True pour merger les contenus
-                    # Note: dirs_exist_ok est dispo depuis Python 3.8
+                    # Use copytree with dirs_exist_ok=True to merge contents
+                    # Note: dirs_exist_ok available since Python 3.8
                     shutil.copytree(item, dest_dir, dirs_exist_ok=True)
                 except Exception as e:
-                    print(f"    ⚠️  Erreur copie dossier {item.name}: {e}")
+                    print(f"    ⚠️  Error copying folder {item.name}: {e}")
 
 
 def main():
@@ -197,13 +197,13 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Scan automatique et sortie par défaut (merged_instagram_export)
+  # Automatic scan and default output (merged_instagram_export)
   python3 merge_instagram_exports.py
 
-  # Scan automatique avec sortie spécifique
+  # Automatic scan with specific output
   python3 merge_instagram_exports.py -o merged_output
 
-  # Merge deux exports spécifiques
+  # Merge two specific exports
   python3 merge_instagram_exports.py \
       ~/Documents/export1/messages/inbox \
       ~/Documents/export2/messages/inbox \
@@ -239,38 +239,38 @@ Examples:
 
     args = parser.parse_args()
 
-    # Si aucun dossier fourni, scanner original_import_folders
+    # If no folder provided, scan original_import_folders
     export_dirs = []
     if not args.export_dirs:
         base_import_dir = Path("original_import_folders")
         if base_import_dir.exists() and base_import_dir.is_dir():
-            print(f"🔍 Aucun dossier fourni, recherche dans {base_import_dir}...")
+            print(f"🔍 No folder provided, searching in {base_import_dir}...")
             for item in base_import_dir.iterdir():
                 if item.is_dir():
-                    # Chercher le dossier inbox dans la structure standard
+                    # Look for inbox folder in standard structure
                     inbox_path = item / "your_instagram_activity" / "messages" / "inbox"
                     if inbox_path.exists() and inbox_path.is_dir():
                         export_dirs.append(inbox_path)
             
             if not export_dirs:
-                print(f"❌ Aucune exportation valide trouvée dans {base_import_dir}")
+                print(f"❌ No valid export found in {base_import_dir}")
                 return 1
         else:
-            print(f"❌ Dossier {base_import_dir} introuvable et aucun argument fourni")
+            print(f"❌ Folder {base_import_dir} not found and no argument provided")
             return 1
     else:
-        # Valider les dossiers fournis manuellement
+        # Validate manually provided folders
         for export_dir in args.export_dirs:
             if not export_dir.exists():
-                print(f"❌ Dossier inexistant: {export_dir}")
+                print(f"❌ Folder does not exist: {export_dir}")
                 return 1
             if not export_dir.is_dir():
-                print(f"❌ Pas un dossier: {export_dir}")
+                print(f"❌ Not a folder: {export_dir}")
                 return 1
             export_dirs.append(export_dir)
 
     print("=" * 80)
-    print("📦 Merge d'exports Instagram multiples")
+    print("📦 Merge multiple Instagram exports")
     print("=" * 80)
     print()
     print(f"Sources ({len(export_dirs)} exports):")
@@ -279,7 +279,7 @@ Examples:
     print(f"\nDestination: {args.output}")
     print()
 
-    # Collecter toutes les conversations uniques
+    # Collect all unique conversations
     all_conversation_ids: Set[str] = set()
     conversations_by_export: Dict[Path, List[str]] = defaultdict(list)
 
@@ -290,18 +290,18 @@ Examples:
             all_conversation_ids.add(conv_id)
             conversations_by_export[export_dir].append(conv_id)
 
-    print(f"📊 Statistiques:")
-    print(f"  • Total de conversations uniques: {len(all_conversation_ids)}")
+    print(f"📊 Statistics:")
+    print(f"  • Total unique conversations: {len(all_conversation_ids)}")
     for i, export_dir in enumerate(export_dirs, 1):
         count = len(conversations_by_export[export_dir])
         print(f"  • Export {i}: {count} conversations")
     print()
 
     if args.dry_run:
-        print("🔍 Mode dry-run activé - pas de merge effectué")
-        print("\nAperçu des conversations à merger:")
+        print("🔍 Dry-run mode enabled - no merge performed")
+        print("\nPreview of conversations to merge:")
 
-        # Analyser quelques conversations pour montrer les gains
+        # Analyze a few conversations to show gains
         sample_conversations = list(all_conversation_ids)[:5]
         for conv_id in sample_conversations:
             print(f"\n  📁 {conv_id}")
@@ -314,18 +314,18 @@ Examples:
                         msg_count = len(data.get('messages', []))
                         total_messages += msg_count
                         print(f"     Export: {msg_count} messages")
-            print(f"     → Total brut: {total_messages} messages (avant déduplications)")
+            print(f"     → Raw total: {total_messages} messages (before deduplication)")
 
         if len(all_conversation_ids) > 5:
-            print(f"\n  ... et {len(all_conversation_ids) - 5} autres conversations")
+            print(f"\n  ... and {len(all_conversation_ids) - 5} other conversations")
 
         return 0
 
-    # Créer le dossier de sortie
+    # Create output directory
     args.output.mkdir(parents=True, exist_ok=True)
 
-    # Merger chaque conversation
-    print("🔄 Merge en cours...\n")
+    # Merge each conversation
+    print("🔄 Merging in progress...\n")
 
     success_count = 0
     error_count = 0
@@ -336,15 +336,15 @@ Examples:
         print(f"[{i}/{len(all_conversation_ids)}] {conv_id}")
 
         try:
-            # Merger les JSON
+            # Merge JSONs
             merged_data = merge_conversation(conv_id, export_dirs)
 
             if not merged_data:
-                print(f"  ⚠️  Aucune donnée à merger")
+                print(f"  ⚠️  No data to merge")
                 error_count += 1
                 continue
 
-            # Statistiques
+            # Statistics
             messages_before = sum(
                 len(load_conversation_json(export_dir / conv_id).get('messages', []))
                 for export_dir in export_dirs
@@ -356,9 +356,9 @@ Examples:
             total_messages_after += messages_after
 
             duplicates = messages_before - messages_after
-            print(f"  ✓ {messages_after} messages ({duplicates} doublons supprimés)")
+            print(f"  ✓ {messages_after} messages ({duplicates} duplicates removed)")
 
-            # Sauvegarder le JSON mergé
+            # Save merged JSON
             output_conv_dir = args.output / conv_id
             output_conv_dir.mkdir(parents=True, exist_ok=True)
 
@@ -366,33 +366,33 @@ Examples:
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(merged_data, f, ensure_ascii=False, indent=2)
 
-            # Copier les fichiers média
+            # Copy media files
             if not args.skip_media:
                 copy_media_files(conv_id, export_dirs, args.output)
 
             success_count += 1
 
         except Exception as e:
-            print(f"  ❌ Erreur: {e}")
+            print(f"  ❌ Error: {e}")
             error_count += 1
             continue
 
-    # Résumé final
+    # Final summary
     print("\n" + "=" * 80)
-    print("✅ Merge terminé !")
+    print("✅ Merge complete!")
     print("=" * 80)
-    print(f"Conversations traitées: {success_count}")
+    print(f"Conversations processed: {success_count}")
     if error_count > 0:
-        print(f"Erreurs: {error_count}")
+        print(f"Errors: {error_count}")
     print(f"\nMessages:")
-    print(f"  • Avant merge (total brut): {total_messages_before:,}")
-    print(f"  • Après merge (dédupliqués): {total_messages_after:,}")
-    print(f"  • Doublons supprimés: {total_messages_before - total_messages_after:,}")
-    print(f"\n📁 Résultat disponible dans: {args.output}")
-    print(f"\nProchaine étape:")
-    print(f"  1. Modifiez instagram_to_text.py ligne 194 pour pointer vers: {args.output}")
-    print(f"  2. Lancez: python3 instagram_to_text.py")
-    print(f"  3. Lancez: python3 update_index.py")
+    print(f"  • Before merge (raw total): {total_messages_before:,}")
+    print(f"  • After merge (deduplicated): {total_messages_after:,}")
+    print(f"  • Duplicates removed: {total_messages_before - total_messages_after:,}")
+    print(f"\n📁 Result available in: {args.output}")
+    print(f"\nNext steps:")
+    print(f"  1. Modify instagram_to_text.py line 194 to point to: {args.output}")
+    print(f"  2. Run: python3 instagram_to_text.py")
+    print(f"  3. Run: python3 update_index.py")
 
     return 0
 

@@ -1,6 +1,6 @@
 """
-Module de réécriture de requêtes (Query Rewriting).
-Transforme une requête utilisateur vague ou dépendante du contexte en une requête autonome précise.
+Query Rewriting Module.
+Transforms a vague or context-dependent user query into a precise, autonomous query.
 """
 import requests
 import json
@@ -28,7 +28,7 @@ RÈGLES STRICTES:
 """
 
 class QueryRewriter:
-    """Réécrit les requêtes utilisateur pour améliorer le retrieval."""
+    """Rewrites user queries to improve retrieval."""
 
     def __init__(self, config: Config):
         self.config = config
@@ -36,20 +36,20 @@ class QueryRewriter:
 
     def rewrite(self, query: str, history: List[Dict[str, str]]) -> str:
         """
-        Réécrit la requête en fonction de l'historique.
+        Rewrites the query based on history.
 
         Args:
-            query: La question actuelle de l'utilisateur
-            history: Liste de dicts {"role": "user/assistant", "content": "..."}
+            query: Current user question
+            history: List of dicts {"role": "user/assistant", "content": "..."}
 
         Returns:
-            La requête réécrite (str)
+            Rewritten query (str)
         """
-        # Si pas d'historique, pas besoin de réécrire (sauf pour clarification simple, mais moins critique)
+        # If no history, no need to rewrite (except for simple clarification, but less critical)
         if not history:
             return query
 
-        # Limiter l'historique aux 3 derniers échanges pour ne pas polluer
+        # Limit history to last 3 exchanges to avoid pollution
         recent_history = history[-6:]
         formatted_history = ""
         for msg in recent_history:
@@ -66,21 +66,21 @@ class QueryRewriter:
                     "messages": [{"role": "user", "content": prompt}],
                     "stream": False,
                     "options": {
-                        "temperature": 0.0,  # Déterminisme
+                        "temperature": 0.0,  # Deterministic
                         "num_predict": 64
                     }
                 },
-                timeout=10.0  # Timeout court
+                timeout=10.0  # Short timeout
             )
             
             if response.status_code == 200:
                 rewritten = response.json()["message"]["content"].strip()
-                # Nettoyage basique si le LLM est bavard
+                # Basic cleanup if LLM is chatty
                 if rewritten.startswith('"') and rewritten.endswith('"'):
                     rewritten = rewritten[1:-1]
                 return rewritten
             
         except Exception as e:
-            print(f"⚠️ Erreur Query Rewriting: {e}")
+            print(f"⚠️ Query Rewriting Error: {e}")
             
         return query

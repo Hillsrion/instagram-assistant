@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script pour consulter les logs du pipeline RAG.
+Script to view RAG pipeline logs.
 """
 import json
 import sys
@@ -13,7 +13,7 @@ RAG_LOG_FILE = LOG_DIR / "rag_pipeline.log"
 
 
 def view_debug_logs(limit: int = 10, latest: bool = True):
-    """Affiche les logs structurés JSONL (traces de requêtes)."""
+    """Displays structured JSONL logs (request traces)."""
     if not DEBUG_LOG_FILE.exists():
         print(f"❌ No debug logs found at {DEBUG_LOG_FILE}")
         return
@@ -60,7 +60,7 @@ def view_debug_logs(limit: int = 10, latest: bool = True):
 
 
 def tail_rag_logs(lines: int = 50):
-    """Affiche les dernières N lignes du log principal."""
+    """Displays the last N lines of the main log."""
     if not RAG_LOG_FILE.exists():
         print(f"❌ No RAG logs found at {RAG_LOG_FILE}")
         return
@@ -79,7 +79,7 @@ def tail_rag_logs(lines: int = 50):
 
 
 def search_logs(query: str):
-    """Cherche une requête spécifique dans les logs."""
+    """Searches for a specific query in the logs."""
     if not DEBUG_LOG_FILE.exists():
         print(f"❌ No debug logs found")
         return

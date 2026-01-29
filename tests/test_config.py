@@ -1,6 +1,6 @@
 """
-Tests pour le module config.py
-Configuration centralisée du RAG Pipeline.
+Tests for config.py module.
+Centralized RAG Pipeline Configuration.
 """
 import unittest
 import os
@@ -15,7 +15,7 @@ from rag_pipeline.config import Config
 class TestConfig(unittest.TestCase):
 
     def test_default_values(self):
-        """Les valeurs par défaut sont correctement définies"""
+        """Default values are correctly set."""
         config = Config()
         # Chunking
         self.assertIsInstance(config.chunk_max_messages, int)
@@ -30,27 +30,27 @@ class TestConfig(unittest.TestCase):
         self.assertIsInstance(config.temperature, float)
 
     def test_post_init_creates_paths(self):
-        """__post_init__ crée les chemins dérivés"""
+        """__post_init__ creates derived paths."""
         with tempfile.TemporaryDirectory() as tmpdir:
             config = Config(base_dir=Path(tmpdir))
             
-            # Vérifie que les chemins sont définis
+            # Verify paths are defined
             self.assertIsNotNone(config.conversations_dir)
             self.assertIsNotNone(config.index_dir)
             self.assertIsNotNone(config.vector_store_path)
             self.assertIsNotNone(config.chunks_cache_path)
             
-            # Vérifie que index_dir est créé
+            # Verify index_dir is created
             self.assertTrue(config.index_dir.exists())
 
     def test_post_init_with_string_paths(self):
-        """__post_init__ convertit les strings en Path"""
+        """__post_init__ converts strings to Path."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            config = Config(base_dir=tmpdir)  # String au lieu de Path
+            config = Config(base_dir=tmpdir)  # String instead of Path
             self.assertIsInstance(config.base_dir, Path)
 
     def test_custom_paths_preserved(self):
-        """Les chemins personnalisés sont préservés"""
+        """Custom paths are preserved."""
         with tempfile.TemporaryDirectory() as tmpdir:
             custom_conv_dir = Path(tmpdir) / "custom_conversations"
             custom_conv_dir.mkdir()
@@ -64,24 +64,24 @@ class TestConfig(unittest.TestCase):
 
     @patch.dict(os.environ, {'TOP_K': '10', 'MIN_SIMILARITY': '0.5'})
     def test_env_override(self):
-        """Les variables d'environnement surchargent les valeurs par défaut"""
+        """Environment variables override default values."""
         config = Config()
         self.assertEqual(config.top_k, 10)
         self.assertEqual(config.min_similarity, 0.5)
 
     @patch.dict(os.environ, {'LLM_MODEL': 'test-model:latest'})
     def test_env_override_llm_model(self):
-        """LLM_MODEL peut être surchargé par env"""
+        """LLM_MODEL can be overridden by env."""
         config = Config()
         self.assertEqual(config.llm_model, 'test-model:latest')
 
     def test_embedding_model_default(self):
-        """Le modèle d'embedding par défaut est bge-m3"""
+        """Default embedding model is bge-m3."""
         config = Config()
         self.assertIn('bge-m3', config.embedding_model)
 
     def test_ollama_url_default(self):
-        """L'URL Ollama par défaut est localhost:11434"""
+        """Default Ollama URL is localhost:11434."""
         config = Config()
         self.assertEqual(config.ollama_url, 'http://localhost:11434')
 

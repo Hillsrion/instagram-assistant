@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script d'analyse statistique des données RAG.
-Affiche des métriques détaillées sur les conversations, messages et chunks.
+Statistical analysis script for RAG data.
+Displays detailed metrics on conversations, messages, and chunks.
 
 Usage:
     python3 rag_stats.py
@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from statistics import mean, median
 
-# Ajout du dossier parent au path pour les imports
+# Add parent folder to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from rag_pipeline.config import Config
@@ -25,23 +25,23 @@ def main():
     chunker = ConversationChunker(config)
     
     print("=" * 60)
-    print("📊 ANALYSE DES DONNÉES RAG")
+    print("📊 RAG DATA ANALYSIS")
     print("=" * 60)
     
-    print(f"\n📂 Dossier conversations : {config.conversations_dir}")
+    print(f"\n📂 Conversations directory: {config.conversations_dir}")
     
     if not config.conversations_dir.exists():
-        print("❌ Le dossier de conversations n'existe pas.")
+        print("❌ Conversations directory does not exist.")
         return
 
-    # 1. Analyse des fichiers sources
-    print("\n🔍 Analyse des fichiers sources en cours...")
+    # 1. Source files analysis
+    print("\n🔍 Analyzing source files...")
     
     files = list(config.conversations_dir.glob('*.txt'))
     total_conversations = len(files)
     
     if total_conversations == 0:
-        print("⚠️  Aucune conversation trouvée (.txt).")
+        print("⚠️  No conversations found (.txt).")
         return
 
     total_messages = 0
@@ -54,14 +54,14 @@ def main():
     
     for i, file_path in enumerate(files):
         try:
-            # On utilise le parser du chunker
+            # Use chunker parser
             _, messages = chunker.parse_conversation(file_path)
             
             count = len(messages)
             messages_per_conv.append(count)
             total_messages += count
             
-            # Stats détaillées
+            # Detailed stats
             for msg in messages:
                 if msg.has_media:
                     if msg.media_type == 'link':
@@ -69,25 +69,25 @@ def main():
                     else:
                         total_media += 1
                         
-            # Barre de progression simple
+            # Simple progress bar
             if (i + 1) % 10 == 0:
-                sys.stdout.write(f"\r   Traitement : {i + 1}/{total_conversations}")
+                sys.stdout.write(f"\r   Processing: {i + 1}/{total_conversations}")
                 sys.stdout.flush()
                 
         except Exception as e:
-            print(f"\n⚠️  Erreur sur {file_path.name}: {e}")
+            print(f"\n⚠️  Error on {file_path.name}: {e}")
 
-    sys.stdout.write(f"\r   Traitement : {total_conversations}/{total_conversations}\n")
+    sys.stdout.write(f"\r   Processing: {total_conversations}/{total_conversations}\n")
     elapsed = time.time() - start_time
     
-    # 2. Analyse des chunks (si disponibles)
-    print("\n📦 Analyse des chunks...")
+    # 2. Chunk analysis (if available)
+    print("\n📦 Analyzing chunks...")
     chunks = chunker.load_chunks()
     total_chunks = len(chunks)
     
-    # 3. Affichage des résultats
+    # 3. Display results
     print("\n" + "=" * 60)
-    print("📈 RÉSULTATS GLOBAUX")
+    print("📈 GLOBAL RESULTS")
     print("=" * 60)
     
     col_width = 25
@@ -95,31 +95,31 @@ def main():
     print(f"\n1️⃣  CONVERSATIONS")
     print(f"   • {'Total':<{col_width}}: {format_number(total_conversations)}")
     if messages_per_conv:
-        print(f"   • {'Moyenne msgs/conv':<{col_width}}: {mean(messages_per_conv):.1f}")
-        print(f"   • {'Médiane msgs/conv':<{col_width}}: {median(messages_per_conv):.1f}")
+        print(f"   • {'Avg msgs/conv':<{col_width}}: {mean(messages_per_conv):.1f}")
+        print(f"   • {'Median msgs/conv':<{col_width}}: {median(messages_per_conv):.1f}")
         print(f"   • {'Max msgs/conv':<{col_width}}: {format_number(max(messages_per_conv))}")
         print(f"   • {'Min msgs/conv':<{col_width}}: {format_number(min(messages_per_conv))}")
 
-    print(f"\n2️⃣  MESSAGES & CONTENU")
+    print(f"\n2️⃣  MESSAGES & CONTENT")
     print(f"   • {'Total messages':<{col_width}}: {format_number(total_messages)}")
-    print(f"   • {'Total médias':<{col_width}}: {format_number(total_media)}")
-    print(f"   • {'Total liens':<{col_width}}: {format_number(total_links)}")
+    print(f"   • {'Total media':<{col_width}}: {format_number(total_media)}")
+    print(f"   • {'Total links':<{col_width}}: {format_number(total_links))}")
     
-    print(f"\n3️⃣  CHUNKS (Unités d'indexation)")
+    print(f"\n3️⃣  CHUNKS (Indexing units)")
     if total_chunks > 0:
         print(f"   • {'Total chunks':<{col_width}}: {format_number(total_chunks)}")
         print(f"   • {'Ratio msgs/chunk':<{col_width}}: {total_messages / total_chunks:.1f}")
         print(f"   • {'Ratio chunks/conv':<{col_width}}: {total_chunks / total_conversations:.1f}")
         
-        # Stats d'enrichissement
+        # Enrichment stats
         enriched_count = sum(1 for c in chunks if c.narrative_summary or c.hypothetical_questions)
-        print(f"   • {'Chunks enrichis (LLM)':<{col_width}}: {format_number(enriched_count)} ({enriched_count/total_chunks*100:.1f}%)")
+        print(f"   • {'Enriched chunks (LLM)':<{col_width}}: {format_number(enriched_count)} ({enriched_count/total_chunks*100:.1f}%)")
     else:
-        print(f"   • {'Total chunks':<{col_width}}: 0 (Non générés ou cache vide)")
-        print("     💡 Lancez 'python3 setup_rag_batch.py' pour générer les chunks.")
+        print(f"   • {'Total chunks':<{col_width}}: 0 (Not generated or cache empty)")
+        print("     💡 Run 'python3 setup_rag_batch.py' to generate chunks.")
 
     print("\n" + "=" * 60)
-    print(f"⏱️  Temps d'analyse : {elapsed:.2f}s")
+    print(f"⏱️  Analysis time: {elapsed:.2f}s")
     print("=" * 60)
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 """
-Générateur de résumés hiérarchiques via LLM.
-Génère des ConversationSummary et PeriodSummary à partir des chunks enrichis.
+Hierarchical summary generator via LLM.
+Generates ConversationSummary and PeriodSummary from enriched chunks.
 """
 import json
 import requests
@@ -49,7 +49,7 @@ RÈGLES STRICTES:
 
 
 class SummaryGenerator:
-    """Génère des résumés hiérarchiques à partir des chunks."""
+    """Generates hierarchical summaries from chunks."""
 
     def __init__(self, config: Config = None):
         self.config = config or default_config
@@ -57,29 +57,29 @@ class SummaryGenerator:
         self._chunks_by_conversation: Dict[str, List[Chunk]] = {}
 
     def _group_chunks_by_conversation(self, chunks: List[Chunk]) -> Dict[str, List[Chunk]]:
-        """Groupe les chunks par conversation_id."""
+        """Groups chunks by conversation_id."""
         grouped = defaultdict(list)
         for chunk in chunks:
             grouped[chunk.conversation_id].append(chunk)
 
-        # Trier par date au sein de chaque conversation
+        # Sort by date within each conversation
         for conv_id in grouped:
             grouped[conv_id].sort(key=lambda c: c.date_start)
 
         return dict(grouped)
 
     def _group_chunks_by_period(self, chunks: List[Chunk]) -> Dict[str, List[Chunk]]:
-        """Groupe les chunks par mois (YYYY-MM)."""
+        """Groups chunks by month (YYYY-MM)."""
         grouped = defaultdict(list)
         for chunk in chunks:
-            # Extraire le mois depuis date_start
+            # Extract month from date_start
             period = chunk.date_start[:7]  # "YYYY-MM"
             grouped[period].append(chunk)
 
         return dict(grouped)
 
     def _call_llm(self, prompt: str) -> Optional[dict]:
-        """Appelle le LLM et retourne le JSON parsé."""
+        """Calls LLM and returns parsed JSON."""
         payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
@@ -101,7 +101,7 @@ class SummaryGenerator:
             result = response.json()["message"]["content"]
             return json.loads(result)
         except Exception as e:
-            print(f"⚠️ Erreur LLM: {e}")
+            print(f"⚠️ LLM Error: {e}")
             return None
 
     def generate_conversation_summary(
@@ -109,11 +109,11 @@ class SummaryGenerator:
         conversation_id: str,
         chunks: List[Chunk]
     ) -> Optional[ConversationSummary]:
-        """Génère un résumé global pour une conversation."""
+        """Generates a global summary for a conversation."""
         if not chunks:
             return None
 
-        # Collecter les narrative_summary de chaque chunk
+        # Collect narrative_summary from each chunk
         summaries = []
         for chunk in chunks:
             if chunk.narrative_summary:
@@ -125,11 +125,11 @@ class SummaryGenerator:
         participants = chunks[0].participants if chunks else []
         participants_str = ", ".join(participants)
 
-        # Limiter le nombre de résumés pour ne pas dépasser le context window
-        # Prendre les plus récents si trop nombreux
+        # Limit number of summaries to avoid exceeding context window
+        # Take most recent ones if too many
         max_summaries = 50
         if len(summaries) > max_summaries:
-            # Garder un échantillon représentatif
+            # Keep representative sample
             step = len(summaries) // max_summaries
             summaries = summaries[::step][:max_summaries]
 
@@ -142,7 +142,7 @@ class SummaryGenerator:
         if not result:
             return None
 
-        # Calculer les statistiques
+        # Calculate statistics
         total_messages = sum(c.message_count for c in chunks)
         date_start = min(c.date_start for c in chunks)
         date_end = max(c.date_end for c in chunks)
@@ -169,11 +169,11 @@ class SummaryGenerator:
         period: str,
         chunks: List[Chunk]
     ) -> Optional[PeriodSummary]:
-        """Génère un résumé pour une période (mois) d'une conversation."""
+        """Generates a summary for a period (month) of a conversation."""
         if not chunks:
             return None
 
-        # Collecter les narrative_summary
+        # Collect narrative_summary
         summaries = []
         for chunk in chunks:
             if chunk.narrative_summary:
@@ -184,7 +184,7 @@ class SummaryGenerator:
         participants = chunks[0].participants if chunks else []
         participants_str = ", ".join(participants)
 
-        # Formater la période pour l'affichage
+        # Format period for display
         try:
             period_date = datetime.strptime(period, "%Y-%m")
             period_display = period_date.strftime("%B %Y")
@@ -226,7 +226,7 @@ class SummaryGenerator:
         chunks: List[Chunk],
         progress_callback=None
     ) -> List[PeriodSummary]:
-        """Génère des résumés par mois pour une conversation."""
+        """Generates monthly summaries for a conversation."""
         chunks_by_period = self._group_chunks_by_period(chunks)
 
         summaries = []
@@ -250,7 +250,7 @@ class SummaryGenerator:
         save_callback=None
     ) -> Tuple[List[ConversationSummary], List[PeriodSummary]]:
         """
-        Génère tous les résumés (conversation + période) pour tous les chunks.
+        Generates all summaries (conversation + period) for all chunks.
 
         Returns:
             (conversation_summaries, period_summaries)
@@ -261,13 +261,13 @@ class SummaryGenerator:
         period_summaries = []
 
         conversations = list(chunks_by_conversation.keys())
-        total_steps = len(conversations) * 2  # 1 pour conv summary, 1 pour period summaries
+        total_steps = len(conversations) * 2  # 1 for conv summary, 1 for period summaries
         current_step = 0
 
         for conv_id in conversations:
             conv_chunks = chunks_by_conversation[conv_id]
 
-            # 1. Générer le résumé de conversation
+            # 1. Generate conversation summary
             conv_summary = self.generate_conversation_summary(conv_id, conv_chunks)
             if conv_summary:
                 conversation_summaries.append(conv_summary)
@@ -276,7 +276,7 @@ class SummaryGenerator:
             if progress_callback:
                 progress_callback(current_step, total_steps, f"Conv: {conv_id[:30]}")
 
-            # 2. Générer les résumés par période
+            # 2. Generate period summaries
             period_sums = self.generate_period_summaries(conv_id, conv_chunks)
             period_summaries.extend(period_sums)
 
@@ -284,7 +284,7 @@ class SummaryGenerator:
             if progress_callback:
                 progress_callback(current_step, total_steps, f"Periods: {conv_id[:30]}")
 
-            # Sauvegarde périodique
+            # Periodic save
             if save_callback:
                 save_callback(conversation_summaries, period_summaries)
 

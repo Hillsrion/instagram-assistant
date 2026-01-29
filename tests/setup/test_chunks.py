@@ -1,5 +1,5 @@
 """
-Tests pour setup_chunks.py - Génération des chunks.
+Tests for setup_chunks.py - Chunk generation.
 """
 import unittest
 import tempfile
@@ -14,23 +14,23 @@ from rag_pipeline.config import Config
 
 
 class TestSetupChunks(unittest.TestCase):
-    """Tests pour le script setup_chunks."""
+    """Tests for setup_chunks script."""
 
     def setUp(self):
-        """Crée un répertoire temporaire pour les tests."""
+        """Creates a temporary directory for tests."""
         self.temp_dir = tempfile.mkdtemp()
         self.temp_path = Path(self.temp_dir)
         
-        # Créer la structure de dossiers
+        # Create folder structure
         (self.temp_path / "conversations").mkdir()
         (self.temp_path / "rag_data").mkdir()
 
     def tearDown(self):
-        """Nettoie le répertoire temporaire."""
+        """Cleans up the temporary directory."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_run_with_no_conversations(self):
-        """run() sans conversations crée un cache vide."""
+        """run() without conversations creates an empty cache."""
         import setup_chunks
         
         config = Config(
@@ -44,10 +44,10 @@ class TestSetupChunks(unittest.TestCase):
         self.assertTrue(result)
 
     def test_run_with_test_conversations(self):
-        """run() avec import_test copie les conversations de test."""
+        """run() with import_test copies test conversations."""
         import setup_chunks
         
-        # Créer un dossier test_conversations avec un fichier
+        # Create a test_conversations folder with a file
         test_conv_dir = self.temp_path / "test_conversations"
         test_conv_dir.mkdir()
         test_file = test_conv_dir / "test_conv.txt"
@@ -59,15 +59,15 @@ class TestSetupChunks(unittest.TestCase):
             index_dir=self.temp_path / "rag_data"
         )
         
-        # Mock le chemin test_conversations
+        # Mock test_conversations path
         with patch.object(Path, '__new__', return_value=test_conv_dir):
-            # L'import devrait créer les chunks
+            # Import should create chunks
             result = setup_chunks.run(config, reset=False, limit=None, import_test=False)
         
         self.assertTrue(result)
 
     def test_run_with_limit(self):
-        """run() avec limit ne traite qu'un nombre limité de conversations."""
+        """run() with limit processes only a limited number of conversations."""
         import setup_chunks
         
         config = Config(
@@ -76,7 +76,7 @@ class TestSetupChunks(unittest.TestCase):
             index_dir=self.temp_path / "rag_data"
         )
         
-        # Créer quelques fichiers de conversation
+        # Create some conversation files
         for i in range(5):
             conv_file = config.conversations_dir / f"conv_{i}.txt"
             conv_file.write_text(f"[2024-01-01 12:00:00] User: Message {i}")
@@ -86,7 +86,7 @@ class TestSetupChunks(unittest.TestCase):
         self.assertTrue(result)
 
     def test_run_with_reset(self):
-        """run() avec reset régénère les chunks."""
+        """run() with reset regenerates chunks."""
         import setup_chunks
         
         config = Config(
@@ -95,24 +95,24 @@ class TestSetupChunks(unittest.TestCase):
             index_dir=self.temp_path / "rag_data"
         )
         
-        # Premier run
+        # First run
         result1 = setup_chunks.run(config, reset=False)
         self.assertTrue(result1)
         
-        # Deuxième run avec reset
+        # Second run with reset
         result2 = setup_chunks.run(config, reset=True)
         self.assertTrue(result2)
 
 
 class TestMainFunction(unittest.TestCase):
-    """Tests pour la fonction main()."""
+    """Tests for main() function."""
 
     def test_main_argparse(self):
-        """main() parse correctement les arguments."""
+        """main() parses arguments correctly."""
         import setup_chunks
         import argparse
         
-        # Test que le parser est bien configuré
+        # Test parser configuration
         parser = argparse.ArgumentParser()
         parser.add_argument("--reset", action="store_true")
         parser.add_argument("--limit", type=int)

@@ -1,181 +1,181 @@
-# Configuration de l'environnement
+# Environment Configuration
 
-Ce projet utilise maintenant un système de configuration basé sur des variables d'environnement pour éviter les chemins en dur dans le code.
+This project now uses an environment variable-based configuration system to avoid hardcoded paths in the code.
 
-## Configuration rapide
+## Quick Setup
 
-### Option 1 : Script interactif (recommandé)
+### Option 1: Interactive Script (Recommended)
 
 ```bash
 python3 setup_env.py
 ```
 
-Le script vous guidera pour configurer tous les paramètres nécessaires.
+The script will guide you through configuring all necessary settings.
 
-### Option 2 : Copie manuelle
+### Option 2: Manual Copy
 
 ```bash
-# 1. Copier le template
+# 1. Copy the template
 cp .env.example .env
 
-# 2. Éditer avec vos chemins
-nano .env  # ou vim, code, etc.
+# 2. Edit with your paths
+nano .env  # or vim, code, etc.
 ```
 
-## Variables d'environnement
+## Environment Variables
 
-### Chemins essentiels
+### Essential Paths
 
-| Variable | Description | Exemple |
+| Variable | Description | Example |
 |----------|-------------|---------|
-| `INSTAGRAM_EXPORT_DIR` | Dossier de votre export Instagram (inbox) | `~/Documents/instagram/messages/inbox` |
-| `BASE_DIR` | Dossier racine du projet (auto-détecté) | `/Users/username/instagram-assistant` |
-| `CONVERSATIONS_DIR` | Dossier des conversations converties | `instagram_conversations` (relatif) |
-| `INDEX_DIR` | Dossier des index RAG | `rag_data` (relatif) |
+| `INSTAGRAM_EXPORT_DIR` | Directory of your Instagram export (inbox) | `~/Documents/instagram/messages/inbox` |
+| `BASE_DIR` | Project root directory (auto-detected) | `/Users/username/instagram-assistant` |
+| `CONVERSATIONS_DIR` | Directory for converted conversations | `instagram_conversations` (relative) |
+| `INDEX_DIR` | Directory for RAG indexes | `rag_data` (relative) |
 
-### Configuration utilisateur
+### User Configuration
 
-| Variable | Description | Défaut |
-|----------|-------------|--------|
-| `USER_NAME` | Votre prénom | `Ismaël` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `USER_NAME` | Your first name | `Ismaël` |
 
-### Configuration LLM
+### LLM Configuration
 
-| Variable | Description | Défaut |
-|----------|-------------|--------|
-| `LLM_MODEL` | Modèle Ollama | `qwen3:latest` |
-| `OLLAMA_URL` | URL du serveur Ollama | `http://localhost:11434` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LLM_MODEL` | Ollama model | `qwen3:latest` |
+| `OLLAMA_URL` | Ollama server URL | `http://localhost:11434` |
 
-### Configuration Embeddings
+### Embeddings Configuration
 
-| Variable | Description | Défaut |
-|----------|-------------|--------|
-| `EMBEDDING_MODEL` | Modèle d'embeddings | `BAAI/bge-m3` |
-| `USE_GPU` | Utiliser GPU si disponible | `true` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `EMBEDDING_MODEL` | Embeddings model | `BAAI/bge-m3` |
+| `USE_GPU` | Use GPU if available | `true` |
 
-### Configuration RAG
+### RAG Configuration
 
-| Variable | Description | Défaut |
-|----------|-------------|--------|
-| `TOP_K` | Nombre de chunks récupérés | `5` |
-| `MIN_SIMILARITY` | Score minimum de similarité | `0.3` |
-| `USE_RERANKING` | Activer le reranking | `true` |
-| `USE_HYBRID` | Activer recherche hybride | `true` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TOP_K` | Number of chunks retrieved | `5` |
+| `MIN_SIMILARITY` | Minimum similarity score | `0.3` |
+| `USE_RERANKING` | Enable reranking | `true` |
+| `USE_HYBRID` | Enable hybrid search | `true` |
 
-### Configuration Chunking
+### Chunking Configuration
 
-| Variable | Description | Défaut |
-|----------|-------------|--------|
-| `CHUNK_MAX_MESSAGES` | Messages max par chunk | `50` |
-| `CHUNK_MAX_DAYS` | Durée max d'un chunk (jours) | `3` |
-| `CHUNK_OVERLAP` | Chevauchement entre chunks | `5` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CHUNK_MAX_MESSAGES` | Max messages per chunk | `50` |
+| `CHUNK_MAX_DAYS` | Max duration of a chunk (days) | `3` |
+| `CHUNK_OVERLAP` | Overlap between chunks | `5` |
 
-## Outils d'analyse et statistiques
+## Analysis Tools and Statistics
 
-Le projet inclut désormais des outils d'analyse dans le dossier `utils/` :
+The project now includes analysis tools in the `utils/` folder:
 
 | Script | Description |
 |--------|-------------|
-| `python3 utils/rag_stats.py` | Analyse statistique détaillée (conversations, messages, chunks) |
-| `python3 utils/top_20_messages.py` | Affiche les 20 conversations les plus volumineuses |
+| `python3 utils/rag_stats.py` | Detailed statistical analysis (conversations, messages, chunks) |
+| `python3 utils/top_20_messages.py` | Displays the 20 largest conversations |
 
-## Scripts d'indexation avancés
+## Advanced Indexing Scripts
 
 ### setup_rag_batch.py
 
-Le script d'indexation principal supporte de nouveaux flags :
+The main indexing script supports new flags:
 
 | Flag | Description |
 |------|-------------|
-| `--limit N` | Limite l'indexation aux N premières conversations (utile pour tester rapidement) |
-| `--import-test` | Importe automatiquement le dataset de test depuis `test_conversations/` |
-| `--reset` | Supprime tout l'index et recommence à zéro |
-| `--status` | Affiche l'état actuel de l'indexation |
+| `--limit N` | Limit indexing to the first N conversations (useful for quick testing) |
+| `--import-test` | Automatically import the test dataset from `test_conversations/` |
+| `--reset` | Delete the entire index and start from scratch |
+| `--status` | Display the current status of indexing |
 
-Exemple :
+Example:
 ```bash
-# Importer les données de test et indexer seulement 5 conversations
+# Import test data and index only 5 conversations
 python3 setup_rag_batch.py --import-test --limit 5 --reset
 ```
 
-## Workflow complet
+## Complete Workflow
 
-### Première utilisation
+### First Use
 
 ```bash
-# 1. Configurer l'environnement
+# 1. Configure the environment
 python3 setup_env.py
 
-# 2. Installer les dépendances (inclut python-dotenv)
+# 2. Install dependencies (includes python-dotenv)
 pip install -r requirements.txt
 
-# 3. Convertir vos conversations
+# 3. Convert your conversations
 python3 instagram_to_text.py
 
-# 4. Créer l'index
+# 4. Create the index
 python3 setup_rag_batch.py
 
-# 5. Lancer l'app
+# 5. Launch the app
 python3 app.py
 ```
 
-### Merge de plusieurs exports
+### Merging Multiple Exports
 
-Si vous avez plusieurs exports Instagram (ancien + nouveau) :
+If you have multiple Instagram exports (old + new):
 
 ```bash
-# 1. Merger les exports
+# 1. Merge exports
 python3 merge_instagram_exports.py \
-    ~/Documents/export_juin_2024/messages/inbox \
+    ~/Documents/export_june_2024/messages/inbox \
     ~/Documents/export_dec_2024/messages/inbox \
     -o ~/Documents/instagram_merged/messages/inbox
 
-# 2. Mettre à jour votre .env
-# Changer INSTAGRAM_EXPORT_DIR vers le dossier mergé
+# 2. Update your .env
+# Change INSTAGRAM_EXPORT_DIR to the merged directory
 nano .env
 
-# 3. Convertir et indexer
+# 3. Convert and index
 python3 instagram_to_text.py
 python3 update_index.py
 ```
 
-### Mise à jour avec un nouvel export
+### Update with a New Export
 
 ```bash
-# 1. Merger avec l'ancien export
+# 1. Merge with the old export
 python3 merge_instagram_exports.py \
     ~/Documents/instagram_merged/messages/inbox \
-    ~/Documents/nouvel_export/messages/inbox \
+    ~/Documents/new_export/messages/inbox \
     -o ~/Documents/instagram_merged_v2/messages/inbox
 
-# 2. Mettre à jour INSTAGRAM_EXPORT_DIR dans .env
+# 2. Update INSTAGRAM_EXPORT_DIR in .env
 
-# 3. Reconvertir et mettre à jour l'index
+# 3. Reconvert and update the index
 python3 instagram_to_text.py
 python3 update_index.py
 ```
 
-## Chemins relatifs vs absolus
+## Relative vs Absolute Paths
 
-- **Chemins relatifs** : Si vous spécifiez un nom simple (ex: `instagram_conversations`), il sera relatif à `BASE_DIR`
-- **Chemins absolus** : Commencent par `/` (Unix) ou `C:\` (Windows), utilisés tels quels
+- **Relative Paths**: If you specify a simple name (e.g., `instagram_conversations`), it will be relative to `BASE_DIR`
+- **Absolute Paths**: Start with `/` (Unix) or `C:\` (Windows), used as is
 
-Exemples :
+Examples:
 ```bash
-# Relatif au projet
+# Relative to project
 CONVERSATIONS_DIR=instagram_conversations
-# → /Users/username/projet/instagram_conversations
+# → /Users/username/project/instagram_conversations
 
-# Absolu
+# Absolute
 CONVERSATIONS_DIR=/Users/username/custom/location
 # → /Users/username/custom/location
 ```
 
-## Sécurité
+## Security
 
-Le fichier `.env` contient vos chemins personnels et **ne doit jamais être commité sur Git**.
+The `.env` file contains your personal paths and **must never be committed to Git**.
 
-Il est déjà dans `.gitignore` :
+It is already in `.gitignore`:
 ```
 # Environment Variables
 .env
@@ -183,46 +183,46 @@ Il est déjà dans `.gitignore` :
 .env.*.local
 ```
 
-## Dépannage
+## Troubleshooting
 
-### Le script ne trouve pas mes conversations
+### Script cannot find my conversations
 
-Vérifiez que `INSTAGRAM_EXPORT_DIR` pointe vers le bon dossier :
+Check that `INSTAGRAM_EXPORT_DIR` points to the correct directory:
 ```bash
 ls "$INSTAGRAM_EXPORT_DIR"
-# Devrait lister vos dossiers de conversations
+# Should list your conversation directories
 ```
 
-### Variables d'environnement non chargées
+### Environment variables not loaded
 
-Assurez-vous que `python-dotenv` est installé :
+Make sure `python-dotenv` is installed:
 ```bash
 pip install python-dotenv
 ```
 
-### Erreur "module 'dotenv' not found"
+### Error "module 'dotenv' not found"
 
 ```bash
 pip install --upgrade python-dotenv
 ```
 
-## Logique d'import automatique
+## Automatic Import Logic
 
-Le script `instagram_to_text.py` a été amélioré pour détecter automatiquement vos exports Instagram. Il cherche dans l'ordre de priorité suivant :
+The script `instagram_to_text.py` has been improved to automatically detect your Instagram exports. It searches in the following priority order:
 
-1. La variable d'environnement `INSTAGRAM_EXPORT_DIR` (si définie)
-2. Le dossier `merged_instagram_export/` (créé par `merge_instagram_exports.py`)
-3. Les dossiers dans `original_import_folders/`
-4. Tout dossier commençant par `instagram-` dans la racine
+1. The `INSTAGRAM_EXPORT_DIR` environment variable (if defined)
+2. The `merged_instagram_export/` directory (created by `merge_instagram_exports.py`)
+3. Folders in `original_import_folders/`
+4. Any folder starting with `instagram-` in the root
 
-Cette logique permet de gérer facilement des exports multiples ou fusionnés sans reconfiguration constante.
+This logic allows easily handling multiple or merged exports without constant reconfiguration.
 
-## Migration depuis l'ancienne version
+## Migration from Old Version
 
-Si vous utilisez une version précédente avec des chemins hardcodés :
+If you are using a previous version with hardcoded paths:
 
-1. Lancez `python3 setup_env.py`
-2. Vos données existantes dans `instagram_conversations/` et `rag_data/` seront automatiquement utilisées
-3. Aucune réindexation n'est nécessaire
+1. Run `python3 setup_env.py`
+2. Your existing data in `instagram_conversations/` and `rag_data/` will be automatically used
+3. No re-indexing is necessary
 
-Les chemins par défaut correspondent aux anciens emplacements hardcodés.
+The default paths correspond to the old hardcoded locations.

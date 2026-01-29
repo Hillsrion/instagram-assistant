@@ -1,3 +1,7 @@
+"""
+Tests for enrichment_chunking.py module.
+Semantic enrichment and chunking.
+"""
 import unittest
 from unittest.mock import MagicMock, patch
 import os

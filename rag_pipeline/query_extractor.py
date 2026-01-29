@@ -1,6 +1,6 @@
 """
-Module d'extraction de dates depuis une requête utilisateur.
-Utilise le LLM pour transformer "été dernier" en plage de dates [start, end].
+Date extractor module from user query.
+Uses LLM to transform "last summer" into date range [start, end].
 """
 import json
 import requests
@@ -9,7 +9,7 @@ from typing import Optional, Dict, Tuple
 from .config import Config
 
 class QueryDateExtractor:
-    """Extrait des plages de dates d'une requête en langage naturel."""
+    """Extracts date ranges from natural language query."""
     
     def __init__(self, config: Config):
         self.config = config
@@ -17,12 +17,13 @@ class QueryDateExtractor:
         
     def extract_dates(self, query: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Extrait une plage de dates d'une requête.
+        Extracts a date range from a query.
         
         Returns:
-            (start_date, end_date) au format YYYY-MM-DD ou None
+            (start_date, end_date) in YYYY-MM-DD format or None
         """
-        # Prompt système optimisé pour l'extraction de dates (Ministral-friendly)
+        # System prompt optimized for date extraction (Ministral-friendly)
+        # Kept in French/English mix as it parses French queries but logic is logic
         system_prompt = f"""Tu es un extracteur de dates (STRICT, concis).
 
 Aujourd'hui: {self.today.strftime('%Y-%m-%d')}
@@ -52,11 +53,11 @@ Format: {{"has_date": bool, "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"
                     "stream": False,
                     "format": "json",
                     "options": {
-                        "temperature": 0.0,  # Déterminisme maximal
+                        "temperature": 0.0,  # Max determinism
                         "num_predict": 128
                     }
                 },
-                timeout=10.0  # Timeout court pour ne pas ralentir la recherche
+                timeout=10.0  # Short timeout
             )
             
             if response.status_code == 200:
@@ -67,6 +68,6 @@ Format: {{"has_date": bool, "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"
                     return (content.get("start_date"), content.get("end_date"))
             
         except Exception as e:
-            print(f"⚠️ Erreur extraction date: {e}")
+            print(f"⚠️ Date extraction error: {e}")
             
         return (None, None)

@@ -68,33 +68,33 @@ class QAPair:
         return cls(**data)
 
 
-GENERATION_PROMPT = """Tu es un expert en création de jeux de données pour l'évaluation de systèmes RAG.
+GENERATION_PROMPT = """You are an expert in creating datasets for RAG system evaluation.
 
-À partir du contenu de conversation Instagram suivant, génère exactement 3 paires question-réponse variées.
+From the following Instagram conversation content, generate exactly 3 varied question-answer pairs.
 
-CONTENU DE LA CONVERSATION:
+CONVERSATION CONTENT:
 {content}
 
-RÉSUMÉ:
+SUMMARY:
 {summary}
 
 PARTICIPANTS: {participants}
-PÉRIODE: {date_start} - {date_end}
+PERIOD: {date_start} - {date_end}
 
-RÈGLES:
-1. Génère 3 questions de types différents:
-   - 1 question FACTUELLE (réponse directement dans le texte)
-   - 1 question de RÉSUMÉ (demandant une synthèse)
-   - 1 question IMPLICITE (nécessitant une inférence légère)
+RULES:
+1. Generate 3 questions of different types:
+   - 1 FACTUAL question (answer directly in the text)
+   - 1 SUMMARY question (asking for a synthesis)
+   - 1 IMPLICIT question (requiring slight inference)
 
-2. Les réponses doivent être:
-   - Basées UNIQUEMENT sur le contenu fourni
-   - Concises mais complètes
-   - En français
+2. Answers must be:
+   - Based ONLY on the provided content
+   - Concise but complete
+   - In English
 
-3. Les questions doivent être naturelles, comme si un utilisateur les posait.
+3. Questions must be natural, as if a user was asking them.
 
-FORMAT DE SORTIE (JSON strict):
+OUTPUT FORMAT (Strict JSON):
 [
   {{
     "question": "...",
@@ -105,7 +105,7 @@ FORMAT DE SORTIE (JSON strict):
   ...
 ]
 
-Réponds UNIQUEMENT avec le JSON, sans explication."""
+Answer ONLY with the JSON, no explanation."""
 
 
 class SyntheticDataGenerator:
@@ -209,7 +209,7 @@ class SyntheticDataGenerator:
 
         prompt = GENERATION_PROMPT.format(
             content=chunk.content[:3000],  # Truncate for context limit
-            summary=chunk.narrative_summary or "Non disponible",
+            summary=chunk.narrative_summary or "Not available",
             participants=", ".join(chunk.participants),
             date_start=chunk.date_start[:10],
             date_end=chunk.date_end[:10]

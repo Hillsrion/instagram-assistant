@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-Orchestrateur du pipeline RAG - Point d'entrée principal.
+RAG Pipeline Orchestrator - Main Entry Point.
 
-Ce script orchestre l'exécution de toutes les étapes du pipeline RAG:
-1. Chargement/génération des chunks (setup_chunks.py)
-2. Enrichissement LLM (setup_enrich.py)
-3. Génération des embeddings (setup_embeddings.py)
-4-6. Index FAISS + BM25 + Métadonnées (setup_indexes.py)
-7-8. Résumés hiérarchiques + leur index (setup_summaries.py)
+This script orchestrates the execution of all RAG pipeline steps:
+1. Loading/Generating chunks (setup_chunks.py)
+2. LLM Enrichment (setup_enrich.py)
+3. Generating embeddings (setup_embeddings.py)
+4-6. FAISS + BM25 + Metadata Indexes (setup_indexes.py)
+7-8. Hierarchical Summaries + their index (setup_summaries.py)
 
 Usage:
-    python setup_rag.py                  # Exécute tout le pipeline
-    python setup_rag.py --status         # Affiche l'état de tous les composants
-    python setup_rag.py --reset          # Reset complet et recommence
-    python setup_rag.py --only chunks    # Exécute une seule étape
-    python setup_rag.py --skip-enrich    # Saute l'enrichissement
-    python setup_rag.py --limit 10       # Limite à 10 conversations
+    python setup_rag.py                  # Runs the whole pipeline
+    python setup_rag.py --status         # Shows status of all components
+    python setup_rag.py --reset          # Full reset and restart
+    python setup_rag.py --only chunks    # Runs a single step
+    python setup_rag.py --skip-enrich    # Skips enrichment
+    python setup_rag.py --limit 10       # Limits to 10 conversations
 """
 import sys
 import argparse
@@ -35,7 +35,7 @@ from rag_pipeline.cli_utils import (
     reset_checkpoints,
 )
 
-# Import des sous-scripts
+# Import sub-scripts
 import setup_chunks
 import setup_enrich
 import setup_embeddings
@@ -44,7 +44,7 @@ import setup_summaries
 
 
 def show_status(config: Config):
-    """Affiche l'état actuel de l'indexation."""
+    """Shows current indexing status."""
     print("=" * 60)
     print("STATUS - RAG Pipeline")
     print("=" * 60)
@@ -52,47 +52,47 @@ def show_status(config: Config):
     # Chunks
     chunker = ConversationChunker(config)
     chunks = chunker.load_chunks() if config.chunks_cache_path.exists() else []
-    print(f"\n[Chunks] {len(chunks)} (dans {config.chunks_cache_path})")
+    print(f"\n[Chunks] {len(chunks)} (in {config.chunks_cache_path})")
 
-    # Enrichissement
+    # Enrichment
     if chunks:
         enriched = sum(1 for c in chunks if c.narrative_summary and c.hypothetical_questions)
-        print(f"[Enrichissement] {enriched}/{len(chunks)} chunks enrichis")
+        print(f"[Enrichment] {enriched}/{len(chunks)} chunks enriched")
 
     # Checkpoints
     n_checkpoints = count_existing_checkpoints(CHECKPOINT_DIR)
     chunks_processed = n_checkpoints * DEFAULT_BATCH_SIZE
     print(f"\n[Embeddings]")
     print(f"   - Checkpoints: {n_checkpoints}")
-    print(f"   - Chunks traités: ~{chunks_processed}")
+    print(f"   - Chunks processed: ~{chunks_processed}")
     if chunks:
-        print(f"   - Chunks restants: ~{max(0, len(chunks) - chunks_processed)}")
+        print(f"   - Chunks remaining: ~{max(0, len(chunks) - chunks_processed)}")
         if n_checkpoints > 0:
             progress = min(100, (chunks_processed / len(chunks)) * 100)
-            print(f"   - Progression: {progress:.1f}%")
+            print(f"   - Progress: {progress:.1f}%")
 
-    # Index FAISS
+    # FAISS Index
     faiss_path = config.vector_store_path / "index.faiss"
     if faiss_path.exists():
-        print(f"\n[Index FAISS] Créé ({faiss_path})")
+        print(f"\n[FAISS Index] Created ({faiss_path})")
     else:
-        print(f"\n[Index FAISS] Non créé")
+        print(f"\n[FAISS Index] Not created")
 
-    # Index BM25
+    # BM25 Index
     bm25_path = config.index_dir / "bm25_index.pkl"
     if bm25_path.exists():
-        print(f"[Index BM25] Créé ({bm25_path})")
+        print(f"[BM25 Index] Created ({bm25_path})")
     else:
-        print(f"[Index BM25] Non créé")
+        print(f"[BM25 Index] Not created")
 
-    # Index métadonnées
+    # Metadata Index
     metadata_path = config.index_dir / "metadata.db"
     if metadata_path.exists():
-        print(f"[Index métadonnées] Créé ({metadata_path})")
+        print(f"[Metadata Index] Created ({metadata_path})")
     else:
-        print(f"[Index métadonnées] Non créé")
+        print(f"[Metadata Index] Not created")
 
-    # Résumés
+    # Summaries
     conv_summaries_path = config.index_dir / "conversation_summaries.json"
     period_summaries_path = config.index_dir / "period_summaries.json"
     summary_index_path = config.index_dir / "summary_index"
@@ -101,153 +101,153 @@ def show_status(config: Config):
         import json
         with open(conv_summaries_path, 'r', encoding='utf-8') as f:
             conv_data = json.load(f)
-        print(f"\n[Résumés conversations] {len(conv_data)} résumés")
+        print(f"\n[Conversation Summaries] {len(conv_data)} summaries")
     else:
-        print(f"\n[Résumés conversations] Non générés")
+        print(f"\n[Conversation Summaries] Not generated")
 
     if period_summaries_path.exists():
         import json
         with open(period_summaries_path, 'r', encoding='utf-8') as f:
             period_data = json.load(f)
-        print(f"[Résumés périodes] {len(period_data)} résumés")
+        print(f"[Period Summaries] {len(period_data)} summaries")
     else:
-        print(f"[Résumés périodes] Non générés")
+        print(f"[Period Summaries] Not generated")
 
     if (summary_index_path / "conversation_index.faiss").exists():
-        print(f"[Index résumés] Créé ({summary_index_path})")
+        print(f"[Summary Index] Created ({summary_index_path})")
     else:
-        print(f"[Index résumés] Non créé")
+        print(f"[Summary Index] Not created")
 
     print()
 
 
 def full_reset(config: Config):
-    """Reset complet de tous les composants."""
+    """Full reset of all components."""
     import shutil
 
-    print("Reset complet du pipeline RAG...")
+    print("Full RAG pipeline reset...")
 
     # Checkpoints
     reset_checkpoints(CHECKPOINT_DIR)
 
-    # Index FAISS
+    # FAISS Index
     if config.vector_store_path.exists():
         shutil.rmtree(config.vector_store_path)
-        print("Index FAISS supprimé")
+        print("FAISS Index deleted")
 
     # BM25
     bm25_path = config.index_dir / "bm25_index.pkl"
     if bm25_path.exists():
         bm25_path.unlink()
-        print("Index BM25 supprimé")
+        print("BM25 Index deleted")
 
-    # Métadonnées
+    # Metadata
     metadata_path = config.index_dir / "metadata.db"
     if metadata_path.exists():
         metadata_path.unlink()
-        print("Index métadonnées supprimé")
+        print("Metadata Index deleted")
 
-    # Résumés
+    # Summaries
     conv_summaries_path = config.index_dir / "conversation_summaries.json"
     period_summaries_path = config.index_dir / "period_summaries.json"
     summary_index_path = config.index_dir / "summary_index"
 
     if conv_summaries_path.exists():
         conv_summaries_path.unlink()
-        print("Résumés de conversation supprimés")
+        print("Conversation summaries deleted")
     if period_summaries_path.exists():
         period_summaries_path.unlink()
-        print("Résumés de période supprimés")
+        print("Period summaries deleted")
     if summary_index_path.exists():
         shutil.rmtree(summary_index_path)
-        print("Index des résumés supprimé")
+        print("Summary Index deleted")
 
-    # Chunks (optionnel - on les garde par défaut)
+    # Chunks (optional - kept by default)
     # if config.chunks_cache_path.exists():
     #     config.chunks_cache_path.unlink()
-    #     print("Cache des chunks supprimé")
+    #     print("Chunks cache deleted")
 
     print()
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Orchestrateur du pipeline RAG",
+        description="RAG Pipeline Orchestrator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Exemples:
-    python setup_rag.py                  # Exécute tout le pipeline
-    python setup_rag.py --status         # Affiche l'état
-    python setup_rag.py --reset          # Reset complet
-    python setup_rag.py --only chunks    # Seulement les chunks
-    python setup_rag.py --skip-enrich --skip-summary  # Sans enrichissement ni résumés
+        epilog=f"""
+Examples:
+    python setup_rag.py                  # Runs the whole pipeline
+    python setup_rag.py --status         # Shows status
+    python setup_rag.py --reset          # Full reset
+    python setup_rag.py --only chunks    # Only chunks
+    python setup_rag.py --skip-enrich --skip-summary  # Without enrichment or summaries
         """
     )
 
-    # Options générales
+    # General options
     parser.add_argument("--status", action="store_true",
-                        help="Affiche l'état de tous les composants")
+                        help="Shows status of all components")
     parser.add_argument("--reset", action="store_true",
-                        help="Reset complet et recommence")
+                        help="Full reset and restart")
 
-    # Exécution sélective
+    # Selective execution
     parser.add_argument("--only", choices=['chunks', 'enrich', 'embed', 'indexes', 'summaries'],
-                        help="Exécute une seule étape")
+                        help="Execute a single step")
 
-    # Options pour sauter des étapes
+    # Skip options
     parser.add_argument("--skip-enrich", action="store_true",
-                        help="Saute l'enrichissement LLM")
+                        help="Skips LLM enrichment")
     parser.add_argument("--skip-embed", action="store_true",
-                        help="Saute la génération des embeddings")
+                        help="Skips embedding generation")
     parser.add_argument("--skip-indexes", action="store_true",
-                        help="Saute la création des index")
+                        help="Skips index creation")
     parser.add_argument("--skip-summary", action="store_true",
-                        help="Saute les résumés hiérarchiques")
+                        help="Skips hierarchical summaries")
 
-    # Options passées aux sous-scripts
+    # Sub-script options
     parser.add_argument("--limit", type=int,
-                        help="Limite le nombre de conversations")
+                        help="Limit number of conversations")
     parser.add_argument("--model", type=str,
-                        help="Override du modèle LLM (ex: qwen2.5:3b)")
+                        help="Override LLM model (e.g. qwen2.5:3b)")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE,
-                        help=f"Taille des batches d'embeddings (défaut: {DEFAULT_BATCH_SIZE})")
+                        help=f"Embedding batch size (default: {DEFAULT_BATCH_SIZE})")
     parser.add_argument("--import-test", action="store_true",
-                        help="Importe les conversations de test")
+                        help="Import test conversations")
     parser.add_argument("--log-verbose", action="store_true",
-                        help="Activer les logs détaillés")
+                        help="Enable verbose logging")
 
     args = parser.parse_args()
 
-    # Initialiser le logging selon le flag
+    # Initialize logging according to flag
     initialize_logging(args.log_verbose)
 
     config = Config()
 
     if args.model:
         config.llm_model = args.model
-        print(f"Override modèle LLM: {config.llm_model}")
+        print(f"LLM Model Override: {config.llm_model}")
 
-    # Mode status
+    # Status mode
     if args.status:
         show_status(config)
         return
 
-    # Mode reset
+    # Reset mode
     if args.reset:
         full_reset(config)
 
-    # Afficher la configuration
+    # Display configuration
     print("=" * 60)
-    print("RAG Pipeline - Indexation")
+    print("RAG Pipeline - Indexing")
     print("=" * 60)
     print()
     if args.limit:
-        print(f"Limite activée: {args.limit} conversations max")
+        print(f"Limit enabled: {args.limit} max conversations")
     print(f"Batch size: {args.batch_size}")
     print(f"Checkpoints: {CHECKPOINT_DIR}")
     print()
 
-    # Exécution sélective d'une seule étape
+    # Selective execution
     if args.only:
         if args.only == 'chunks':
             setup_chunks.run(config, reset=args.reset, limit=args.limit, import_test=args.import_test)
@@ -261,74 +261,74 @@ Exemples:
             setup_summaries.run(config, reset=args.reset, model=args.model)
         return
 
-    # Exécution complète du pipeline
-    # Étape 1: Chunks
+    # Full pipeline execution
+    # Step 1: Chunks
     if not setup_chunks.run(config, reset=args.reset, limit=args.limit, import_test=args.import_test):
-        print("Erreur à l'étape 1 (chunks)")
+        print("Error at step 1 (chunks)")
         sys.exit(1)
 
-    # Étape 2: Enrichissement
+    # Step 2: Enrichment
     if not args.skip_enrich:
         if not setup_enrich.run(config, reset=args.reset, model=args.model):
-            print("Erreur à l'étape 2 (enrichissement)")
-            # Continue quand même car l'enrichissement n'est pas critique
+            print("Error at step 2 (enrichment)")
+            # Continue anyway as enrichment is not critical
     else:
-        print("Étape 2/8: Enrichissement sauté (--skip-enrich)")
+        print("Step 2/8: Enrichment skipped (--skip-enrich)")
         print()
 
-    # Étape 3: Embeddings
+    # Step 3: Embeddings
     embeddings = None
     if not args.skip_embed:
         embeddings = setup_embeddings.run(config, reset=args.reset, batch_size=args.batch_size)
         if embeddings is None:
-            print("Erreur à l'étape 3 (embeddings)")
+            print("Error at step 3 (embeddings)")
             sys.exit(1)
     else:
-        print("Étape 3/8: Embeddings sauté (--skip-embed)")
+        print("Step 3/8: Embeddings skipped (--skip-embed)")
         embeddings = load_all_checkpoints(CHECKPOINT_DIR, verbose=False)
         print()
 
-    # Étapes 4-6: Index
+    # Steps 4-6: Index
     if not args.skip_indexes:
         if not setup_indexes.run(config, reset=args.reset):
-            print("Erreur aux étapes 4-6 (indexes)")
+            print("Error at steps 4-6 (indexes)")
             sys.exit(1)
     else:
-        print("Étapes 4-6/8: Indexation sautée (--skip-indexes)")
+        print("Steps 4-6/8: Indexing skipped (--skip-indexes)")
         print()
 
-    # Étapes 7-8: Résumés
+    # Steps 7-8: Summaries
     if not args.skip_summary:
         if not setup_summaries.run(config, reset=args.reset, model=args.model):
-            print("Erreur aux étapes 7-8 (summaries)")
-            # Continue quand même
+            print("Error at steps 7-8 (summaries)")
+            # Continue anyway
     else:
-        print("Étapes 7-8/8: Résumés sautés (--skip-summary)")
+        print("Steps 7-8/8: Summaries skipped (--skip-summary)")
         print()
 
-    # Résumé final
+    # Final summary
     print("=" * 60)
-    print("INDEXATION TERMINÉE - RAG AVANCÉ")
+    print("INDEXING COMPLETE - ADVANCED RAG")
     print("=" * 60)
 
-    # Recharger les chunks pour le résumé
+    # Reload chunks for summary
     chunker = ConversationChunker(config)
     chunks = chunker.load_chunks() if config.chunks_cache_path.exists() else []
 
-    print(f"Chunks indexés: {len(chunks)}")
+    print(f"Indexed chunks: {len(chunks)}")
     if embeddings is not None:
         print(f"Embeddings: {embeddings.shape}")
     else:
-        print(f"Embeddings: (Non chargés)")
-    print(f"Index FAISS: {config.vector_store_path}")
-    print(f"Index BM25: {config.index_dir / 'bm25_index.pkl'}")
-    print(f"Index métadonnées: {config.index_dir / 'metadata.db'}")
-    print(f"Index résumés: {config.index_dir / 'summary_index'}")
+        print(f"Embeddings: (Not loaded)")
+    print(f"FAISS Index: {config.vector_store_path}")
+    print(f"BM25 Index: {config.index_dir / 'bm25_index.pkl'}")
+    print(f"Metadata Index: {config.index_dir / 'metadata.db'}")
+    print(f"Summary Index: {config.index_dir / 'summary_index'}")
     print()
-    print("Vous pouvez maintenant lancer le chat avancé avec:")
+    print("You can now launch the advanced chat with:")
     print("   python chat_instagram_advanced.py")
     print()
-    print("   Ou le chat simple avec:")
+    print("   Or the simple chat with:")
     print("   python chat_instagram.py")
     print()
 

@@ -126,7 +126,7 @@ def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
     <div class="chat-container max-w-2xl mx-auto" data-chunk="{chunk_id}">
         <div class="mb-3 pb-3 border-b border-slate-300">
             <div class="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">
-                📌 Conversation • {', '.join(participants) if participants else 'N/A'} • {chunk.date_start[:10]} à {chunk.date_end[:10]}
+                📌 Conversation • {', '.join(participants) if participants else 'N/A'} • {chunk.date_start[:10]} to {chunk.date_end[:10]}
             </div>
         </div>
 
@@ -176,19 +176,19 @@ def get_eval_prompt(question: str, context: str) -> str:
     Uses strict anti-hallucination rules that benefit all models,
     especially smaller ones like Ministral 8B.
     """
-    return f"""Réponds à la question ci-dessous en te basant UNIQUEMENT sur le contexte fourni.
+    return f"""Answer the question below based ONLY on the provided context.
 
-Règles:
-- Réponds directement et de manière concise
-- N'ajoute pas d'interprétations ou d'hypothèses au-delà du texte
-- Si l'information n'est pas dans le contexte, dis-le
+Rules:
+- Answer directly and concisely
+- Do not add interpretations or assumptions beyond the text
+- If the information is not in the context, say so
 
-Contexte:
+Context:
 {context}
 
 Question: {question}
 
-Réponse:"""
+Answer:"""
 
 
 def create_judge(config: Config, judge_model: str = None) -> RAGASMetrics:
@@ -354,11 +354,11 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
 
     html = f"""
 <!DOCTYPE html>
-<html lang="fr" class="h-full bg-slate-50">
+<html lang="en" class="h-full bg-slate-50">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rapport de Comparaison LLM</title>
+    <title>LLM Comparison Report</title>
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -384,10 +384,10 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
             <!-- Header -->
             <div class="text-center mb-12">
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight sm:text-5xl">
-                    📊 Rapport de Comparaison LLM
+                    📊 LLM Comparison Report
                 </h1>
                 <p class="mt-4 text-lg text-slate-600">
-                    Généré le <span class="font-semibold text-indigo-600">{timestamp}</span> • Basé sur <span class="font-semibold text-indigo-600">{len(qa_pairs)}</span> questions de test • Juge: <span class="font-semibold text-indigo-600">{escape_html(judge_model)}</span>
+                    Generated on <span class="font-semibold text-indigo-600">{timestamp}</span> • Based on <span class="font-semibold text-indigo-600">{len(qa_pairs)}</span> test questions • Judge: <span class="font-semibold text-indigo-600">{escape_html(judge_model)}</span>
                 </p>
             </div>
 
@@ -395,7 +395,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
             <div class="bg-indigo-50 border-l-4 border-indigo-500 p-8 rounded-xl shadow-sm mb-12">
                 <div class="flex items-center mb-4">
                     <span class="text-2xl mr-3">📑</span>
-                    <h2 class="text-2xl font-bold text-indigo-900">Conclusion du Juge</h2>
+                    <h2 class="text-2xl font-bold text-indigo-900">Judge's Conclusion</h2>
                 </div>
                 <div class="prose-content text-indigo-800 leading-relaxed text-base prose prose-indigo">
                     {markdown_to_html(summary_synthesis)}
@@ -406,19 +406,19 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                     <h3 class="text-lg font-bold text-slate-900 mb-6 flex items-center">
-                        <span class="mr-2">🎯</span> Moyenne Faithfulness
+                        <span class="mr-2">🎯</span> Avg Faithfulness
                     </h3>
                     <div class="h-64"><canvas id="faithChart"></canvas></div>
                 </div>
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                     <h3 class="text-lg font-bold text-slate-900 mb-6 flex items-center">
-                        <span class="mr-2">⚖️</span> Moyenne Relevance
+                        <span class="mr-2">⚖️</span> Avg Relevance
                     </h3>
                     <div class="h-64"><canvas id="relevChart"></canvas></div>
                 </div>
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                     <h3 class="text-lg font-bold text-slate-900 mb-6 flex items-center">
-                        <span class="mr-2">⚡</span> Vitesse (mots/sec)
+                        <span class="mr-2">⚡</span> Speed (words/sec)
                     </h3>
                     <div class="h-64"><canvas id="speedChart"></canvas></div>
                 </div>
@@ -427,7 +427,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
             <!-- Details Section -->
             <div class="space-y-12">
                 <div class="flex items-center justify-between border-b border-slate-200 pb-4">
-                    <h2 class="text-3xl font-bold text-slate-900">🔍 Détails par Question</h2>
+                    <h2 class="text-3xl font-bold text-slate-900">🔍 Details per Question</h2>
                     <span class="bg-slate-200 text-slate-700 px-3 py-1 rounded-full text-sm font-medium">
                         {len(qa_pairs)} questions
                     </span>
@@ -450,7 +450,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
                             </span>
                             <h3 class="text-xl font-bold text-slate-900 mb-2">{escape_html(qa['question'])}</h3>
                             <div class="flex items-start text-sm text-slate-600">
-                                <span class="font-bold text-slate-900 mr-2">Cible:</span>
+                                <span class="font-bold text-slate-900 mr-2">Target:</span>
                                 <span>{escape_html(qa['expected_answer'])}</span>
                             </div>
         """
@@ -459,7 +459,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
         if chunk_id and chunk_id in chunks_map:
             html += f"""
                             <button class="mt-4 px-3 py-1 text-xs font-medium bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition" onclick="toggleSource('{source_content_id}', this)">
-                                📌 Afficher source ({chunk_id[:20]}...)
+                                📌 Show source ({chunk_id[:20]}...)
                             </button>
             """
 
@@ -472,7 +472,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
             chunk = chunks_map[chunk_id]
             html += f"""
                         <div id="{source_content_id}" class="hidden px-8 py-4 bg-slate-100 border-b border-slate-200">
-                            <p class="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3">💬 Conversation Source</p>
+                            <p class="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3">💬 Source Conversation</p>
                             {format_chunk_as_chat(chunk, source_content_id)}
                         </div>
             """
@@ -499,13 +499,13 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
                                         <div>
                                             <h4 class="font-bold text-slate-900 leading-none">{escape_html(model)}</h4>
                                             <span class="text-xs text-slate-500 mt-1 block">
-                                                {res['time']:.2f}s • {res['words_per_sec']:.1f} mots/s
+                                                {res['time']:.2f}s • {res['words_per_sec']:.1f} words/s
                                             </span>
                                         </div>
                                     </div>
                                     <div class="flex space-x-2">
-                                        <span class="px-3 py-1 rounded-lg text-sm font-bold {bg_f}">Fidélité: {score_f*100:.0f}%</span>
-                                        <span class="px-3 py-1 rounded-lg text-sm font-bold {bg_r}">Pertinence: {score_r*100:.0f}%</span>
+                                        <span class="px-3 py-1 rounded-lg text-sm font-bold {bg_f}">Faithfulness: {score_f*100:.0f}%</span>
+                                        <span class="px-3 py-1 rounded-lg text-sm font-bold {bg_r}">Relevance: {score_r*100:.0f}%</span>
                                     </div>
                                 </div>
 
@@ -514,7 +514,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
                                 </div>
 
                                 <div class="mt-auto bg-indigo-50/50 p-4 rounded-lg">
-                                    <p class="text-xs font-bold text-indigo-900 uppercase tracking-tighter mb-1">Observation du Juge</p>
+                                    <p class="text-xs font-bold text-indigo-900 uppercase tracking-tighter mb-1">Judge's Observation</p>
                                     <p class="text-sm text-indigo-800 italic leading-snug">"{escape_html(res['faith']['explanation'])}"</p>
                                 </div>
                             </div>
@@ -544,10 +544,10 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
 
             if (isHidden) {{
                 element.classList.remove('hidden');
-                button.textContent = button.textContent.replace('Afficher', 'Masquer');
+                button.textContent = button.textContent.replace('Show', 'Hide');
             }} else {{
                 element.classList.add('hidden');
-                button.textContent = button.textContent.replace('Masquer', 'Afficher');
+                button.textContent = button.textContent.replace('Hide', 'Show');
             }}
         }}
 
@@ -583,7 +583,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
         }};
         createChart('faithChart', 'Faithfulness', {json.dumps(faiths)}, '#4f46e5');
         createChart('relevChart', 'Relevance', {json.dumps(relevs)}, '#10b981');
-        createChart('speedChart', 'Mots par seconde', {json.dumps(speeds)}, '#f59e0b');
+        createChart('speedChart', 'Words per second', {json.dumps(speeds)}, '#f59e0b');
     </script>
 </body>
 </html>
@@ -776,12 +776,12 @@ Examples:
 
     # Always generate JSON report
     json_path = generate_json_report(results, qa_pairs, synth_resp, judge_model, models, args.trials)
-    print(f"\n✅ Rapport JSON généré: {json_path}")
+    print(f"\n✅ JSON report generated: {json_path}")
 
     # Optionally generate HTML report
     if args.html:
         html_path = generate_html_report(results, qa_pairs, synth_resp, judge_model, chunks_map, models=models, trials=args.trials)
-        print(f"✅ Rapport HTML généré: {html_path}")
+        print(f"✅ HTML report generated: {html_path}")
 
     print("\n" + synth_resp)
 

@@ -1,5 +1,7 @@
 # Instagram Assistant - Quick Start Guide
 
+> For a detailed explanation of each pipeline stage, see [RAG_PIPELINE.md](RAG_PIPELINE.md).
+
 ## Prerequisites
 
 - Python 3.10+

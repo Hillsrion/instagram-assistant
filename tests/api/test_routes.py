@@ -1,6 +1,6 @@
 """
-Tests pour les routes API.
-Utilise pytest et TestClient de FastAPI avec fixtures.
+Tests for API routes.
+Uses pytest and FastAPI TestClient with fixtures.
 """
 import tempfile
 import json
@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def temp_storage_file(tmp_path):
-    """Crée un fichier de stockage temporaire."""
+    """Creates a temporary storage file."""
     storage_file = tmp_path / "conversations.json"
     storage_file.write_text("{}")
     return storage_file
@@ -21,7 +21,7 @@ def temp_storage_file(tmp_path):
 
 @pytest.fixture
 def test_client(temp_storage_file):
-    """Crée un client de test avec storage patché."""
+    """Creates a test client with patched storage."""
     import api.storage as storage_module
     
     # Patch the storage file path
@@ -39,73 +39,73 @@ def test_client(temp_storage_file):
 
 
 class TestConversationRoutes:
-    """Tests pour les routes /api/conversations."""
+    """Tests for /api/conversations routes."""
 
     def test_list_conversations_empty(self, test_client):
-        """GET /api/conversations retourne liste vide initialement."""
+        """GET /api/conversations returns empty list initially."""
         response = test_client.get("/api/conversations")
         assert response.status_code == 200
         assert response.json() == []
 
     def test_create_conversation(self, test_client):
-        """POST /api/conversations crée une nouvelle conversation."""
+        """POST /api/conversations creates a new conversation."""
         response = test_client.post(
             "/api/conversations",
-            json={"title": "Nouvelle conversation"}
+            json={"title": "New conversation"}
         )
         assert response.status_code == 200
         data = response.json()
         assert "id" in data
-        assert data["title"] == "Nouvelle conversation"
+        assert data["title"] == "New conversation"
         assert "created_at" in data
         assert data["messages"] == []
 
     def test_create_conversation_default_title(self, test_client):
-        """POST /api/conversations avec titre par défaut."""
+        """POST /api/conversations with default title."""
         response = test_client.post("/api/conversations", json={})
         assert response.status_code == 200
-        assert response.json()["title"] == "Nouvelle conversation"
+        assert response.json()["title"] == "New Conversation"
 
     def test_get_conversation(self, test_client):
-        """GET /api/conversations/{id} retourne la conversation."""
-        # Créer d'abord
+        """GET /api/conversations/{id} returns the conversation."""
+        # Create first
         create_resp = test_client.post("/api/conversations", json={"title": "Test"})
         assert create_resp.status_code == 200
         conv_id = create_resp.json()["id"]
         
-        # Récupérer
+        # Retrieve
         response = test_client.get(f"/api/conversations/{conv_id}")
         assert response.status_code == 200
         assert response.json()["id"] == conv_id
 
     def test_get_conversation_not_found(self, test_client):
-        """GET /api/conversations/{id} retourne 404 si non trouvée."""
+        """GET /api/conversations/{id} returns 404 if not found."""
         response = test_client.get("/api/conversations/nonexistent")
         assert response.status_code == 404
 
     def test_delete_conversation(self, test_client):
-        """DELETE /api/conversations/{id} supprime la conversation."""
-        # Créer d'abord
+        """DELETE /api/conversations/{id} deletes the conversation."""
+        # Create first
         create_resp = test_client.post("/api/conversations", json={"title": "To delete"})
         assert create_resp.status_code == 200
         conv_id = create_resp.json()["id"]
         
-        # Supprimer
+        # Delete
         response = test_client.delete(f"/api/conversations/{conv_id}")
         assert response.status_code == 200
         
-        # Vérifier suppression
+        # Verify deletion
         get_resp = test_client.get(f"/api/conversations/{conv_id}")
         assert get_resp.status_code == 404
 
     def test_update_conversation_title(self, test_client):
-        """PATCH /api/conversations/{id} met à jour le titre."""
-        # Créer d'abord
+        """PATCH /api/conversations/{id} updates the title."""
+        # Create first
         create_resp = test_client.post("/api/conversations", json={"title": "Original"})
         assert create_resp.status_code == 200
         conv_id = create_resp.json()["id"]
         
-        # Mettre à jour
+        # Update
         response = test_client.patch(
             f"/api/conversations/{conv_id}",
             json={"title": "Updated title"}
@@ -115,13 +115,13 @@ class TestConversationRoutes:
 
 
 class TestStatusRoute:
-    """Tests pour la route /api/status."""
+    """Tests for /api/status route."""
 
     def test_status_endpoint(self):
-        """GET /api/status retourne l'état du système."""
+        """GET /api/status returns system status."""
         from api import dependencies, create_app
         
-        # Sauvegarde et mock de l'état
+        # Save and mock state
         original_state = dependencies.state
         
         mock_state = MagicMock()
@@ -142,10 +142,10 @@ class TestStatusRoute:
 
 
 class TestParticipantsRoute:
-    """Tests pour la route /api/participants."""
+    """Tests for /api/participants route."""
 
     def test_participants_no_components(self):
-        """GET /api/participants retourne liste vide sans composants."""
+        """GET /api/participants returns empty list without components."""
         from api import dependencies, create_app
         
         original_state = dependencies.state
@@ -167,7 +167,7 @@ class TestParticipantsRoute:
             dependencies.state = original_state
 
     def test_participants_with_metadata_store(self):
-        """GET /api/participants retourne les participants du metadata store."""
+        """GET /api/participants returns participants from metadata store."""
         from api import dependencies, create_app
         
         original_state = dependencies.state

@@ -1,6 +1,6 @@
 """
-Vector Store basé sur FAISS pour le RAG Pipeline.
-Stockage et recherche efficace d'embeddings.
+FAISS-based Vector Store for RAG Pipeline.
+Efficient embedding storage and retrieval.
 """
 import json
 import numpy as np
@@ -14,14 +14,14 @@ from .chunker import Chunk
 
 @dataclass
 class SearchResult:
-    """Résultat d'une recherche."""
+    """Search result."""
     chunk: Chunk
     score: float
     rank: int
 
 
 class VectorStore:
-    """Store de vecteurs basé sur FAISS."""
+    """FAISS-based vector store."""
     
     def __init__(self, config: Config = None):
         self.config = config or default_config
@@ -30,7 +30,7 @@ class VectorStore:
         self._faiss = None
     
     def _load_faiss(self):
-        """Charge FAISS (lazy loading)."""
+        """Loads FAISS (lazy loading)."""
         if self._faiss is not None:
             return
         
@@ -39,40 +39,40 @@ class VectorStore:
             self._faiss = faiss
         except ImportError:
             raise ImportError(
-                "faiss est requis. "
-                "Installez avec: pip install faiss-cpu"
+                "faiss is required. "
+                "Install with: pip install faiss-cpu"
             )
     
     def build_index(self, chunks: List[Chunk], embeddings: np.ndarray):
         """
-        Construit l'index FAISS à partir des chunks et embeddings.
+        Builds the FAISS index from chunks and embeddings.
         
         Args:
-            chunks: Liste des chunks
-            embeddings: Matrice d'embeddings (n_chunks, dim)
+            chunks: List of chunks
+            embeddings: Embeddings matrix (n_chunks, dim)
         """
         self._load_faiss()
         
         if len(chunks) != len(embeddings):
             raise ValueError(
-                f"Nombre de chunks ({len(chunks)}) != "
-                f"nombre d'embeddings ({len(embeddings)})"
+                f"Number of chunks ({len(chunks)}) != "
+                f"number of embeddings ({len(embeddings)})"
             )
         
         self.chunks = chunks
         dim = embeddings.shape[1]
         
-        # Créer l'index FAISS avec Inner Product (équivalent cosine pour vecteurs normalisés)
+        # Create FAISS index with Inner Product (equivalent to cosine for normalized vectors)
         self.index = self._faiss.IndexFlatIP(dim)
         
-        # Normaliser les embeddings (au cas où)
+        # Normalize embeddings (just in case)
         embeddings = embeddings.astype(np.float32)
         self._faiss.normalize_L2(embeddings)
         
-        # Ajouter les vecteurs
+        # Add vectors
         self.index.add(embeddings)
         
-        print(f"✅ Index FAISS créé avec {self.index.ntotal} vecteurs (dim={dim})")
+        print(f"✅ FAISS index created with {self.index.ntotal} vectors (dim={dim})")
     
     def search(
         self, 
@@ -81,32 +81,32 @@ class VectorStore:
         min_score: float = None
     ) -> List[SearchResult]:
         """
-        Recherche les chunks les plus similaires.
+        Search for most similar chunks.
         
         Args:
-            query_embedding: Embedding de la requête
-            top_k: Nombre de résultats à retourner
-            min_score: Score minimum de similarité
+            query_embedding: Query embedding
+            top_k: Number of results to return
+            min_score: Minimum similarity score
             
         Returns:
-            Liste de SearchResult triés par score décroissant
+            List of SearchResult sorted by score descending
         """
         if self.index is None:
-            raise RuntimeError("Index non initialisé. Appelez build_index() d'abord.")
+            raise RuntimeError("Index not initialized. Call build_index() first.")
         
         top_k = top_k or self.config.top_k
         min_score = min_score or self.config.min_similarity
         
-        # Normaliser le vecteur de requête
+        # Normalize query vector
         query = query_embedding.astype(np.float32).reshape(1, -1)
         self._faiss.normalize_L2(query)
         
-        # Recherche
+        # Search
         scores, indices = self.index.search(query, top_k)
         
         results = []
         for rank, (score, idx) in enumerate(zip(scores[0], indices[0])):
-            if idx < 0:  # Index invalide
+            if idx < 0:  # Invalid index
                 continue
             if score < min_score:
                 continue
@@ -120,31 +120,31 @@ class VectorStore:
         return results
     
     def save(self, path: Path = None):
-        """Sauvegarde l'index et les métadonnées."""
+        """Saves index and metadata."""
         self._load_faiss()
         
         path = path or self.config.vector_store_path
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
         
-        # Sauvegarder l'index FAISS
+        # Save FAISS index
         index_path = path / "index.faiss"
         self._faiss.write_index(self.index, str(index_path))
         
-        # Sauvegarder les chunks (métadonnées)
+        # Save chunks (metadata)
         chunks_path = path / "chunks.json"
         chunks_data = [chunk.to_dict() for chunk in self.chunks]
         with open(chunks_path, 'w', encoding='utf-8') as f:
             json.dump(chunks_data, f, ensure_ascii=False, indent=2)
         
-        print(f"💾 Index sauvegardé dans {path}")
+        print(f"💾 Index saved to {path}")
     
     def load(self, path: Path = None) -> bool:
         """
-        Charge l'index depuis le disque.
+        Loads index from disk.
         
         Returns:
-            True si chargement réussi, False sinon
+            True if load successful, False otherwise
         """
         self._load_faiss()
         
@@ -157,20 +157,20 @@ class VectorStore:
         if not index_path.exists() or not chunks_path.exists():
             return False
         
-        # Charger l'index FAISS
+        # Load FAISS index
         self.index = self._faiss.read_index(str(index_path))
         
-        # Charger les chunks
+        # Load chunks
         with open(chunks_path, 'r', encoding='utf-8') as f:
             chunks_data = json.load(f)
         self.chunks = [Chunk.from_dict(d) for d in chunks_data]
         
-        print(f"📂 Index chargé: {self.index.ntotal} vecteurs, {len(self.chunks)} chunks")
+        print(f"📂 Index loaded: {self.index.ntotal} vectors, {len(self.chunks)} chunks")
         return True
     
     @property
     def size(self) -> int:
-        """Retourne le nombre de vecteurs dans l'index."""
+        """Returns the number of vectors in the index."""
         if self.index is None:
             return 0
         return self.index.ntotal

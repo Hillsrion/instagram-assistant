@@ -60,7 +60,7 @@ async def chat(request: ChatRequest):
     }
     conv['messages'].append(user_msg)
 
-    # Omni-Analyse (Rewrite + Intent + Dates) en un seul appel LLM
+    # Omni-Analysis (Rewrite + Intent + Dates) in a single LLM call
     analysis = query_analyzer.analyze(request.message, chatbot.conversation_history)
     
     dyn_top_k = analysis.top_k
@@ -68,7 +68,7 @@ async def chat(request: ChatRequest):
     dyn_expand = analysis.expand_context
     search_query = analysis.rewritten_query
 
-    # On utilise les dates extraites par l'analyzer si présentes
+    # Use dates extracted by analyzer if present
     final_date_start = request.date_start or analysis.date_start
     final_date_end = request.date_end or analysis.date_end
 
@@ -85,7 +85,7 @@ async def chat(request: ChatRequest):
         expand_context=dyn_expand
     )
 
-    # Smart Fallback: Si la requête réécrite donne peu de résultats, on tente la requête originale
+    # Smart Fallback: If rewritten query yields poor results, try original query
     if (context.low_confidence or not context.has_results) and search_query != request.message:
         print(f"⚠️ Low confidence ({context.max_confidence_score:.2f}). Attempting fallback with original query.")
         
@@ -101,7 +101,7 @@ async def chat(request: ChatRequest):
             expand_context=dyn_expand
         )
         
-        # Si le fallback est meilleur ou si l'original n'avait rien, on remplace
+        # If fallback is better or original had nothing, replace
         if fallback_context.max_confidence_score > context.max_confidence_score:
             print(f"✅ Fallback successful: score {context.max_confidence_score:.2f} -> {fallback_context.max_confidence_score:.2f}")
             context = fallback_context
@@ -158,7 +158,7 @@ async def chat_stream(request: ChatRequest):
     if request.group_filter:
         logger.info(f"👥 Group filter received: '{request.group_filter}' (Not yet implemented in retrieval)")
 
-    # Omni-Analyse (Rewrite + Intent + Dates + Mode) en un seul appel LLM
+    # Omni-Analysis (Rewrite + Intent + Dates + Mode) in a single LLM call
     analysis = query_analyzer.analyze(request.message, chatbot.conversation_history)
 
     logger.info(f"🎯 Analysis result: mode={analysis.mode}, intent={analysis.intent}")
@@ -167,9 +167,9 @@ async def chat_stream(request: ChatRequest):
     if analysis.mode == "analytics":
         query_lower = request.message.lower()
         
-        # Define explicit keywords for routing
-        discovery_keywords = ["liste", "qui", "participants", "tous les", "show all", "list"]
-        computational_keywords = ["combien", "nombre", "count", "statistiques", "stats"]
+        # Define explicit keywords for routing (multilingual)
+        discovery_keywords = ["liste", "qui", "participants", "tous les", "show all", "list", "who"]
+        computational_keywords = ["combien", "nombre", "count", "statistiques", "stats", "how many"]
         
         is_discovery = any(k in query_lower for k in discovery_keywords)
         is_computational = any(k in query_lower for k in computational_keywords)
@@ -213,7 +213,9 @@ async def chat_stream(request: ChatRequest):
             }
 
         # Send conversation ID first
-        yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
+        yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}
+
+"
 
         # Add user message
         user_msg = {
@@ -223,23 +225,23 @@ async def chat_stream(request: ChatRequest):
         }
         conv['messages'].append(user_msg)
         
-        # Synchroniser l'historique du chatbot avec la conversation actuelle
+        # Synchronize chatbot history with current conversation
         chatbot.conversation_history = [
             {"role": m["role"], "content": m["content"]} 
             for m in conv['messages'][:-1]
         ]
 
         # Progress: Search step
-        yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Analyse de la question...'})}\n\n"
+        yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Analyzing question...'})}\n\n"
         
-        # L'analyse a déjà été faite pour le routing, on réutilise ses paramètres
+        # Analysis already done for routing, reusing parameters
         dyn_top_k = analysis.top_k
         dyn_reranking = analysis.use_reranking
         dyn_expand = analysis.expand_context
         search_query = analysis.rewritten_query
         
         intent_label = analysis.intent or 'info'
-        yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': f'Recherche ({intent_label})...'})}\n\n"
+        yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': f'Searching ({intent_label})...'})}\n\n"
 
         # Dates
         final_date_start = request.date_start or analysis.date_start
@@ -257,9 +259,9 @@ async def chat_stream(request: ChatRequest):
             expand_context=dyn_expand
         )
 
-        # Smart Fallback: Si la requête réécrite donne peu de résultats, on tente la requête originale
+        # Smart Fallback: If rewritten query yields poor results, try original query
         if (context.low_confidence or not context.has_results) and search_query != request.message:
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Recherche élargie (Smart Fallback)...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Broadening search (Smart Fallback)...'})}\n\n"
             
             fallback_context = retriever.retrieve(
                 query=request.message,
@@ -273,17 +275,19 @@ async def chat_stream(request: ChatRequest):
                 expand_context=dyn_expand
             )
             
-            # Si le fallback est meilleur, on remplace
+            # If fallback is better, replace
             if fallback_context.max_confidence_score > context.max_confidence_score:
                 context = fallback_context
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Meilleurs résultats trouvés.'})}\n\n"
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Better results found.'})}
+
+"
 
         # Send sources with chunk_id and preview
         sources = []
         summary_sources = []
 
         if context.results:
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'documents', 'message': f'Lecture de {len(context.results)} documents...', 'count': len(context.results)})}\n\n"
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'documents', 'message': f'Reading {len(context.results)} documents...', 'count': len(context.results)})}\n\n"
 
             for r in context.results:
                 sources.append({
@@ -313,28 +317,34 @@ async def chat_stream(request: ChatRequest):
                 })
 
         if sources or summary_sources:
-            yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'summary_sources': summary_sources})}\n\n"
+            yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'summary_sources': summary_sources})}
+
+"
 
         # Check for low confidence - skip LLM call if confidence is too low AND no summaries
         if (context.low_confidence and not context.used_summary_fallback) or not context.has_results:
-            response_text = "Je n'ai pas trouve d'information pertinente dans les conversations pour repondre a cette question. Pouvez-vous reformuler ou preciser votre demande ?"
-            yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
+            response_text = "I couldn't find relevant information in the conversations to answer this question. Could you rephrase or be more specific?"
+            yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}
+
+"
         else:
             # Progress: Generating step
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'generating', 'message': 'Generation de la reponse...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'generating', 'message': 'Generating response...'})}\n\n"
 
             # Stream response
             response_text = ""
             for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=request.model):
                 response_text += chunk
-                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}
+
+"
                 await asyncio.sleep(0)  # Allow other tasks to run
 
             # Filter PII from final response
             response_text = chatbot.filter_pii(response_text)
 
         # Generate follow-up questions
-        yield f"data: {json.dumps({'type': 'progress', 'step': 'followups', 'message': 'Preparation des suggestions...'})}\n\n"
+        yield f"data: {json.dumps({'type': 'progress', 'step': 'followups', 'message': 'Preparing suggestions...'})}\n\n"
 
         followups = []
         if response_text and not context.low_confidence:
@@ -344,7 +354,9 @@ async def chat_stream(request: ChatRequest):
                 print(f"Followup generation error: {e}")
 
         if followups:
-            yield f"data: {json.dumps({'type': 'followups', 'questions': followups})}\n\n"
+            yield f"data: {json.dumps({'type': 'followups', 'questions': followups})}
+
+"
 
         # Save conversation
         assistant_msg = {
@@ -361,12 +373,12 @@ async def chat_stream(request: ChatRequest):
         conv['updated_at'] = datetime.now().isoformat()
         save_conversation(conv)
 
-        # Déclencher le compactage si nécessaire et informer le front
+        # Trigger compaction if necessary and inform frontend
         if len(conv['messages']) > 10:
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'compacting', 'message': 'Optimisation de la mémoire...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'compacting', 'message': 'Optimizing memory...'})}\n\n"
             chatbot._update_history(request.message, response_text, skip_add=True)
-            # Si un compactage a eu lieu, on pourrait vouloir sauvegarder le résumé
-            # mais pour l'instant il reste en mémoire vive du chatbot global.
+            # If compaction happened, we might want to save the summary
+            # but for now it stays in the global chatbot RAM.
 
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 

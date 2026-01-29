@@ -32,7 +32,9 @@ async def handle_computational_query(request: ChatRequest) -> AsyncGenerator[str
             "messages": []
         }
 
-    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
+    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}
+
+"
 
     # Add user message
     user_msg = {
@@ -46,8 +48,9 @@ async def handle_computational_query(request: ChatRequest) -> AsyncGenerator[str
     query_lower = request.message.lower()
 
     try:
-        if "combien" in query_lower or "nombre" in query_lower or "count" in query_lower:
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'analytics', 'message': 'Calcul des statistiques...'})}\n\n"
+        # Keywords check (multilingual support)
+        if any(x in query_lower for x in ["combien", "nombre", "count", "how many"]):
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'analytics', 'message': 'Calculating statistics...'})}\n\n"
 
             # Extract participant if mentioned
             participant = request.participant_filter
@@ -56,22 +59,26 @@ async def handle_computational_query(request: ChatRequest) -> AsyncGenerator[str
                 date_start=request.date_start,
                 date_end=request.date_end
             )
-            response_text = f"Il y a **{count}** messages"
+            response_text = f"There are **{count}** messages"
             if participant:
-                response_text += f" avec {participant}"
+                response_text += f" with {participant}"
             if request.date_start or request.date_end:
-                response_text += f" entre {request.date_start or 'le début'} et {request.date_end or 'maintenant'}"
+                response_text += f" between {request.date_start or 'the beginning'} and {request.date_end or 'now'}"
             response_text += "."
         else:
             # This branch should rarely be hit since QueryAnalyzer should catch unsupported analytics queries
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'analytics', 'message': 'Récupération des données...'})}\n\n"
-            response_text = "Je peux compter le nombre de messages totaux ou par contact. Pour d'autres analyses, essayez de reformuler votre question en utilisant 'combien' ou 'nombre'. Sinon, je peux chercher du contenu spécifique dans vos conversations."
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'analytics', 'message': 'Retrieving data...'})}\n\n"
+            response_text = "I can count total messages or messages by contact. For other analyses, try reformulating your question using 'how many' or 'count'. Otherwise, I can search for specific content in your conversations."
 
-        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}
+
+"
 
     except Exception as e:
-        response_text = f"Erreur lors du calcul: {str(e)}"
-        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
+        response_text = f"Calculation error: {str(e)}"
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}
+
+"
 
     # Save conversation
     assistant_msg = {

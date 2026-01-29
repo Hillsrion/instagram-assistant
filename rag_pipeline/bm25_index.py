@@ -1,6 +1,6 @@
 """
-Index BM25 optimisé utilisant rank_bm25.
-Permet la recherche par mots-clés rapide et efficace.
+Optimized BM25 index using rank_bm25.
+Enables fast and efficient keyword search.
 """
 import re
 import pickle
@@ -15,12 +15,12 @@ from .chunker import Chunk
 
 class BM25Index:
     """
-    Index BM25 pour recherche lexicale (optimisé avec rank_bm25).
+    BM25 Index for lexical search (optimized with rank_bm25).
 
-    BM25 est excellent pour:
-    - Mots-clés exacts (noms propres, termes techniques)
-    - Requêtes courtes
-    - Compléter la recherche sémantique
+    BM25 is excellent for:
+    - Exact keywords (proper names, technical terms)
+    - Short queries
+    - Complementing semantic search
     """
 
     def __init__(self, config: Config = None):
@@ -28,13 +28,13 @@ class BM25Index:
         self.chunks: List[Chunk] = []
         self.bm25: Optional[BM25Okapi] = None
         
-        # Stopwords français/anglais
+        # French/English stopwords
         self.stopwords = self._load_stopwords()
 
     def _load_stopwords(self) -> Set[str]:
-        """Charge les stopwords FR/EN."""
+        """Loads FR/EN stopwords."""
         return {
-            # Français
+            # French
             'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de', 'et', 'en', 'au', 'aux',
             'ce', 'ces', 'cet', 'cette', 'qui', 'que', 'quoi', 'dont', 'où',
             'je', 'tu', 'il', 'elle', 'on', 'nous', 'vous', 'ils', 'elles',
@@ -51,7 +51,7 @@ class BM25Index:
             'alors', 'donc', 'ainsi', 'comme', 'quand', 'comment', 'pourquoi',
             'ça', 'cela', 'celui', 'celle', 'ceux', 'celles',
 
-            # Anglais
+            # English
             'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
             'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
             'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
@@ -63,47 +63,47 @@ class BM25Index:
             'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some', 'any',
             'no', 'not', 'only', 'same', 'so', 'than', 'too', 'very', 'just',
 
-            # Communs chat
+            # Chat commons
             'haha', 'hahaha', 'lol', 'mdr', 'ptdr', 'ok', 'okay', 'oui', 'non', 'yes', 'no',
             'merci', 'thanks', 'please', 'svp', 'stp',
         }
 
     def tokenize(self, text: str) -> List[str]:
-        """Tokenize et nettoie un texte."""
-        # Lowercase et extraction des mots
+        """Tokenize and clean text."""
+        # Lowercase and word extraction
         text = text.lower()
         tokens = re.findall(r'\b[a-zA-ZÀ-ÿ]{2,}\b', text)
 
-        # Filtrer stopwords et tokens trop courts
+        # Filter stopwords and short tokens
         tokens = [t for t in tokens if t not in self.stopwords and len(t) > 2]
 
         return tokens
 
     def build_index(self, chunks: List[Chunk]):
         """
-        Construit l'index BM25 à partir des chunks.
+        Builds BM25 index from chunks.
 
         Args:
-            chunks: Liste des chunks à indexer
+            chunks: List of chunks to index
         """
         self.chunks = chunks
         
-        print(f"📚 Construction de l'index BM25 ({len(chunks)} chunks)...")
+        print(f"📚 Building BM25 index ({len(chunks)} chunks)...")
 
-        # Tokenizer tous les documents
+        # Tokenize all documents
         tokenized_corpus = []
         for chunk in chunks:
-            # On indexe le contenu complet
+            # Index complete content
             text_parts = [chunk.content]
             if chunk.narrative_summary:
                 text_parts.insert(0, chunk.narrative_summary)
             text = " ".join(text_parts)
             tokenized_corpus.append(self.tokenize(text))
 
-        # Initialisation de BM25Okapi
+        # Initialize BM25Okapi
         self.bm25 = BM25Okapi(tokenized_corpus)
         
-        print(f"✅ Index BM25 construit")
+        print(f"✅ BM25 index built")
 
     def search(
         self,
@@ -112,15 +112,15 @@ class BM25Index:
         min_score: float = 0.0
     ) -> List[Tuple[int, float]]:
         """
-        Recherche BM25.
+        BM25 Search.
 
         Args:
-            query: Requête textuelle
-            top_k: Nombre de résultats
-            min_score: Score minimum
+            query: Text query
+            top_k: Number of results
+            min_score: Minimum score
 
         Returns:
-            Liste de (doc_idx, score) triés par score
+            List of (doc_idx, score) sorted by score
         """
         if self.bm25 is None:
             return []
@@ -129,25 +129,25 @@ class BM25Index:
         if not tokenized_query:
             return []
 
-        # Obtenir les scores pour tout le corpus
+        # Get scores for corpus
         scores = self.bm25.get_scores(tokenized_query)
         
-        # Filtrer et trier
+        # Filter and sort
         doc_scores = []
         for idx, score in enumerate(scores):
             if score > min_score:
                 doc_scores.append((idx, score))
 
-        # Trier par score décroissant
+        # Sort by score desc
         doc_scores.sort(key=lambda x: x[1], reverse=True)
 
         return doc_scores[:top_k]
 
     def get_scores_array(self, query: str) -> np.ndarray:
         """
-        Retourne les scores BM25 pour tous les documents.
+        Returns BM25 scores for all documents.
 
-        Utile pour la fusion avec les scores dense.
+        Useful for fusion with dense scores.
         """
         if self.bm25 is None:
             return np.zeros(len(self.chunks))
@@ -160,27 +160,27 @@ class BM25Index:
         return np.array(scores)
 
     def save(self, path: Path = None):
-        """Sauvegarde l'index BM25."""
+        """Saves the BM25 index."""
         path = path or (self.config.index_dir / "bm25_index.pkl")
 
         if self.bm25 is None:
-            print("⚠️ Aucun index à sauvegarder")
+            print("⚠️ No index to save")
             return
 
         data = {
             'bm25': self.bm25,
-            # On ne sauvegarde pas les chunks ici pour éviter la duplication
-            # (ils sont gérés par le vector store ou un chunk store central)
-            # Mais on doit s'assurer que l'ordre reste le même.
+            # We don't save chunks here to avoid duplication
+            # (they are managed by vector store or central chunk store)
+            # But we must ensure order remains the same.
         }
 
         with open(path, 'wb') as f:
             pickle.dump(data, f)
 
-        print(f"💾 Index BM25 sauvegardé dans {path}")
+        print(f"💾 BM25 index saved to {path}")
 
     def load(self, path: Path = None) -> bool:
-        """Charge l'index BM25."""
+        """Loads the BM25 index."""
         path = path or (self.config.index_dir / "bm25_index.pkl")
 
         if not path.exists():
@@ -191,10 +191,10 @@ class BM25Index:
 
         self.bm25 = data.get('bm25')
         
-        # Note: self.chunks doit être re-assigné après chargement par l'orchestrateur
-        # car on ne le sauvegarde pas dans le pickle pour économiser l'espace
+        # Note: self.chunks must be re-assigned after loading by the orchestrator
+        # because we don't save it in pickle to save space
         
         if self.bm25:
-            print(f"📂 Index BM25 chargé")
+            print(f"📂 BM25 index loaded")
             return True
         return False
