@@ -43,9 +43,10 @@ RÈGLES ABSOLUES:
    - L'interface utilisateur affiche déjà les sources, donc ta réponse doit être fluide et naturelle
    - Si tu dois citer, intègre-le naturellement dans la phrase ("Il a dit que...")
 
-5. REFUS CLAIRS si information absente
-   - "Je n'ai pas trouvé cette information dans les conversations disponibles."
-   - "Les documents fournis ne contiennent pas de réponse à cette question."
+5. REFUS CLAIRS ET CONSTRUCTIFS
+   - Si l'information n'est pas dans les documents, dis-le clairement.
+   - PROPOSE DE L'AIDE : Si c'est la première fois que tu mentionnes ne pas trouver l'info pour ce sujet, demande des précisions (date, nom).
+   - STOP : Si l'utilisateur a déjà répondu à tes questions de précision sur CE sujet et que tu ne trouves toujours rien, clos le sujet poliment sans relancer.
    - Pas d'hypothèses en cas d'absence
 
 6. DONNÉES PERSONNELLES - Ne révèle JAMAIS téléphones, emails, adresses
@@ -239,11 +240,14 @@ Question de l'utilisateur : {query}
 
 Réponds en te basant UNIQUEMENT sur les documents ci-dessus. Si tu ne trouves pas l'information, dis-le clairement."""
         else:
-            return f"""Je n'ai trouvé aucun document pertinent pour cette question.
+            return f"""Je n'ai trouvé aucun document pertinent pour cette question dans les conversations analysées.
 
 Question : {query}
 
-Indique à l'utilisateur que tu n'as pas trouvé d'information correspondante dans les conversations Instagram."""
+Tâche :
+1. Informe l'utilisateur que tu n'as pas trouvé d'information spécifique.
+2. CONTEXTE : Regarde l'historique. Si tu as déjà posé une question de précision sur CE SUJET précis, n'insiste plus et propose de passer à autre chose.
+3. RELANCE : Si c'est un nouveau sujet, demande un indice (ex: "S'agissait-il d'une discussion récente ?") pour aider ta recherche."""
 
     def _call_ollama(
         self,
