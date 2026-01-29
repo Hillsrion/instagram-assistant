@@ -16,7 +16,7 @@ class RetrievalContext:
     query: str
     results: List[SearchResult]
     formatted_context: str
-    has_results:
+    has_results: bool
     
     def get_sources(self) -> List[str]:
         """Returns the list of used sources."""
