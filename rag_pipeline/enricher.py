@@ -29,7 +29,7 @@ ANALYSE CETTE CONVERSATION ET GÉNÈRE JSON :
    - tone: ton général (léger, sérieux, playful, etc)
    - tension_level: low/medium/high
 7. **DYNAMIQUE SOCIALE** :
-   - interaction_pattern: Type d'échange (ex: "Planification", "Récit", "Débat", "Soutien", "Conflit", "Catch-up")
+   - interaction_pattern: Type d'échange dominant (ex: "Planification", "Récit", "Débat", "Soutien", "Conflit", "Catch-up"). Si aucun pattern clair n'est identifiable ou si l'échange est trop fragmenté, mets null.
    - initiative: Qui mène ? (ex: "Nom_A", "Équilibré", "Nom_B pose les questions")
    - emotional_shift: Trajectoire (ex: "Neutre -> Joyeux", "Tendu -> Apaisé", "Stable")
    - open_loops: Sujets lancés mais non résolus (liste de strings, vide si aucun)
