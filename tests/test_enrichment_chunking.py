@@ -81,7 +81,11 @@ class TestEnrichmentChunking(unittest.TestCase):
             "speaker_intents": {"A": "Intent A"},
             "temporal_context": "Summer",
             "entities": {"locations": ["Paris"]},
-            "emotions": {"dominant": "Joy"}
+            "emotions": {"dominant": "Joy"},
+            "interaction_pattern": "Debate",
+            "initiative": "A",
+            "emotional_shift": "Stable",
+            "open_loops": []
         }
 
         with patch('requests.post') as mock_post:
@@ -95,6 +99,7 @@ class TestEnrichmentChunking(unittest.TestCase):
             self.assertEqual(result[0], "Narrative summary")
             self.assertEqual(result[1], ["Q1", "Q2", "Q3"])
             self.assertEqual(result[4]["locations"], ["Paris"])
+            self.assertEqual(result[6], "Debate")  # interaction_pattern
 
     @patch('builtins.print')
     def test_enrich_text_invalid(self, mock_print):
@@ -121,6 +126,7 @@ class TestEnrichmentChunking(unittest.TestCase):
             self.assertEqual(result[0], "")
             self.assertEqual(result[1], [])
             self.assertEqual(result[2], {})
+            self.assertIsNone(result[6])
 
     def test_chunk_text_long(self):
         """Test unit: chunk_text with long text (should split)"""
@@ -181,7 +187,7 @@ class TestEnrichmentChunking(unittest.TestCase):
             mock_post.return_value.status_code = 200
             mock_post.return_value.json.return_value = {"message": {"content": json.dumps(mock_response)}}
             
-            summary, questions, _, _, _, _ = enricher.enrich_chunk(chunk)
+            summary, questions, _, _, _, _, _, _, _, _ = enricher.enrich_chunk(chunk)
             chunk.narrative_summary = summary
             chunk.hypothetical_questions = questions
             

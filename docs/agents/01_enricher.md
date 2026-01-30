@@ -13,6 +13,11 @@ The Enricher reads raw conversation chunks (batches of messages) and transforms 
 - **Speaker Intentions:** What each person wants.
 - **Emotion Analysis:** Detects dominant emotion, tone, and tension level.
 - **Temporal Context:** Identifies "when" this happened relative to life events (e.g., "vacation", "before moving").
+- **Social Dynamics:**
+  - **Interaction Pattern:** Type of exchange (e.g., "Planning", "Debate").
+  - **Initiative:** Who leads the conversation?
+  - **Emotional Shift:** Trajectory (e.g., "Neutral -> Happy").
+  - **Open Loops:** Unresolved topics.
 
 ## Prompt Strategy
 

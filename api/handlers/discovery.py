@@ -32,9 +32,7 @@ async def handle_discovery_query(request: ChatRequest) -> AsyncGenerator[str, No
             "messages": []
         }
 
-    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}
-
-"
+    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
 
     # Add user message
     user_msg = {
@@ -58,15 +56,11 @@ async def handle_discovery_query(request: ChatRequest) -> AsyncGenerator[str, No
         else:
             response_text = "No participants found in conversations."
 
-        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}
-
-"
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
 
     except Exception as e:
         response_text = f"Exploration error: {str(e)}"
-        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}
-
-"
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
 
     # Save conversation
     assistant_msg = {

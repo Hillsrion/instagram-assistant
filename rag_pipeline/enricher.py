@@ -28,6 +28,11 @@ ANALYSE CETTE CONVERSATION ET GÉNÈRE JSON :
    - dominant: émotion principale (basée sur le texte)
    - tone: ton général (léger, sérieux, playful, etc)
    - tension_level: low/medium/high
+7. **DYNAMIQUE SOCIALE** :
+   - interaction_pattern: Type d'échange (ex: "Planification", "Récit", "Débat", "Soutien", "Conflit", "Catch-up")
+   - initiative: Qui mène ? (ex: "Nom_A", "Équilibré", "Nom_B pose les questions")
+   - emotional_shift: Trajectoire (ex: "Neutre -> Joyeux", "Tendu -> Apaisé", "Stable")
+   - open_loops: Sujets lancés mais non résolus (liste de strings, vide si aucun)
 
 CONVERSATION:
 {content}
@@ -47,7 +52,11 @@ FORMAT JSON (les valeurs sont des exemples de format, PAS des données à recopi
   }},
   "temporal_context": "<moment ou période>",
   "entities": {{ "locations": [], "people": [], "media": [], "events": [] }},
-  "emotions": {{ "dominant": "<émotion>", "tone": "<ton>", "tension_level": "low|medium|high" }}
+  "emotions": {{ "dominant": "<émotion>", "tone": "<ton>", "tension_level": "low|medium|high" }},
+  "interaction_pattern": "<type d'échange>",
+  "initiative": "<qui mène>",
+  "emotional_shift": "<trajectoire>",
+  "open_loops": []
 }}
 """
 
@@ -59,12 +68,12 @@ class ChunkEnricher:
         # Lightweight model recommended for mass indexing
         self.model = self.config.llm_model 
         
-    def enrich_chunk(self, chunk: Chunk) -> Tuple[str, List[str], Dict[str, str], str, Dict[str, List[str]], Dict[str, str]]:
+    def enrich_chunk(self, chunk: Chunk) -> Tuple[str, List[str], Dict[str, str], str, Dict[str, List[str]], Dict[str, str], Optional[str], Optional[str], Optional[str], Optional[List[str]]]:
         """
-        Generates narrative summary, questions, intents, temporal context, entities, and emotions for a chunk.
+        Generates narrative summary, questions, intents, temporal context, entities, emotions and social dynamics for a chunk.
 
         Returns:
-            (narrative_summary, hypothetical_questions, speaker_intents, temporal_context, entities, emotions)
+            (summary, questions, speaker_intents, temporal_context, entities, emotions, interaction_pattern, initiative, emotional_shift, open_loops)
         """
         # Limit text size to avoid saturating context window of small models
         content_preview = chunk.content[:4000]
@@ -104,7 +113,7 @@ class ChunkEnricher:
             # Parse response JSON
             if not cleaned_result:
                 print(f"[ENRICH LOG] Empty response for chunk {chunk.chunk_id}")
-                return "", [], {}, "", {}, {}
+                return "", [], {}, "", {}, {}, None, None, None, None
 
             data = json.loads(cleaned_result)
             summary = data.get("narrative_summary", "")
@@ -123,8 +132,15 @@ class ChunkEnricher:
                          entities[key] = [str(v) if not isinstance(v, str) else v for v in val]
 
             emotions = data.get("emotions", {})
+            
+            interaction_pattern = data.get("interaction_pattern")
+            initiative = data.get("initiative")
+            emotional_shift = data.get("emotional_shift")
+            open_loops = data.get("open_loops")
+            if isinstance(open_loops, list):
+                open_loops = [str(l) if not isinstance(l, str) else l for l in open_loops]
 
-            return summary, questions, speaker_intents, temporal_context, entities, emotions
+            return summary, questions, speaker_intents, temporal_context, entities, emotions, interaction_pattern, initiative, emotional_shift, open_loops
 
         except json.JSONDecodeError as e:
             print(f"⚠️ JSON decoding error for chunk {chunk.chunk_id}: {e}")
@@ -133,14 +149,14 @@ class ChunkEnricher:
                 print(f"[ENRICH LOG] Cleaned result:\n{cleaned_result[:500]}...")
             elif 'result' in locals():
                  print(f"[ENRICH LOG] Raw result:\n{result[:500]}...")
-            return "", [], {}, "", {}, {}
+            return "", [], {}, "", {}, {}, None, None, None, None
         except Exception as e:
             # In case of error, return empty values (fallback to statistical summary)
             print(f"⚠️ Enrichment error chunk {chunk.chunk_id}: {e}")
             print(f"[ENRICH LOG] Error: {e}")
             if 'result' in locals():
                 print(f"[ENRICH LOG] Raw result:\n{result[:500]}...")
-            return "", [], {}, "", {}, {}
+            return "", [], {}, "", {}, {}, None, None, None, None
 
     def enrich_batch(
         self,
@@ -169,13 +185,18 @@ class ChunkEnricher:
                     progress_callback(i + 1, len(chunks))
                 continue
 
-            summary, questions, speaker_intents, temporal_context, entities, emotions = self.enrich_chunk(chunk)
+            summary, questions, speaker_intents, temporal_context, entities, emotions, interaction_pattern, initiative, emotional_shift, open_loops = self.enrich_chunk(chunk)
             chunk.narrative_summary = summary
             chunk.hypothetical_questions = questions
             chunk.speaker_intents = speaker_intents
             chunk.temporal_context = temporal_context
             chunk.entities = entities
             chunk.emotions = emotions
+            
+            chunk.interaction_pattern = interaction_pattern
+            chunk.initiative = initiative
+            chunk.emotional_shift = emotional_shift
+            chunk.open_loops = open_loops
             
             # Progress callback
             if progress_callback:

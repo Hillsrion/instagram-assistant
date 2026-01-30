@@ -29,6 +29,10 @@ The **Enricher agent** (Ollama, `ministral-8b`) processes each chunk with a stri
 | `temporal_context` | Semantic time anchor ("during vacation", "before moving") |
 | `emotions` | Dominant emotion, tone, tension level |
 | `entities` | Locations, people, media, events |
+| `interaction_pattern` | Type of exchange (e.g. "Planning", "Debate", "Support") |
+| `initiative` | Who leads the conversation? |
+| `emotional_shift` | Trajectory of emotions (e.g. "Neutral -> Happy") |
+| `open_loops` | Unresolved topics |
 
 Checkpoints every 20 chunks for fault tolerance.
 
@@ -38,8 +42,9 @@ Each chunk's `get_embedding_text()` method builds a composite string prioritized
 1. Hypothetical questions (highest signal)
 2. Temporal context
 3. Entities / Speaker intents / Emotions
-4. Narrative summary
-5. Raw message content
+4. Interaction dynamics (new social fields)
+5. Narrative summary
+6. Raw message content
 
 Encoded via **BGE-M3** (1024-dim, multilingual FR/EN), L2-normalized for cosine similarity.
 

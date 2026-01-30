@@ -213,9 +213,7 @@ async def chat_stream(request: ChatRequest):
             }
 
         # Send conversation ID first
-        yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}
-
-"
+        yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
 
         # Add user message
         user_msg = {
@@ -278,9 +276,7 @@ async def chat_stream(request: ChatRequest):
             # If fallback is better, replace
             if fallback_context.max_confidence_score > context.max_confidence_score:
                 context = fallback_context
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Better results found.'})}
-
-"
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Better results found.'})}\n\n"
 
         # Send sources with chunk_id and preview
         sources = []
@@ -317,16 +313,12 @@ async def chat_stream(request: ChatRequest):
                 })
 
         if sources or summary_sources:
-            yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'summary_sources': summary_sources})}
-
-"
+            yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'summary_sources': summary_sources})}\n\n"
 
         # Check for low confidence - skip LLM call if confidence is too low AND no summaries
         if (context.low_confidence and not context.used_summary_fallback) or not context.has_results:
             response_text = "I couldn't find relevant information in the conversations to answer this question. Could you rephrase or be more specific?"
-            yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}
-
-"
+            yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
         else:
             # Progress: Generating step
             yield f"data: {json.dumps({'type': 'progress', 'step': 'generating', 'message': 'Generating response...'})}\n\n"
@@ -335,9 +327,7 @@ async def chat_stream(request: ChatRequest):
             response_text = ""
             for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=request.model):
                 response_text += chunk
-                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}
-
-"
+                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
                 await asyncio.sleep(0)  # Allow other tasks to run
 
             # Filter PII from final response
@@ -354,9 +344,7 @@ async def chat_stream(request: ChatRequest):
                 print(f"Followup generation error: {e}")
 
         if followups:
-            yield f"data: {json.dumps({'type': 'followups', 'questions': followups})}
-
-"
+            yield f"data: {json.dumps({'type': 'followups', 'questions': followups})}\n\n"
 
         # Save conversation
         assistant_msg = {

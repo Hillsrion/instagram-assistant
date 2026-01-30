@@ -1,9 +1,9 @@
-"Advanced Retriever with all improvements:
+"""Advanced Retriever with all improvements:
 - Cross-encoder reranking
 - Context expansion (adjacent chunks)
 - Hybrid search (BM25 + dense)
 - Metadata pre-filtering
-"
+"""
 import numpy as np
 from typing import List, Optional, Set, Tuple
 from dataclasses import dataclass, field
@@ -53,10 +53,8 @@ class AdvancedRetrievalContext:
             expanded = " [expanded]" if r.is_expanded else ""
             source = (
                 f"[{r.rank}] {r.chunk.file_source} "
-                f"({r.chunk.date_start[:10]})
-"
-                f"    📝 {r.chunk.narrative_summary if r.chunk.narrative_summary else r.chunk.summary}
-"
+                f"({r.chunk.date_start[:10]})\n"
+                f"    📝 {r.chunk.narrative_summary if r.chunk.narrative_summary else r.chunk.summary}\n"
                 f"    🎯 Score: {r.final_score:.2f}{expanded}"
             )
             sources.append(source)

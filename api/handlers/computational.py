@@ -32,9 +32,7 @@ async def handle_computational_query(request: ChatRequest) -> AsyncGenerator[str
             "messages": []
         }
 
-    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}
-
-"
+    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
 
     # Add user message
     user_msg = {
@@ -70,15 +68,11 @@ async def handle_computational_query(request: ChatRequest) -> AsyncGenerator[str
             yield f"data: {json.dumps({'type': 'progress', 'step': 'analytics', 'message': 'Retrieving data...'})}\n\n"
             response_text = "I can count total messages or messages by contact. For other analyses, try reformulating your question using 'how many' or 'count'. Otherwise, I can search for specific content in your conversations."
 
-        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}
-
-"
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
 
     except Exception as e:
         response_text = f"Calculation error: {str(e)}"
-        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}
-
-"
+        yield f"data: {json.dumps({'type': 'chunk', 'content': response_text})}\n\n"
 
     # Save conversation
     assistant_msg = {

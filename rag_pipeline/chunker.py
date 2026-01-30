@@ -42,6 +42,12 @@ class Chunk:
     emotions: Optional[Dict[str, Any]] = None  # {dominant, tone, tension_level}
     entities: Optional[Dict[str, List[str]]] = None  # {locations: [], people: [], media: [], events: []}
     
+    # New "Social" enrichment fields
+    interaction_pattern: Optional[str] = None  # e.g. "Planification", "Récit", "Débat"
+    initiative: Optional[str] = None  # e.g. "UserA leads", "Balanced"
+    emotional_shift: Optional[str] = None  # e.g. "neutral -> happy"
+    open_loops: Optional[List[str]] = None  # Unresolved topics
+    
     def to_dict(self) -> dict:
         return asdict(self)
 
@@ -100,14 +106,30 @@ class Chunk:
             if emotion_parts:
                 text_parts.append(f"Mood: {', '.join(emotion_parts)}")
                 text_parts.append("")
+        
+        # 6. Interaction Dynamics (New fields)
+        dynamics_parts = []
+        if self.interaction_pattern:
+            dynamics_parts.append(f"Interaction Type: {self.interaction_pattern}")
+        if self.initiative:
+            dynamics_parts.append(f"Dynamics: {self.initiative}")
+        if self.emotional_shift:
+            dynamics_parts.append(f"Emotional Shift: {self.emotional_shift}")
+        if self.open_loops:
+            dynamics_parts.append(f"Open Topics: {', '.join(self.open_loops)}")
+        
+        if dynamics_parts:
+            text_parts.append("Conversation Dynamics:")
+            text_parts.extend(dynamics_parts)
+            text_parts.append("")
 
-        # 6. Narrative summary (Semantic context)
+        # 7. Narrative summary (Semantic context)
         if self.narrative_summary:
             text_parts.append(f"Summary: {self.narrative_summary}")
 
         text_parts.append("")
 
-        # 7. Raw content (Details)
+        # 8. Raw content (Details)
         text_parts.append("Conversation content:")
         text_parts.append(self.content)
         
