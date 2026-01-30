@@ -1,5 +1,5 @@
-"Chat interface for RAG Pipeline.
-Integrates the retriever with an LLM via Ollama."
+"""Chat interface for RAG Pipeline.
+Integrates the retriever with an LLM via Ollama."""
 import json
 import requests
 from typing import Optional, Generator, List
@@ -54,7 +54,7 @@ RÈGLES ABSOLUES:
 
 7. HORS-SUJET - Tu analyses UNIQUEMENT ces conversations Instagram, rien d'autre
 
-L'utilisateur s'appelle {user_name}. Quand tu vois "{user_name}" dans les conversations, c'est lui qui parle."
+L'utilisateur s'appelle {user_name}. Quand tu vois "{user_name}" dans les conversations, c'est lui qui parle."""
 
 
 # Follow-up questions generation prompt (optimized for Ministral)

@@ -75,7 +75,10 @@ class Chunk:
             text_parts.append("Mentioned entities:")
             for category, items in self.entities.items():
                 if items:
-                    text_parts.append(f"  - {category}: {', '.join(items)}")
+                    # Sanitize items to ensure they are strings
+                    safe_items = [str(item) for item in items if item]
+                    if safe_items:
+                        text_parts.append(f"  - {category}: {', '.join(safe_items)}")
             text_parts.append("")
 
         # 4. Participant intents

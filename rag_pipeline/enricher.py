@@ -108,11 +108,21 @@ class ChunkEnricher:
 
             data = json.loads(cleaned_result)
             summary = data.get("narrative_summary", "")
+            
             questions = data.get("questions", [])
-            speaker_intents = data.get("speaker_intents", {{}})
+            if isinstance(questions, list):
+                questions = [str(q) if not isinstance(q, str) else q for q in questions]
+            
+            speaker_intents = data.get("speaker_intents", {})
             temporal_context = data.get("temporal_context", "")
-            entities = data.get("entities", {{}})
-            emotions = data.get("emotions", {{}})
+            
+            entities = data.get("entities", {})
+            if isinstance(entities, dict):
+                for key, val in entities.items():
+                    if isinstance(val, list):
+                         entities[key] = [str(v) if not isinstance(v, str) else v for v in val]
+
+            emotions = data.get("emotions", {})
 
             return summary, questions, speaker_intents, temporal_context, entities, emotions
 

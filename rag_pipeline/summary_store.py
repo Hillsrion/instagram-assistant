@@ -327,8 +327,7 @@ class SummaryStore:
                 header = (
                     f"=== PERIOD SUMMARY [{result.level.upper()}] ===\n"
                     f"Participants: {', '.join(summary.participants)}\n"
-                    f"Period: {summary.period} ({summary.date_start[:10]} → {summary.date_end[:10]})
-"
+                    f"Period: {summary.period} ({summary.date_start[:10]} → {summary.date_end[:10]})\n"
                     f"Messages: {summary.message_count}\n"
                     f"Score: {result.score:.2f}\n"
                     f"---\n"
