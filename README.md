@@ -1,186 +1,93 @@
-# Instagram Conversations Assistant
+# Instagram Assistant
 
-A production-ready local AI assistant to explore and query your exported Instagram conversations using advanced RAG (Retrieval-Augmented Generation).
+**Explore your digital memories. Privately. Locally.**
 
-## Features
+Turn your Instagram archive into a searchable, interactive knowledge base. Ask questions like *"When did we go to Italy?"*, *"What music did we talk about last year?"*, or *"Summarize my relationship with Alex"*.
 
-- **Advanced RAG Pipeline**: Hybrid search (dense + BM25), cross-encoder reranking, context expansion
-- **Hierarchical Summaries**: Automatic fallback to conversation/period summaries for "big picture" queries
-- **Modern Web Interface**: Multiple conversations, filters, real-time streaming
-- **100% Local & Private**: No data sent to external servers
-- **Production-Ready**: Evaluation pipeline, incremental updates, PII filtering, robustness features
+Running 100% on your machine using advanced AI (Ollama + RAG).
 
-## Quick Start
+---
+
+## ✨ Features
+
+- **💬 Natural Conversation**: Chat with your history as if it were a person.
+- **🔍 Deep Search**: Finds answers even if you don't remember the exact words (semantic search).
+- **📅 "Big Picture" Views**: Automatically generates monthly summaries and relationship overviews.
+- **🔒 Private by Design**: No data leaves your computer. Your messages, your business.
+- **🖥️ Modern Interface**: A beautiful React application to browse, filter, and visualize your chats.
+
+## 🚀 Quick Start
+
+### Prerequisites
+- **Python 3.13+**
+- **Node.js** (for the frontend)
+- **Ollama** (installed and running)
+
+### 1. Setup Environment
+```bash
+# Clone the repo and enter directory
+python3 setup_env.py  # Interactive configuration
+pip install -r requirements.txt
+```
+
+### 2. Import Data
+Put your Instagram export JSON files in the folder configured during setup (default: `instagram_conversations/`).
 
 ```bash
-# 0. Configure environment (first time only)
-python3 setup_env.py
-
-# 1. Install dependencies
-pip install -r requirements.txt
-
-# 2. Convert Instagram conversations
+# Convert JSON to text
 python3 instagram_to_text.py
 
-# 3. Index conversations
-python3 setup_rag_batch.py
+# Build the AI index (may take a while)
+python3 setup_rag.py
+```
 
-# 4. Launch web application (Backend)
+### 3. Run the App
+
+**Option A: Web Interface (Recommended)**
+```bash
+# Terminal 1: Backend
 python3 app.py
 
-# 5. Launch web application (Frontend)
-cd frontend
-pnpm install && pnpm dev --open
+# Terminal 2: Frontend
+cd frontend && pnpm install && pnpm dev --open
 ```
 
-## Architecture
-
-### High-Level Flow
-
-```mermaid
-flowchart LR
-    subgraph Input
-        A[Instagram<br/>Export JSON]
-    end
-
-    subgraph Indexing
-        B[Chunker] --> C[Enricher<br/>LLM]
-        C --> D[Embeddings<br/>BGE-M3]
-        D --> E[(FAISS +<br/>BM25 +<br/>Summaries)]
-    end
-
-    subgraph Query
-        F[User<br/>Question] --> G[Hybrid<br/>Search]
-        G --> H[Reranker]
-        H --> I{Confidence?}
-        I -->|Low| J[Summary<br/>Fallback]
-        I -->|High| K[LLM<br/>Response]
-        J --> K
-    end
-
-    A --> B
-    E --> G
-    K --> L[Answer +<br/>Sources]
-
-    style A fill:#e3f2fd
-    style E fill:#fff9c4
-    style L fill:#c8e6c9
-```
-
-### Directory Structure
-
-```
-instagram_conversations/     # Exported Instagram conversations
-rag_data/
-  ├── faiss_index/          # Vector store (dense search)
-  ├── bm25_index.pkl        # Lexical index (keyword search)
-  ├── metadata.db           # SQLite (metadata filtering)
-  ├── file_state.json       # Delta tracker for incremental updates
-  ├── eval_dataset.json     # Evaluation dataset
-  ├── conversation_summaries.json  # Hierarchical summaries (conversation level)
-  ├── period_summaries.json        # Hierarchical summaries (monthly)
-  └── summary_index/        # FAISS indexes for summary search
-rag_pipeline/               # Core RAG components
-frontend/                   # React web interface (Vite + TanStack)
-eval/                       # Evaluation pipeline (RAGAS metrics)
-web/                        # Legacy web interface
-app.py                      # FastAPI server
-```
-
-## Configuration
-
-All paths are now configurable via environment variables:
-
+**Option B: Terminal Chat**
 ```bash
-# Interactive setup (recommended for first time)
-python3 setup_env.py
-
-# Or copy and edit manually
-cp .env.example .env
-```
-
-See [Configuration Guide](docs/CONFIGURATION.md) for details.
-
-## Key Commands
-
-```bash
-# Merge multiple Instagram exports (preserves all messages)
-python3 merge_instagram_exports.py export1/ export2/ -o merged/
-
-# Convert Instagram JSON to text
-python3 instagram_to_text.py
-
-# View indexing status
-python3 setup_rag_batch.py --status
-
-# Incremental update (after adding/modifying files)
-python3 update_index.py
-
-# Full reindex from scratch
-python3 setup_rag_batch.py --reset
-
-# CLI chat interface
 python3 cli.py
-
-# Run evaluation benchmark (Generation)
-python -m eval.eval_generation qwen3:latest mistral
-
-# See docs/EVAL.md for full evaluation guide
 ```
 
-## Evaluation & Feedback Loop
+---
 
-To improve the checking loop, use the scripts in `eval/` to benchmark retrieval and generation logic.
+## 📚 Documentation
 
-- **Retrieval**: `python -m eval.eval_retrieval` checks if the right documents are found.
-- **Generation**: `python -m eval.eval_generation` compares model answers against retrieved context.
-- **Full Guide**: See [docs/EVAL.md](docs/EVAL.md) for detailed instructions on creating datasets and running benchmarks.
+- **[Installation Guide](docs/QUICKSTART.md)**: Detailed step-by-step setup.
+- **[Command Reference](docs/COMMANDS.md)**: All available CLI commands.
+- **[Architecture](docs/ARCHITECTURE.md)**: How the RAG pipeline works.
+- **[Development](docs/DEVELOPMENT.md)**: For contributors.
 
-## Tech Stack
+## 🛠️ Common Tasks
 
-- **Embeddings**: BGE-M3 (multilingual FR/EN)
-- **Vector Store**: FAISS
-- **Reranker**: BGE-reranker-base
-- **LLM**: Ollama (local)
-- **Backend**: FastAPI
-- **Frontend**: React 19, Vite, TanStack Router, Tailwind CSS v4, Shadcn UI
-
-## Merging Multiple Exports
-
-Instagram limits exports to ~10k messages. To preserve all history when re-exporting:
-
+**Updating your Archive:**
+Use the merge tool to combine new exports with old ones without losing history.
 ```bash
-# Merge old and new exports
-python3 merge_instagram_exports.py \
-    ~/Documents/old_export/messages/inbox \
-    ~/Documents/new_export/messages/inbox \
-    -o ~/Documents/merged/messages/inbox
+python3 merge_instagram_exports.py old_export/ new_export/ -o merged/
+```
+Then run `python3 update_index.py` to add only the new messages.
 
-# Preview without merging
-python3 merge_instagram_exports.py old/ new/ -o merged/ --dry-run
-
-# Update your .env to point to merged directory
-# Then convert and reindex
-python3 instagram_to_text.py
-python3 update_index.py
+**Checking System Status:**
+```bash
+python3 setup_rag.py --status
 ```
 
-The merge script:
-- Deduplicates messages by timestamp
-- Preserves all media files
-- Keeps the most complete version of each message
-- Shows statistics on duplicates removed
+## 🏗️ Architecture Highlight
 
-## Documentation
+The system uses a **Two-Stage RAG Pipeline**:
+1.  **Indexing:** Your chats are "read" by an AI (Enricher Agent) to understand context, emotion, and topics.
+2.  **Retrieval:** When you ask a question, we use Hybrid Search (Keywords + Meaning) to find the best answers.
 
-- [Configuration Guide](docs/CONFIGURATION.md)
-- [Quick Start Guide](docs/QUICKSTART.md)
-- [Features Documentation](docs/FEATURES.md)
-- [API Reference](docs/API.md)
+*See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full diagram.*
 
-## Privacy
+## 📄 License
 
-Everything runs locally:
-- Models downloaded once
-- No external APIs
-- Data stored only on your machine
+MIT License. Built with ❤️ for privacy and nostalgia.
