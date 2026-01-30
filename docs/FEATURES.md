@@ -29,7 +29,7 @@ Each chunk is enriched with 5 semantic fields:
 | Field | Type | Description |
 |-------|------|-------------|
 | `narrative_summary` | `string` | One-sentence summary of the exchange (action, intention, outcome) |
-| `hypothetical_questions` | `string[]` | 3 questions this chunk directly answers (user-like phrasing) |
+| `hypothetical_questions` | `string[]` | 1 to 5 questions this chunk directly answers (user-like phrasing) |
 | `speaker_intents` | `Dict[str, str]` | Per-participant goals/objectives |
 | `temporal_context` | `string` | Semantic period description (e.g., "during visa application") |
 | `emotions` | `Dict` | Emotional analysis of the exchange |

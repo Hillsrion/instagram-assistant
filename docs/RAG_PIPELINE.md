@@ -23,9 +23,9 @@ The **Enricher agent** (Ollama, `ministral-8b`) processes each chunk with a stri
 
 | Field | Purpose |
 |-------|---------|
-| `narrative_summary` | 1-sentence description of the exchange |
-| `hypothetical_questions` | 3 user-like questions this chunk answers (boosts semantic recall) |
-| `speaker_intents` | Per-participant goals |
+| `narrative_summary` | 1-sentence narrative summary of the exchange |
+| `hypothetical_questions` | 1 to 5 user-like questions this chunk answers (boosts semantic recall) |
+| `speaker_intents` | Maps each participant to their inferred goal in the chunk |
 | `temporal_context` | Semantic time anchor ("during vacation", "before moving") |
 | `emotions` | Dominant emotion, tone, tension level |
 | `entities` | Locations, people, media, events |

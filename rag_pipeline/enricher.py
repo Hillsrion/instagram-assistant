@@ -14,7 +14,7 @@ ENRICH_PROMPT = """Tu es un analyseur de conversations (STRICT, basé sur le tex
 ANALYSE CETTE CONVERSATION ET GÉNÈRE JSON :
 
 1. **RÉSUMÉ** : 1 phrase max, l'action/intention/résultat
-2. **QUESTIONS** : 3 questions précises que cet extrait répond (ce qu'un utilisateur demanderait)
+2. **QUESTIONS** : 1 à 5 questions précises que cet extrait répond, selon la densité (ce qu'un utilisateur demanderait)
 3. **INTENTIONS** : Pour chaque participant → son objectif principal (une phrase max)
 4. **CONTEXTE TEMPOREL** : Moment/période (ex: "avant X", "durant vacances")
 5. **ENTITÉS** : Éléments EXPLICITEMENT mentionnés dans le texte :
@@ -41,7 +41,7 @@ RÈGLES STRICTES:
 FORMAT JSON (les valeurs sont des exemples de format, PAS des données à recopier):
 {{
   "narrative_summary": "<1 phrase décrivant l'échange>",
-  "questions": ["<question 1>", "<question 2>", "<question 3>"],
+  "questions": ["<question 1>", "<éventuelle question 2>", "..."],
   "speaker_intents": {{
     "<participant>": "<son intention>"
   }},

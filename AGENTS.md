@@ -23,9 +23,9 @@ Each agent has a specific role, operates at a different stage of the pipeline, a
 The Enricher reads raw conversation chunks (batches of messages) and transforms them into rich, searchable documents.
 
 ### capabilities
-- **Narrative Summary:** Condenses ~50 messages into a single sentence description.
-- **Hypothetical Questions:** Generates 3 questions that this chunk answers (improves semantic search).
-- **Entity Extraction:** Identifies Locations, People, Media, and Events.
+- **Narrative Summary:** Concise overview of the exchange.
+- **Hypothetical Questions:** Generates 1 to 5 questions that this chunk answers (improves semantic search).
+- **Speaker Intentions:** What each person wants.
 - **Emotion Analysis:** Detects dominant emotion, tone, and tension level.
 - **Temporal Context:** Identifies "when" this happened relative to life events (e.g., "vacation", "before moving").
 
