@@ -1,0 +1,19 @@
+# Enricher Agent ("The Indexer")
+
+**Component:** `rag_pipeline/enricher.py`
+**Trigger:** Data ingestion (`setup_rag.py`)
+**Default Model:** `ministral-8b`
+
+The Enricher reads raw conversation chunks (batches of messages) and transforms them into rich, searchable documents.
+
+## Capabilities
+
+- **Narrative Summary:** Concise overview of the exchange.
+- **Hypothetical Questions:** Generates 1 to 5 questions that this chunk answers (improves semantic search).
+- **Speaker Intentions:** What each person wants.
+- **Emotion Analysis:** Detects dominant emotion, tone, and tension level.
+- **Temporal Context:** Identifies "when" this happened relative to life events (e.g., "vacation", "before moving").
+
+## Prompt Strategy
+
+Uses a **Strict JSON** prompt (`ENRICH_PROMPT`) to force structured output. It is explicitly told to avoid hallucinations and only use provided text.
