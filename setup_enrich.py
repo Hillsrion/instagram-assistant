@@ -36,6 +36,18 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
     Returns:
         True if success, False otherwise
     """
+    script_start_time = time.time()
+    log_file = Path("enrichment.log")
+
+    # Reset log if chunks file doesn't exist and log is not empty
+    if not config.chunks_cache_path.exists() and log_file.exists() and log_file.stat().st_size > 0:
+        try:
+            with open(log_file, "w") as f:
+                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Log reset. Chunks file missing.\n")
+            print("Enrichment log reset because chunks file is missing.")
+        except Exception as e:
+            print(f"Warning: Could not reset log file: {e}")
+
     if model:
         config.llm_model = model
         print(f"LLM Model Override: {config.llm_model}")
@@ -84,6 +96,7 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
 
     try:
         start_time = time.time()
+        last_save_time = start_time
 
         def enrich_progress(current, total):
             if current % 5 == 0 or current == total:
@@ -97,10 +110,23 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
                 sys.stdout.flush()
 
         def save_progress():
+            nonlocal last_save_time
+            current_time = time.time()
+            duration = current_time - last_save_time
+            last_save_time = current_time
+
             # In shard mode, we save to the main file anyway
             # because we loaded all chunks into memory, we only modify ours.
             chunker.save_chunks(chunks)
-            sys.stdout.write("\n")
+            
+            log_msg = f"Batch saved. Duration: {duration:.2f}s"
+            sys.stdout.write(f"  {log_msg}\n")
+            
+            try:
+                with open("enrichment.log", "a") as f:
+                    f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {log_msg}\n")
+            except Exception as e:
+                sys.stdout.write(f"\nWarning: Could not write to log file: {e}\n")
 
         enricher.enrich_batch(
             to_enrich,
@@ -124,6 +150,16 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
         chunker.save_chunks(chunks)
         print("   Save complete.")
         return False
+
+    total_duration = time.time() - script_start_time
+    duration_str = format_duration(total_duration)
+    msg = f"Enrichment finished in {duration_str}."
+    print(msg)
+    try:
+        with open("enrichment.log", "a") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+    except Exception:
+        pass
 
     print()
     return True

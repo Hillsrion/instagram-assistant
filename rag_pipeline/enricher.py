@@ -104,7 +104,7 @@ class ChunkEnricher:
             # Parse response JSON
             if not cleaned_result:
                 print(f"[ENRICH LOG] Empty response for chunk {chunk.chunk_id}")
-                return "", [], {{}}, "", {{}}, {{}}
+                return "", [], {}, "", {}, {}
 
             data = json.loads(cleaned_result)
             summary = data.get("narrative_summary", "")
@@ -133,14 +133,14 @@ class ChunkEnricher:
                 print(f"[ENRICH LOG] Cleaned result:\n{cleaned_result[:500]}...")
             elif 'result' in locals():
                  print(f"[ENRICH LOG] Raw result:\n{result[:500]}...")
-            return "", [], {{}}, "", {{}}, {{}}
+            return "", [], {}, "", {}, {}
         except Exception as e:
             # In case of error, return empty values (fallback to statistical summary)
             print(f"⚠️ Enrichment error chunk {chunk.chunk_id}: {e}")
             print(f"[ENRICH LOG] Error: {e}")
             if 'result' in locals():
                 print(f"[ENRICH LOG] Raw result:\n{result[:500]}...")
-            return "", [], {{}}, "", {{}}, {{}}
+            return "", [], {}, "", {}, {}
 
     def enrich_batch(
         self,
