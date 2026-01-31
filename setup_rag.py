@@ -207,6 +207,8 @@ Examples:
     # Sub-script options
     parser.add_argument("--limit", type=int,
                         help="Limit number of conversations")
+    parser.add_argument("--allowlist-file", type=str,
+                        help="Path to a JSON file containing a list of conversation IDs to process")
     parser.add_argument("--model", type=str,
                         help="Override LLM model (e.g. qwen2.5:3b)")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE,
@@ -250,7 +252,7 @@ Examples:
     # Selective execution
     if args.only:
         if args.only == 'chunks':
-            setup_chunks.run(config, reset=args.reset, limit=args.limit, import_test=args.import_test)
+            setup_chunks.run(config, reset=args.reset, limit=args.limit, import_test=args.import_test, allowlist_file=Path(args.allowlist_file) if args.allowlist_file else None)
         elif args.only == 'enrich':
             setup_enrich.run(config, reset=args.reset, model=args.model)
         elif args.only == 'embed':
@@ -263,7 +265,7 @@ Examples:
 
     # Full pipeline execution
     # Step 1: Chunks
-    if not setup_chunks.run(config, reset=args.reset, limit=args.limit, import_test=args.import_test):
+    if not setup_chunks.run(config, reset=args.reset, limit=args.limit, import_test=args.import_test, allowlist_file=Path(args.allowlist_file) if args.allowlist_file else None):
         print("Error at step 1 (chunks)")
         sys.exit(1)
 

@@ -348,11 +348,16 @@ class ConversationChunker:
             file_source=file_path.name
         )
     
-    def chunk_all_conversations(self, progress_callback=None, limit: int = None) -> List[Chunk]:
+    def chunk_all_conversations(self, progress_callback=None, limit: int = None, allowlist: set = None) -> List[Chunk]:
         """Splits all conversations in the directory."""
         all_chunks = []
         files = list(self.config.conversations_dir.glob('*.txt'))
         
+        # Filter by allowlist if provided
+        if allowlist is not None:
+            files = [f for f in files if f.stem in allowlist]
+            print(f"   ℹ️  Filtered by allowlist: {len(files)} conversations remaining")
+
         if limit:
             files = files[:limit]
             print(f"⚠️  Limit enabled: processing {len(files)} conversations only")

@@ -1,7 +1,7 @@
 import { useState } from 'react' // Added import
 import { Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, BarChart3, Search } from 'lucide-react' // Added Search icon
+import { Plus, Trash2, BarChart3, Search, Settings } from 'lucide-react' // Added Search icon
 import { getConversations, createConversation, deleteConversation } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input' // Added Input
@@ -69,6 +69,23 @@ export function Sidebar() {
               title="Analytics"
             >
               <BarChart3 className="h-5 w-5" />
+            </Button>
+          </Link>
+
+          <Link
+            to="/onboarding"
+            className="flex-1"
+            activeProps={{
+              className: ""
+            }}
+          >
+            <Button
+              variant="outline"
+              size="icon"
+              className="w-full"
+              title="Setup / Onboarding"
+            >
+              <Settings className="h-5 w-5" />
             </Button>
           </Link>
         </div>

@@ -23,7 +23,7 @@ from rag_pipeline.chunker import ConversationChunker
 from rag_pipeline.cli_utils import print_header
 
 
-def run(config: Config, reset: bool = False, limit: int = None, import_test: bool = False) -> bool:
+def run(config: Config, reset: bool = False, limit: int = None, import_test: bool = False, allowlist_file: Path = None) -> bool:
     """Entry point callable by the orchestrator.
 
     Args:
@@ -31,6 +31,7 @@ def run(config: Config, reset: bool = False, limit: int = None, import_test: boo
         reset: If True, regenerates chunks even if they exist
         limit: Limits the number of conversations to process
         import_test: Imports test conversations
+        allowlist_file: Path to JSON file with allowed conversation IDs
 
     Returns:
         True if success, False otherwise
@@ -73,9 +74,21 @@ def run(config: Config, reset: bool = False, limit: int = None, import_test: boo
             if current % 100 == 0 or current == total:
                 print(f"   [{current}/{total}] {filename} -> {num_chunks} chunks")
 
+        # Load allowlist if provided
+        allowlist = None
+        if allowlist_file and allowlist_file.exists():
+            import json
+            try:
+                with open(allowlist_file, 'r', encoding='utf-8') as f:
+                    allowlist = set(json.load(f))
+                print(f"   ℹ️  Allowlist loaded: {len(allowlist)} conversations")
+            except Exception as e:
+                print(f"   ⚠️  Error loading allowlist: {e}")
+
         chunks = chunker.chunk_all_conversations(
             progress_callback=progress_callback,
-            limit=limit
+            limit=limit,
+            allowlist=allowlist
         )
         chunker.save_chunks(chunks)
         print(f"{len(chunks)} chunks created and saved")
@@ -94,6 +107,8 @@ def main():
                         help="Limits the number of conversations to process")
     parser.add_argument("--import-test", action="store_true",
                         help="Imports test conversations from test_conversations/")
+    parser.add_argument("--allowlist-file", type=Path,
+                        help="Path to a JSON file containing a list of conversation IDs to process")
 
     args = parser.parse_args()
     config = Config()

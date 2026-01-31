@@ -144,3 +144,64 @@ export async function getMonthlyTimeline(participant?: string): Promise<{ timeli
   if (!res.ok) throw new Error('Failed to fetch monthly timeline')
   return res.json()
 }
+
+// ============================================================
+// Onboarding APIs
+// ============================================================
+
+export async function startImport(source_path: string): Promise<{ job_id: string }> {
+  const res = await fetch(`${API_BASE}/onboarding/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source_path })
+  })
+  if (!res.ok) throw new Error('Failed to start import')
+  return res.json()
+}
+
+export async function listImportedConversations(): Promise<Array<{
+  id: string,
+  title: string,
+  msg_count: number,
+  date_range: string
+}>> {
+  const res = await fetch(`${API_BASE}/onboarding/conversations`)
+  if (!res.ok) throw new Error('Failed to list imported conversations')
+  return res.json()
+}
+
+export async function startRag(
+  min_messages: number = 0,
+  force_reset: boolean = false
+): Promise<{ job_id: string }> {
+  const res = await fetch(`${API_BASE}/onboarding/rag`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filter_config: { min_messages },
+      force_reset
+    })
+  })
+  if (!res.ok) throw new Error('Failed to start RAG')
+  return res.json()
+}
+
+export async function uploadFile(file: File): Promise<{ path: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  const res = await fetch(`${API_BASE}/onboarding/upload`, {
+    method: 'POST',
+    body: formData
+  })
+  if (!res.ok) throw new Error('Failed to upload file')
+  return res.json()
+}
+
+export async function browseFolder(): Promise<{ path: string | null }> {
+  const res = await fetch(`${API_BASE}/onboarding/browse`, {
+    method: 'POST'
+  })
+  if (!res.ok) throw new Error('Failed to open dialog')
+  return res.json()
+}
