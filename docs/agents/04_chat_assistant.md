@@ -1,10 +1,10 @@
 # Chat Assistant Agent ("The Speaker")
 
 **Component:** `rag_pipeline/chat.py`
-**Trigger:** After retrieval
+**Trigger:** After retrieval (fast-path only — complex queries go through the [ReAct Agent](06_react_agent.md))
 **Default Model:** `ministral-8b`
 
-The final interface that talks to the user.
+The answer generator for the fast-path (simple factual queries). On the agent path, the ReAct Agent generates its own final answer; the Chat Assistant is not called.
 
 ## Responsibility
 

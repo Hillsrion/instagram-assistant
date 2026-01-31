@@ -19,3 +19,10 @@ It performs 4 tasks in a SINGLE LLM call to reduce latency:
     *   `broad_summary`: Needs general overview.
     *   `complex_reasoning`: Needs high retrieval depth.
 4.  **Date Extraction:** Extracts ISO date ranges from natural language (e.g., "last summer").
+
+## Downstream: Binary Router
+
+The Analyzer's `mode` and `intent` feed a deterministic binary router (`api/routing.py`):
+
+- **Fast-path** (`mode=retrieval` + `intent=specific_fact`): direct retrieval pipeline, no agent.
+- **Agent path** (everything else): ReAct Agent with tool use. See [ReAct Agent](06_react_agent.md).

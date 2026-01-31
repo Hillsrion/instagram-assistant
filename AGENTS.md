@@ -13,8 +13,9 @@ This project uses a multi-agent architecture where specialized LLMs handle speci
 | **[Enricher](docs/agents/01_enricher.md)** | **Indexing:** Extracts metadata, summaries, entities, and questions from chunks. | [Docs](docs/agents/01_enricher.md) |
 | **[Summarizer](docs/agents/02_summarizer.md)** | **Indexing:** Generates hierarchical summaries (Conversation & Monthly). | [Docs](docs/agents/02_summarizer.md) |
 | **[Analyzer](docs/agents/03_analyzer.md)** | **Query:** Interprets intent, rewrites queries, and routes logic. | [Docs](docs/agents/03_analyzer.md) |
-| **[Chat Assistant](docs/agents/04_chat_assistant.md)** | **Query:** Generates the final answer based on retrieved context. | [Docs](docs/agents/04_chat_assistant.md) |
+| **[Chat Assistant](docs/agents/04_chat_assistant.md)** | **Query:** Generates the final answer based on retrieved context (fast-path). | [Docs](docs/agents/04_chat_assistant.md) |
 | **[Evaluator](docs/agents/05_evaluator.md)** | **Evaluation:** Judges the quality of retrieval and generation. | [Docs](docs/agents/05_evaluator.md) |
+| **[ReAct Agent](docs/agents/06_react_agent.md)** | **Query:** Multi-step reasoning with tool use for complex queries. | [Docs](docs/agents/06_react_agent.md) |
 
 ## Documentation Structure
 

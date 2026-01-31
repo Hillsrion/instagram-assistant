@@ -38,7 +38,8 @@ Outils disponibles:
 
 RÈGLES IMPORTANTES:
 - Ne devine JAMAIS des informations. Utilise search_conversations pour tout fait.
-- Pour les statistiques ou comptages, utilise TOUJOURS count_messages.
+- Pour les statistiques ou comptages, utilise TOUJOURS get_contact_stats.
+- Pour lister les contacts, utilise get_participants.
 - Si tu peux répondre directement (salutation, question sur toi), va directement à Final Answer.
 - Maximum {max_steps} étapes de raisonnement.
 
@@ -63,6 +64,8 @@ class AgentResult:
     """Final result from the agent."""
     answer: str
     steps: List[AgentStep] = field(default_factory=list)
+    sources: List[dict] = field(default_factory=list)
+    summary_sources: List[dict] = field(default_factory=list)
     total_time: float = 0.0
     success: bool = True
     error: Optional[str] = None
@@ -78,10 +81,11 @@ class AgentRunner:
         self,
         config: Config = None,
         retriever: Retriever = None,
+        analytics=None,
         max_steps: int = 5
     ):
         self.config = config or default_config
-        self.tools = ToolBox(config=self.config, retriever=retriever)
+        self.tools = ToolBox(config=self.config, retriever=retriever, analytics=analytics)
         self.max_steps = max_steps
         self.model = self.config.llm_model
 
@@ -93,6 +97,18 @@ class AgentRunner:
             max_steps=self.max_steps,
             today=datetime.now().strftime("%Y-%m-%d")
         )
+
+    def _format_history(self, history: List[Dict[str, str]]) -> str:
+        """Format recent conversation history for the agent prompt."""
+        if not history:
+            return ""
+        lines = []
+        for msg in history[-4:]:
+            role = "User" if msg["role"] == "user" else "Assistant"
+            # Truncate long messages
+            content = msg["content"][:300] + "..." if len(msg["content"]) > 300 else msg["content"]
+            lines.append(f"{role}: {content}")
+        return "Historique récent:\n" + "\n".join(lines) + "\n\n"
 
     def _parse_response(self, response: str) -> Dict:
         """
@@ -178,29 +194,57 @@ class AgentRunner:
             logger.error(f"LLM call failed: {e}")
             raise
 
-    def run(self, query: str) -> AgentResult:
+    def _prepare_run(self, query: str, history: List[Dict[str, str]] = None, analysis=None):
+        """Common setup for run() and run_stream()."""
+        # Inject analysis into tools
+        if analysis:
+            self.tools.set_analysis(analysis)
+        self.tools.set_original_query(query)
+        # Reset last context
+        self.tools._last_context = None
+
+    def _extract_results(self) -> tuple:
+        """Extract sources from tools after agent run."""
+        sources = self.tools.get_sources()
+        summary_sources = self.tools.get_summary_sources()
+        return sources, summary_sources
+
+    def run(
+        self,
+        query: str,
+        history: List[Dict[str, str]] = None,
+        analysis=None
+    ) -> AgentResult:
         """
         Run the agent on a query.
-        
+
         Args:
             query: User question
-            
+            history: Recent conversation history
+            analysis: AnalysisResult from QueryAnalyzer
+
         Returns:
-            AgentResult with answer and reasoning steps
+            AgentResult with answer, reasoning steps, and sources
         """
         import time
         start_time = time.time()
+
+        self._prepare_run(query, history, analysis)
 
         steps: List[AgentStep] = []
         scratchpad = ""  # Accumulated context
 
         system_prompt = self._build_system_prompt()
+        history_str = self._format_history(history)
 
         logger.info(f"🤖 Agent starting for: '{query}'")
 
         for step_num in range(1, self.max_steps + 1):
             # Build messages
-            user_content = f"Question: {query}\n\n{scratchpad}" if scratchpad else f"Question: {query}"
+            if scratchpad:
+                user_content = f"{history_str}Question: {query}\n\n{scratchpad}"
+            else:
+                user_content = f"{history_str}Question: {query}"
 
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -235,10 +279,14 @@ class AgentRunner:
                 step.final_answer = parsed["final_answer"]
                 steps.append(step)
 
+                sources, summary_sources = self._extract_results()
+
                 logger.info(f"✅ Agent finished in {step_num} step(s)")
                 return AgentResult(
                     answer=parsed["final_answer"],
                     steps=steps,
+                    sources=sources,
+                    summary_sources=summary_sources,
                     total_time=time.time() - start_time,
                     success=True
                 )
@@ -275,6 +323,8 @@ class AgentRunner:
         # Max steps reached
         logger.warning(f"⚠️ Agent reached max steps ({self.max_steps})")
 
+        sources, summary_sources = self._extract_results()
+
         # Try to synthesize an answer from observations
         observations = [s.observation for s in steps if s.observation]
         if observations:
@@ -285,28 +335,46 @@ class AgentRunner:
         return AgentResult(
             answer=synthesized,
             steps=steps,
+            sources=sources,
+            summary_sources=summary_sources,
             total_time=time.time() - start_time,
             success=False,
             error="Max steps reached"
         )
 
-    def run_stream(self, query: str) -> Generator[Dict, None, None]:
+    def run_stream(
+        self,
+        query: str,
+        history: List[Dict[str, str]] = None,
+        analysis=None
+    ) -> Generator[Dict, None, None]:
         """
         Run the agent with streaming output for UI integration.
-        
+
+        Args:
+            query: User question
+            history: Recent conversation history
+            analysis: AnalysisResult from QueryAnalyzer
+
         Yields:
             Dict with step information for real-time display
         """
         import time
         start_time = time.time()
 
+        self._prepare_run(query, history, analysis)
+
         scratchpad = ""
         system_prompt = self._build_system_prompt()
+        history_str = self._format_history(history)
 
         yield {"type": "start", "query": query}
 
         for step_num in range(1, self.max_steps + 1):
-            user_content = f"Question: {query}\n\n{scratchpad}" if scratchpad else f"Question: {query}"
+            if scratchpad:
+                user_content = f"{history_str}Question: {query}\n\n{scratchpad}"
+            else:
+                user_content = f"{history_str}Question: {query}"
 
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -327,9 +395,12 @@ class AgentRunner:
                 yield {"type": "thought", "step": step_num, "content": parsed["thought"]}
 
             if parsed["final_answer"]:
+                sources, summary_sources = self._extract_results()
                 yield {
                     "type": "final",
                     "answer": parsed["final_answer"],
+                    "sources": sources,
+                    "summary_sources": summary_sources,
                     "total_time": time.time() - start_time,
                     "steps": step_num
                 }
@@ -359,8 +430,11 @@ class AgentRunner:
                     f"Observation: {tool_result.output}\n"
                 )
 
+        sources, summary_sources = self._extract_results()
         yield {
             "type": "max_steps",
+            "sources": sources,
+            "summary_sources": summary_sources,
             "message": f"Maximum d'étapes atteint ({self.max_steps})",
             "total_time": time.time() - start_time
         }

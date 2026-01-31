@@ -11,11 +11,17 @@
 - **`rag_pipeline/advanced_retriever.py`**
   Implements hybrid search combining FAISS dense vectors and BM25 lexical search with configurable weights. Handles cross-encoder reranking and context expansion.
 
+- **`rag_pipeline/agent.py` + `rag_pipeline/tools.py`**
+  ReAct agent implementing the Thought -> Action -> Observation loop. The ToolBox wraps the full retrieval pipeline and analytics module as callable tools. Default execution path for non-trivial queries (analytics, broad summaries, complex reasoning).
+
+- **`api/routing.py`**
+  Deterministic binary router. Uses `mode` and `intent` from the Analyzer to decide between fast-path (direct retrieval) and agent path. No LLM call.
+
 - **`api/dependencies.py`**
-  FastAPI dependency injection module. Responsible for initializing all pipeline components (vector store, models) once and providing them to route handlers.
+  FastAPI dependency injection module. Responsible for initializing all pipeline components (vector store, models, agent runner) once and providing them to route handlers.
 
 - **`api/routes/`**
-  Modular route handlers for different functional areas: chat, analytics, conversations, participants, and system status.
+  Modular route handlers for different functional areas: chat (with binary routing), conversations, participants, and system status.
 
 - **`eval/`**
   Evaluation pipeline using RAGAS-style metrics. Uses a separate "judge" LLM (default: `qwen3:14b`) to score performance.

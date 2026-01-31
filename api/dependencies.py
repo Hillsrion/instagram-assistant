@@ -11,6 +11,7 @@ from rag_pipeline.advanced_retriever import create_advanced_retriever
 from rag_pipeline.chat import ChatBot
 from rag_pipeline.analytics import ConversationAnalytics
 from rag_pipeline.query_analyzer import QueryAnalyzer
+from rag_pipeline.agent import AgentRunner
 from rag_pipeline.logger import get_logger
 
 logger = get_logger()
@@ -25,6 +26,7 @@ class AppState:
     components = None
     analytics = None
     query_analyzer = None
+    agent_runner = None
 
 
 state = AppState()
@@ -63,6 +65,11 @@ async def lifespan(app: FastAPI):
         )
         state.chatbot = ChatBot(state.retriever, state.config)
         state.query_analyzer = QueryAnalyzer(state.config)
+        state.agent_runner = AgentRunner(
+            config=state.config,
+            retriever=state.retriever,
+            analytics=state.analytics,
+        )
         print(f"Index loaded: {state.components['vector_store'].size} chunks")
         print()
         print(f"Application ready at http://localhost:8000")
@@ -107,3 +114,8 @@ def get_analytics():
 def get_query_analyzer():
     """Get the query analyzer instance."""
     return state.query_analyzer
+
+
+def get_agent_runner():
+    """Get the agent runner instance."""
+    return state.agent_runner
