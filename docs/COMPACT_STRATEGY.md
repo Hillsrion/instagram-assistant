@@ -32,6 +32,10 @@ We introduced a transformation layer that generates a streamlined version of the
     *   Uses **First Name** by default (e.g. `Lucas`).
     *   **Smart Disambiguation:** If multiple participants share a first name (e.g. "Lucie Dupont" and "Lucie Martin"), it automatically switches to `Firstname L.` format (e.g. `Lucie D.`, `Lucie M.`).
     *   **Special Characters & Emojis:** Preserves emojis (`🧡`) and fancy fonts (`𝓥𝓪𝓰𝓪𝓫𝓸𝓷𝓭𝓮`) correctly.
+    *   **Edge Cases:**
+        *   **Pipes (`|`):** `Elisa | Creator` → `Elisa` (Takes first word).
+        *   **Slugs:** `lei.kam_` → `lei.kam_` (Preserved if no spaces).
+        *   **Role-First:** `MAKEUP ARTIST - Ines` → `MAKEUP` (Limitation: always uses first word to ensure consistency).
 3.  **Output Format:** `Name: Message`
 
 #### Example
