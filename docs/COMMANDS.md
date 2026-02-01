@@ -42,6 +42,10 @@ pytest tests/setup/               # Run setup script tests
 ```bash
 python -m eval.generate_dataset 50                        # Generate QA dataset
 python -m eval.eval_retrieval                             # Evaluate retrieval quality
+python -m eval.eval_routing                               # Evaluate binary routing system
+python -m eval.eval_routing --type simple_fact            # Test specific query types
+python -m eval.eval_routing --html                        # Generate HTML report
+python -m eval.eval_routing --trials 10                   # Limit test queries
 python -m eval.eval_generation qwen3:latest mistral       # Compare model generation
 python -m eval.eval_generation model1 model2 --trials 10  # Multiple trial runs
 python -m eval.model_dashboard                            # Multi-model comparison dashboard
