@@ -4,25 +4,29 @@
 
 1.  **Configuration:**
     - Copy `.env.example` to `.env`.
-    - Run `python3 setup_env.py` for interactive configuration.
+    - Run `python setup_env.py` for interactive configuration.
 
 2.  **Dependencies:**
     - Backend: `pip install -r requirements.txt`
       - *Note:* For MLX acceleration (Apple Silicon), install: `pip install mlx mlx-lm`.
     - Frontend: `cd frontend && pnpm install`
 
+3.  **Using Make (Recommended):**
+    - The project includes a `Makefile` to simplify commands and ensure the virtual environment is used.
+    - Run `make help` to see available commands.
+
 ## Workflow
 
 ### Data Pipeline (Indexing)
 The RAG pipeline must be indexed before queries work.
-1.  **Convert Export:** `python3 instagram_to_text.py`
-2.  **Full Indexing:** `python3 setup_rag.py`
-3.  **Check Status:** `python3 setup_rag.py --status`
+1.  **Convert Export:** `python instagram_to_text.py`
+2.  **Full Indexing:** `python setup_rag.py`
+3.  **Check Status:** `python setup_rag.py --status`
 
 ### Running the Application
-- **Backend:** `python3 app.py` (Port 8000)
+- **Backend:** `python app.py` (Port 8000)
 - **Frontend:** `cd frontend && pnpm dev` (Port 5173)
-- **CLI Chat:** `python3 cli.py`
+- **CLI Chat:** `python cli.py`
 
 ## Code Conventions
 

@@ -7,7 +7,7 @@ This project now uses an environment variable-based configuration system to avoi
 ### Option 1: Interactive Script (Recommended)
 
 ```bash
-python3 setup_env.py
+python setup_env.py
 ```
 
 The script will guide you through configuring all necessary settings.
@@ -76,8 +76,8 @@ The project now includes analysis tools in the `utils/` folder:
 
 | Script | Description |
 |--------|-------------|
-| `python3 utils/rag_stats.py` | Detailed statistical analysis (conversations, messages, chunks) |
-| `python3 utils/top_20_messages.py` | Displays the 20 largest conversations |
+| `python utils/rag_stats.py` | Detailed statistical analysis (conversations, messages, chunks) |
+| `python utils/top_20_messages.py` | Displays the 20 largest conversations |
 
 ## Advanced Indexing Scripts
 
@@ -95,7 +95,7 @@ The main indexing script supports new flags:
 Example:
 ```bash
 # Import test data and index only 5 conversations
-python3 setup_rag_batch.py --import-test --limit 5 --reset
+python setup_rag_batch.py --import-test --limit 5 --reset
 ```
 
 ## Complete Workflow
@@ -104,19 +104,19 @@ python3 setup_rag_batch.py --import-test --limit 5 --reset
 
 ```bash
 # 1. Configure the environment
-python3 setup_env.py
+python setup_env.py
 
 # 2. Install dependencies (includes python-dotenv)
 pip install -r requirements.txt
 
 # 3. Convert your conversations
-python3 instagram_to_text.py
+python instagram_to_text.py
 
 # 4. Create the index
-python3 setup_rag_batch.py
+python setup_rag_batch.py
 
 # 5. Launch the app
-python3 app.py
+python app.py
 ```
 
 ### Merging Multiple Exports
@@ -125,7 +125,7 @@ If you have multiple Instagram exports (old + new):
 
 ```bash
 # 1. Merge exports
-python3 merge_instagram_exports.py \
+python merge_instagram_exports.py \
     ~/Documents/export_june_2024/messages/inbox \
     ~/Documents/export_dec_2024/messages/inbox \
     -o ~/Documents/instagram_merged/messages/inbox
@@ -135,15 +135,15 @@ python3 merge_instagram_exports.py \
 nano .env
 
 # 3. Convert and index
-python3 instagram_to_text.py
-python3 update_index.py
+python instagram_to_text.py
+python update_index.py
 ```
 
 ### Update with a New Export
 
 ```bash
 # 1. Merge with the old export
-python3 merge_instagram_exports.py \
+python merge_instagram_exports.py \
     ~/Documents/instagram_merged/messages/inbox \
     ~/Documents/new_export/messages/inbox \
     -o ~/Documents/instagram_merged_v2/messages/inbox
@@ -151,8 +151,8 @@ python3 merge_instagram_exports.py \
 # 2. Update INSTAGRAM_EXPORT_DIR in .env
 
 # 3. Reconvert and update the index
-python3 instagram_to_text.py
-python3 update_index.py
+python instagram_to_text.py
+python update_index.py
 ```
 
 ## Relative vs Absolute Paths
@@ -221,7 +221,7 @@ This logic allows easily handling multiple or merged exports without constant re
 
 If you are using a previous version with hardcoded paths:
 
-1. Run `python3 setup_env.py`
+1. Run `python setup_env.py`
 2. Your existing data in `instagram_conversations/` and `rag_data/` will be automatically used
 3. No re-indexing is necessary
 

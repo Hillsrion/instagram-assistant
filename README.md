@@ -26,7 +26,7 @@ Running 100% on your machine using advanced AI (Ollama + RAG).
 ### 1. Setup Environment
 ```bash
 # Clone the repo and enter directory
-python3 setup_env.py  # Interactive configuration
+python setup_env.py  # Interactive configuration
 pip install -r requirements.txt
 ```
 
@@ -35,10 +35,10 @@ Put your Instagram export JSON files in the folder configured during setup (defa
 
 ```bash
 # Convert JSON to text
-python3 instagram_to_text.py
+python instagram_to_text.py
 
 # Build the AI index (may take a while)
-python3 setup_rag.py
+python setup_rag.py
 ```
 
 ### 3. Run the App
@@ -46,7 +46,7 @@ python3 setup_rag.py
 **Option A: Web Interface (Recommended)**
 ```bash
 # Terminal 1: Backend
-python3 app.py
+python app.py
 
 # Terminal 2: Frontend
 cd frontend && pnpm install && pnpm dev --open
@@ -54,7 +54,7 @@ cd frontend && pnpm install && pnpm dev --open
 
 **Option B: Terminal Chat**
 ```bash
-python3 cli.py
+python cli.py
 ```
 
 ---
@@ -71,13 +71,13 @@ python3 cli.py
 **Updating your Archive:**
 Use the merge tool to combine new exports with old ones without losing history.
 ```bash
-python3 merge_instagram_exports.py old_export/ new_export/ -o merged/
+python merge_instagram_exports.py old_export/ new_export/ -o merged/
 ```
-Then run `python3 update_index.py` to add only the new messages.
+Then run `python update_index.py` to add only the new messages.
 
 **Checking System Status:**
 ```bash
-python3 setup_rag.py --status
+python setup_rag.py --status
 ```
 
 ## 🏗️ Architecture Highlight

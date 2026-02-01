@@ -1,11 +1,23 @@
 # Command Reference
 
-## Backend
+## Quick Access (Recommended)
+
+The project includes a `Makefile` that handles virtual environment activation automatically.
 
 ```bash
-python3 app.py                    # Start FastAPI server on port 8000
-python3 cli.py                    # Interactive CLI chat
-python3 cli.py --prompt "query"   # Single query mode
+make install       # Setup environment
+make run           # Start backend
+make cli           # Start CLI
+make index         # Run RAG indexing
+make status        # Check status
+```
+
+## Manual Commands (Backend)
+
+```bash
+python app.py                    # Start FastAPI server on port 8000
+python cli.py                    # Interactive CLI chat
+python cli.py --prompt "query"   # Single query mode
 ```
 
 ## Frontend
@@ -20,12 +32,12 @@ cd frontend && pnpm lint          # Run ESLint
 ## Indexing Pipeline
 
 ```bash
-python3 setup_rag.py              # Run full pipeline
-python3 setup_rag.py --status     # Show indexing progress
-python3 setup_rag.py --reset      # Full reindex from scratch
-python3 setup_rag.py --only chunks  # Run a single step (chunks, embeddings, etc.)
-python3 instagram_to_text.py      # Convert JSON export to text
-python3 update_index.py           # Incremental update
+python setup_rag.py              # Run full pipeline
+python setup_rag.py --status     # Show indexing progress
+python setup_rag.py --reset      # Full reindex from scratch
+python setup_rag.py --only chunks  # Run a single step (chunks, embeddings, etc.)
+python instagram_to_text.py      # Convert JSON export to text
+python update_index.py           # Incremental update
 ```
 
 ## Testing
@@ -73,4 +85,22 @@ python -m eval.evaluate_summaries --html                  # Generate HTML report
 
 # Dashboard
 python -m eval.model_dashboard                            # Multi-model comparison dashboard
+```
+
+## Utility Scripts
+
+Scripts located in `scripts/` to help with data analysis and debugging.
+
+```bash
+# Check enrichment (summarization/HyDE) status of conversations
+python scripts/check_enrichment_status.py                  # Summary of all conversations
+python scripts/check_enrichment_status.py --detailed       # Per-conversation breakdown
+python scripts/check_enrichment_status.py --show-enriched  # List fully enriched conversations
+python scripts/check_enrichment_status.py --show-not-enriched # List conversations not started
+
+# Get conversation statistics
+python scripts/conversation_stats.py                       # List all conversations by message count
+python scripts/conversation_stats.py --limit 10            # Top 10 conversations
+python scripts/conversation_stats.py --min-messages 100    # Filter small conversations
+python scripts/conversation_stats.py --json                # JSON output for external tools
 ```

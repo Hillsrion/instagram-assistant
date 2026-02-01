@@ -13,7 +13,7 @@ This `GEMINI.md` provides context for the Gemini CLI agent working on the Instag
 
 ## Documentation Index
 
-- **[Commands](docs/COMMANDS.md):** Build, run, test, and eval commands.
+- **[Commands](docs/COMMANDS.md):** Build, run, test, eval commands, and utility scripts.
 - **[Architecture](docs/ARCHITECTURE.md):** System modules, data flow, and tech stack.
 - **[Development](docs/DEVELOPMENT.md):** Setup, workflow, and code conventions.
 - **[RAG Pipeline](docs/RAG_PIPELINE.md):** detailed breakdown of the indexing and query steps.
@@ -23,10 +23,10 @@ This `GEMINI.md` provides context for the Gemini CLI agent working on the Instag
 ## Quick Reference
 
 ### Essentials
-- **Backend:** `python3 app.py` (FastAPI on 8000)
+- **Backend:** `python app.py` (FastAPI on 8000)
 - **Frontend:** `cd frontend && pnpm dev` (Vite on 5173)
-- **CLI Chat:** `python3 cli.py`
-- **Indexing:** `python3 setup_rag.py`
+- **CLI Chat:** `python cli.py`
+- **Indexing:** `python setup_rag.py`
 
 ### Key Directories
 - `rag_pipeline/`: Core logic (Chunking, Embedding, Search, Chat).
