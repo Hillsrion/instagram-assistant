@@ -58,6 +58,92 @@ class Chunk:
         filtered_data = {k: v for k, v in data.items() if k in valid_fields}
         return cls(**filtered_data)
     
+    def get_compact_content(self) -> str:
+        """
+        Returns a compact version of content for embeddings and LLM analysis.
+        Removes timestamps and shortens names.
+        Handles name collisions (Lucie D. / Lucie M.) and special characters.
+        """
+        # 1. Parse lines first to find all unique authors
+        parsed_lines = [] # List of (author|None, content_text)
+        authors = set()
+        
+        for line in self.content.split('\n'):
+            # Only process lines that look like messages with our timestamp format
+            if line.startswith('[') and '] ' in line:
+                try:
+                    # [2024-...] Author: Message
+                    timestamp_end = line.find('] ')
+                    rest = line[timestamp_end + 2:]
+                    if ': ' in rest:
+                         # Split on first colon only
+                        author, msg = rest.split(': ', 1)
+                        parsed_lines.append((author, msg))
+                        authors.add(author)
+                    else:
+                        parsed_lines.append((None, line))
+                except Exception:
+                    parsed_lines.append((None, line))
+            else:
+                parsed_lines.append((None, line))
+
+        # 2. Build Disambiguated Name Map
+        # Step A: Count First Names
+        first_name_counts = {}
+        for author in authors:
+            parts = author.split() if author else []
+            first = parts[0] if parts else author
+            first_name_counts[first] = first_name_counts.get(first, 0) + 1
+            
+        # Step B: Generate Initial Candidates
+        temp_map = {}
+        for author in authors:
+            parts = author.split() if author else []
+            first = parts[0] if parts else author
+            
+            if first_name_counts.get(first, 0) <= 1:
+                temp_map[author] = first
+            else:
+                # Collision detected -> Try First + Last Initial
+                if len(parts) > 1:
+                    # "Lucie Dupont" -> "Lucie D."
+                    # Use last part as surname (simple heuristic)
+                    last_initial = parts[-1][0]
+                    temp_map[author] = f"{first} {last_initial}."
+                else:
+                    # "Lucie" -> "Lucie" (if unique string, handled above, else keep as is)
+                    temp_map[author] = first
+
+        # Step C: Resolve Candidate Collisions (e.g. Lucie D. vs Lucie D.)
+        final_map = {}
+        # Group by candidate name
+        candidate_groups = {}
+        for original, candidate in temp_map.items():
+            if candidate not in candidate_groups:
+                candidate_groups[candidate] = []
+            candidate_groups[candidate].append(original)
+        
+        # Assign final names
+        for candidate, original_list in candidate_groups.items():
+            if len(original_list) == 1:
+                final_map[original_list[0]] = candidate
+            else:
+                # Still collision? Revert to full name for these specific users
+                for original in original_list:
+                    final_map[original] = original
+
+        # 3. Reconstruct Content
+        output_lines = []
+        for author, content in parsed_lines:
+            if author:
+                short_name = final_map.get(author, author)
+                output_lines.append(f"{short_name}: {content}")
+            else:
+                # Non-message lines (continuations, system messages)
+                output_lines.append(content)
+        
+        return "\n".join(output_lines)
+
     def get_embedding_text(self) -> str:
         """
         Returns a weighted textual representation for embeddings.
@@ -125,9 +211,9 @@ class Chunk:
         if self.emotional_shift:
             parts.append(f"[EMOTIONAL_SHIFT] {self.emotional_shift}")
 
-        # · 8. Raw content (single pass)
+        # · 8. Raw content (single pass, compact version)
         parts.append("[CONTENT]")
-        parts.append(self.content)
+        parts.append(self.get_compact_content())
 
         return "\n".join(parts)
 

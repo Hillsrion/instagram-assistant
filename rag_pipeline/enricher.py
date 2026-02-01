@@ -90,7 +90,8 @@ class ChunkEnricher:
             (summary, questions, speaker_intents, temporal_context, entities, emotions, interaction_pattern, initiative, emotional_shift, open_loops)
         """
         # Limit text size removed as per user request (128k context available)
-        content_preview = chunk.content
+        # Using compact content to save tokens (remove timestamps, shorten names)
+        content_preview = chunk.get_compact_content()
 
         prompt = ENRICH_PROMPT.format(
             content=content_preview,
