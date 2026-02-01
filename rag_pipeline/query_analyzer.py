@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 from .config import Config, default_config
+from .llm_provider import create_provider
 from .logger import get_logger
 
 logger = get_logger()
@@ -24,9 +25,10 @@ class AnalysisResult:
 class QueryAnalyzer:
     """Unified analyzer to reduce RAG pipeline latency."""
 
-    def __init__(self, config: Config = None):
+    def __init__(self, config: Config = None, provider_type: str = "ollama"):
         self.config = config or default_config
         self.model = self.config.llm_model_fast
+        self.provider = create_provider(self.config, self.model, provider_type)
         self.today = datetime.now()
 
     def analyze(self, query: str, history: List[Dict[str, str]]) -> AnalysisResult:
@@ -103,25 +105,16 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
             logger.info(f"🔍 Analyzing query: '{query}'")
             logger.debug(f"Model: {self.model}")
 
-            response = requests.post(
-                f"{self.config.ollama_url}/api/chat",
-                json={
-                    "model": self.model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_content}
-                    ],
-                    "stream": False,
-                    "format": "json",
-                    "options": {
-                        "temperature": 0.0,
-                        "num_predict": 256
-                    }
-                },
-                timeout=15.0
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ]
+
+            content = self.provider.generate(
+                messages,
+                temperature=0.0,
+                max_tokens=256
             )
-            response.raise_for_status()
-            content = response.json()["message"]["content"]
             logger.debug(f"LLM raw response: {content}")
             data = json.loads(content)
 

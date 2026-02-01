@@ -201,9 +201,15 @@ class RoutingEvalResult:
         return result
 
 
-def initialize_components(config: Config):
+def initialize_components(config: Config, model: str = None, provider_type: str = "ollama"):
     """Initialize RAG components for both paths."""
     print("📦 Loading RAG components...")
+
+    if model:
+        config.llm_model = model
+        # For evaluation, we might want to use the same model for everything 
+        # unless specifically separated.
+        config.llm_model_fast = model
 
     embedding_model = EmbeddingModel(config)
     vector_store = VectorStore(config)
@@ -213,10 +219,10 @@ def initialize_components(config: Config):
         sys.exit(1)
 
     retriever = Retriever(embedding_model, vector_store, config)
-    chatbot = ChatBot(retriever, config)
-    query_analyzer = QueryAnalyzer(config)
-    agent = AgentRunner(config, retriever)
-    metrics = RAGASMetrics(config)
+    chatbot = ChatBot(retriever, config, provider_type=provider_type)
+    query_analyzer = QueryAnalyzer(config, provider_type=provider_type)
+    agent = AgentRunner(config, retriever, provider_type=provider_type)
+    metrics = RAGASMetrics(config, provider_type=provider_type)
 
     print(f"✅ Loaded {vector_store.size} vectors")
     return retriever, chatbot, query_analyzer, agent, metrics
@@ -650,7 +656,9 @@ def generate_html_report(results: List[RoutingEvalResult], summary: Dict) -> Pat
 def run_evaluation(
     trials: int = None,
     query_type: str = None,
-    generate_html: bool = False
+    generate_html: bool = False,
+    model: str = None,
+    provider_type: str = "ollama"
 ):
     """Run the routing system evaluation."""
     print("=" * 60)
@@ -659,7 +667,9 @@ def run_evaluation(
     print()
 
     config = Config()
-    retriever, chatbot, query_analyzer, agent, metrics = initialize_components(config)
+    retriever, chatbot, query_analyzer, agent, metrics = initialize_components(
+        config, model=model, provider_type=provider_type
+    )
 
     # Select queries for evaluation
     queries = TEST_QUERIES.copy()
@@ -789,9 +799,27 @@ def main():
         action="store_true",
         help="Generate HTML report"
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        help="Model name to evaluate"
+    )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["ollama", "mlx"],
+        default="ollama",
+        help="LLM provider (default: ollama)"
+    )
     args = parser.parse_args()
 
-    run_evaluation(trials=args.trials, query_type=args.type, generate_html=args.html)
+    run_evaluation(
+        trials=args.trials, 
+        query_type=args.type, 
+        generate_html=args.html,
+        model=args.model,
+        provider_type=args.provider
+    )
 
 
 if __name__ == "__main__":

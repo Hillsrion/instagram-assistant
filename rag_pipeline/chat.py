@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from .config import Config, default_config
+from .llm_provider import create_provider
 from .retriever import Retriever, RetrievalContext
 from .pii_filter import PIIFilter
 from .query_analyzer import QueryAnalyzer, AnalysisResult
@@ -145,13 +146,15 @@ class ChatResponse:
 class ChatBot:
     """RAG Chatbot with Ollama."""
 
-    def __init__(self, retriever: Retriever = None, config: Config = None):
+    def __init__(self, retriever: Retriever = None, config: Config = None, provider_type: str = "ollama"):
         self.config = config or default_config
         self.retriever = retriever
         self.conversation_history: List[dict] = []
         self.history_summary: Optional[str] = None
         self.pii_filter = PIIFilter() if self.config.enable_pii_filter else None
-        self.query_analyzer = QueryAnalyzer(self.config)
+        self.provider_type = provider_type
+        self.provider = create_provider(self.config, self.config.llm_model, provider_type)
+        self.query_analyzer = QueryAnalyzer(self.config, provider_type=provider_type)
     
     def _compact_history(self):
         """
@@ -198,24 +201,17 @@ Answer with a one-paragraph summary maximum."""
             {"role": "user", "content": user_prompt}
         ]
         
-        payload = {
-            "model": model,
-            "messages": messages,
-            "stream": False,
-            "options": {
-                "temperature": 0.1,
-                "num_predict": max_tokens,
-            }
-        }
-        
+        # If model is different from main provider model, create a temporary provider
+        target_provider = self.provider
+        if model != self.config.llm_model:
+            target_provider = create_provider(self.config, model, self.provider_type)
+
         try:
-            response = requests.post(
-                f"{self.config.ollama_url}/api/chat",
-                json=payload,
-                timeout=10
+            return target_provider.generate(
+                messages,
+                temperature=0.1,
+                max_tokens=max_tokens
             )
-            response.raise_for_status()
-            return response.json()["message"]["content"]
         except Exception:
             raise
 
@@ -255,7 +251,7 @@ Tâche :
         stream: bool = False,
         model: str = None
     ) -> Generator[str, None, None] | str:
-        """Calls the Ollama API."""
+        """Calls the LLM provider."""
         system_prompt = SYSTEM_PROMPT.format(user_name=self.config.user_name)
         
         # Add history summary if it exists
@@ -273,32 +269,54 @@ Tâche :
         # Add current question
         messages.append({"role": "user", "content": prompt})
 
-        payload = {
-            "model": model or self.config.llm_model,
-            "messages": messages,
-            "stream": stream,
-            "options": {
-                "temperature": self.config.temperature,
-                "top_p": self.config.top_p,
-                "num_predict": self.config.max_tokens,
-                "num_ctx": self.config.num_ctx,
-            }
-        }
-        
+        # If model is different from main provider model, create a temporary provider
+        target_provider = self.provider
+        if model and model != self.config.llm_model:
+            target_provider = create_provider(self.config, model, self.provider_type)
+
         try:
-            response = requests.post(
-                f"{self.config.ollama_url}/api/chat",
-                json=payload,
-                stream=stream,
-                timeout=120
-            )
-            response.raise_for_status()
-            
             if stream:
-                return self._stream_response(response)
+                 # Streaming is currently only supported via Ollama direct call in this repo's architecture
+                 # If using MLX, we might need a different approach or just fallback to non-streaming
+                 # MLX provider doesn't support stream yet in its current implementation
+                 if self.provider_type == "mlx":
+                     logger.warning("Streaming not supported for MLX provider, falling back to non-streaming")
+                     answer = target_provider.generate(
+                         messages,
+                         temperature=self.config.temperature,
+                         max_tokens=self.config.max_tokens
+                     )
+                     def mock_stream():
+                         yield answer
+                     return mock_stream()
+                 
+                 # Fallback to direct Ollama call for streaming if provider is Ollama
+                 payload = {
+                    "model": model or self.config.llm_model,
+                    "messages": messages,
+                    "stream": True,
+                    "options": {
+                        "temperature": self.config.temperature,
+                        "top_p": self.config.top_p,
+                        "num_predict": self.config.max_tokens,
+                        "num_ctx": self.config.num_ctx,
+                    }
+                }
+                 response = requests.post(
+                    f"{self.config.ollama_url}/api/chat",
+                    json=payload,
+                    stream=True,
+                    timeout=120
+                )
+                 response.raise_for_status()
+                 return self._stream_response(response)
             else:
-                return response.json()["message"]["content"]
-                
+                return target_provider.generate(
+                    messages,
+                    temperature=self.config.temperature,
+                    max_tokens=self.config.max_tokens
+                )
+                    
         except requests.exceptions.ConnectionError:
             raise ConnectionError(
                 f"Cannot connect to Ollama ({self.config.ollama_url}). "

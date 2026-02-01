@@ -487,7 +487,7 @@ class RAGASMetrics:
         """
         # Lazy init provider
         if self.provider is None:
-            from eval.llm_provider import create_provider
+            from rag_pipeline.llm_provider import create_provider
             self.provider = create_provider(self.config, self.config.llm_model, self.provider_type)
 
         try:

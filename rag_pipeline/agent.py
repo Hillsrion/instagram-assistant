@@ -9,6 +9,7 @@ from typing import List, Dict, Optional, Generator
 from dataclasses import dataclass, field
 
 from .config import Config, default_config
+from .llm_provider import create_provider
 from .tools import ToolBox, ToolResult
 from .retriever import Retriever
 from .logger import get_logger
@@ -82,12 +83,14 @@ class AgentRunner:
         config: Config = None,
         retriever: Retriever = None,
         analytics=None,
-        max_steps: int = 5
+        max_steps: int = 5,
+        provider_type: str = "ollama"
     ):
         self.config = config or default_config
         self.tools = ToolBox(config=self.config, retriever=retriever, analytics=analytics)
         self.max_steps = max_steps
         self.model = self.config.llm_model
+        self.provider = create_provider(self.config, self.model, provider_type)
 
     def _build_system_prompt(self) -> str:
         """Build the system prompt with tool descriptions."""
@@ -175,21 +178,11 @@ class AgentRunner:
     def _call_llm(self, messages: List[Dict[str, str]]) -> str:
         """Call the LLM with the given messages."""
         try:
-            response = requests.post(
-                f"{self.config.ollama_url}/api/chat",
-                json={
-                    "model": self.model,
-                    "messages": messages,
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.1,
-                        "num_predict": 512
-                    }
-                },
-                timeout=60
+            return self.provider.generate(
+                messages,
+                temperature=0.1,
+                max_tokens=512
             )
-            response.raise_for_status()
-            return response.json()["message"]["content"]
         except Exception as e:
             logger.error(f"LLM call failed: {e}")
             raise

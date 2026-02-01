@@ -33,7 +33,7 @@ from rag_pipeline.chunker import ConversationChunker, Chunk
 from eval.metrics import RAGASMetrics, MultiChunkEvalResult
 from eval.synthetic_generator import SyntheticDataGenerator, MultiChunkQAPair
 from eval._output_paths import get_multichunk_report_path
-from eval.llm_provider import create_provider
+from rag_pipeline.llm_provider import create_provider
 
 # Reuse helper functions from eval_generation.py
 from eval.eval_generation import (

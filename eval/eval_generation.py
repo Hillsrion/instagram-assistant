@@ -33,7 +33,7 @@ from eval._output_paths import (
     get_generation_report_path,
     get_dashboard_path
 )
-from eval.llm_provider import create_provider
+from rag_pipeline.llm_provider import create_provider
 
 def escape_html(text: str) -> str:
     """Escape HTML special characters."""
