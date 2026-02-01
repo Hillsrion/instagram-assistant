@@ -796,7 +796,15 @@ Examples:
         type=str,
         choices=["ollama", "mlx"],
         default="ollama",
-        help="LLM provider to use (default: ollama)"
+        help="LLM provider for run models (default: ollama)"
+    )
+    parser.add_argument(
+        "--judge-provider",
+        type=str,
+        choices=["ollama", "mlx"],
+        default=None,
+        dest="judge_provider",
+        help="LLM provider for judge model (default: same as --provider)"
     )
     parser.add_argument(
         "--generate-dataset",
@@ -847,33 +855,37 @@ Examples:
 
     config = Config()
     judge_model = args.judge if args.judge else config.llm_model
+    judge_provider_type = args.judge_provider if args.judge_provider else args.provider
 
-    # Check Ollama models if using Ollama
+    # Check Ollama availability for run models
     if args.provider == "ollama":
-        print(f"Checking Ollama models at {config.ollama_url}...")
-        models_to_check = list(set(models + [judge_model]))
-
-        available, missing = check_ollama_models_available(config, models_to_check)
+        print(f"Checking Ollama run models at {config.ollama_url}...")
+        available, missing = check_ollama_models_available(config, models)
 
         if missing:
             display_missing_models_help(missing)
-            if judge_model in missing:
-                print(f"❌ Error: Judge model '{judge_model}' is not available.")
-                return
-
             available_test_models = [m for m in models if m in available]
             if not available_test_models:
                 print("❌ Error: No test models available.")
                 return
-
             print(f"Continuing with available models: {', '.join(available_test_models)}\n")
             models = available_test_models
     else:
-        print(f"Using {args.provider} provider - skipping Ollama availability check")
+        print(f"Using {args.provider} provider for run models - skipping Ollama availability check")
+
+    # Check Ollama availability for judge model
+    if judge_provider_type == "ollama":
+        _, judge_missing = check_ollama_models_available(config, [judge_model])
+        if judge_missing:
+            display_missing_models_help(judge_missing)
+            print(f"❌ Error: Judge model '{judge_model}' is not available on Ollama.")
+            return
+    else:
+        print(f"Using {judge_provider_type} provider for judge - skipping Ollama availability check")
 
     print(f"Models: {', '.join(models)}")
     print(f"Judge: {judge_model}")
-    print(f"Provider: {args.provider}")
+    print(f"Run provider: {args.provider} | Judge provider: {judge_provider_type}")
     print()
 
     # Load dataset
@@ -894,10 +906,10 @@ Examples:
     qa_pairs = dataset[:args.trials]
     print(f"Evaluating on {len(qa_pairs)} questions\n")
 
-    # Create evaluator
-    evaluator = MultiChunkEvaluator(config, args.provider)
+    # Create evaluator (uses judge_provider_type for metrics/judging)
+    evaluator = MultiChunkEvaluator(config, judge_provider_type)
 
-    # Create providers
+    # Create providers: run models use args.provider
     providers = {m: create_provider(config, m, args.provider) for m in models}
 
     # Run evaluation

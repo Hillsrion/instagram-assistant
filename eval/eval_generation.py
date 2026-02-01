@@ -649,7 +649,15 @@ Examples:
         type=str,
         choices=["ollama", "mlx"],
         default="ollama",
-        help="LLM provider to use (default: ollama)"
+        help="LLM provider for run models (default: ollama)"
+    )
+    parser.add_argument(
+        "--judge-provider",
+        type=str,
+        choices=["ollama", "mlx"],
+        default=None,
+        dest="judge_provider",
+        help="LLM provider for judge model (default: same as --provider)"
     )
     args = parser.parse_args()
 
@@ -681,40 +689,42 @@ Examples:
 
     config = Config()
 
-    # Judge model
+    # Judge model & provider
     judge_model = args.judge if args.judge else config.llm_model
+    judge_provider_type = args.judge_provider if args.judge_provider else args.provider
 
-    # Only check Ollama models if using Ollama provider
+    # Check Ollama availability for run models
     if args.provider == "ollama":
-        print(f"Checking Ollama models at {config.ollama_url}...")
-        models_to_check = list(set(models + [judge_model]))
-
-        available, missing = check_ollama_models_available(config, models_to_check)
+        print(f"Checking Ollama run models at {config.ollama_url}...")
+        available, missing = check_ollama_models_available(config, models)
 
         if missing:
             display_missing_models_help(missing)
-            # If judge is missing, we can't continue safely if we want evaluations
-            if judge_model in missing:
-                print(f"❌ Error: Judge model '{judge_model}' is not available.")
-                return
-
-            # Check if we still have at least 2 models to compare (if that was the goal)
             available_test_models = [m for m in models if m in available]
             if not available_test_models:
                 print("Error: No test models available. Please install at least one model.")
                 return
-
             print(f"Continuing with available models: {', '.join(available_test_models)}\n")
             models = available_test_models
     else:
-        print(f"Using {args.provider} provider - skipping Ollama availability check")
+        print(f"Using {args.provider} provider for run models - skipping Ollama availability check")
+
+    # Check Ollama availability for judge model
+    if judge_provider_type == "ollama":
+        _, judge_missing = check_ollama_models_available(config, [judge_model])
+        if judge_missing:
+            display_missing_models_help(judge_missing)
+            print(f"❌ Error: Judge model '{judge_model}' is not available on Ollama.")
+            return
+    else:
+        print(f"Using {judge_provider_type} provider for judge - skipping Ollama availability check")
 
     print(f"Using models: {', '.join(models)}")
     print(f"Using judge: {judge_model}")
-    print(f"Using provider: {args.provider}")
+    print(f"Run provider: {args.provider} | Judge provider: {judge_provider_type}")
     print()
 
-    judge_metrics = create_judge(config, judge_model=judge_model, provider_type=args.provider)
+    judge_metrics = create_judge(config, judge_model=judge_model, provider_type=judge_provider_type)
     chunker = ConversationChunker(config)
     chunks = chunker.load_chunks()
     chunks_map = {c.chunk_id: c for c in chunks}
@@ -727,9 +737,9 @@ Examples:
     qa_pairs = dataset['qa_pairs'][:args.trials]
     results = {m: {"trials": [], "avg_speed": 0} for m in models}
 
-    # Create provider instances for each model
+    # Create provider instances: run models use args.provider, judge uses judge_provider_type
     providers = {m: create_provider(config, m, args.provider) for m in models}
-    judge_provider = create_provider(config, judge_model, args.provider)
+    judge_provider = create_provider(config, judge_model, judge_provider_type)
 
     for i, qa in enumerate(qa_pairs):
         print(f"\n[{i+1}/{len(qa_pairs)}] Question: {qa['question']}")

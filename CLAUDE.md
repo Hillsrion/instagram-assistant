@@ -26,6 +26,9 @@ Local AI assistant for querying exported Instagram conversations using a RAG pip
 - **Unit Tests:** `pytest tests/`
 - **Evaluation:** `python -m eval.eval_retrieval`
 
+### Git
+- **Ne jamais ajouter de signature `Co-Authored-By` dans les commits.**
+
 ### Code Conventions
 - **Comments:** French comments in `rag_pipeline/`.
 - **Backend:** Python 3.13+, FastAPI, Pydantic v2.
