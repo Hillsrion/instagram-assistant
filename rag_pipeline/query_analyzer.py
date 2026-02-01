@@ -173,19 +173,19 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
         """Returns optimized search parameters for an intent."""
         if intent == "specific_fact":
             return {
-                "top_k": 5,
+                "top_k": 8,  # Precision-focused: enough to catch near-misses
                 "use_reranking": True,
                 "expand_context": False
             }
         elif intent == "broad_summary":
             return {
-                "top_k": 15,
-                "use_reranking": False, # Too many docs, prioritize mass
+                "top_k": 20,  # Quality-filtered breadth for summaries
+                "use_reranking": True,  # Enabled: quality over quantity
                 "expand_context": True
             }
         else: # complex_reasoning or fallback
             return {
-                "top_k": 10,
+                "top_k": 15,  # Balanced for local inference performance
                 "use_reranking": True,
                 "expand_context": True
             }

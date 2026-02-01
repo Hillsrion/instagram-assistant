@@ -107,13 +107,9 @@ class Retriever:
                 f"---\n"
             )
             
-            # Content
+            # Content - no truncation needed for 256k context
+            # (Instagram chunks rarely exceed 10k chars)
             content = chunk.content
-            
-            # Truncate if necessary (to avoid exceeding LLM context)
-            max_chars = 3000
-            if len(content) > max_chars:
-                content = content[:max_chars] + "\n[... truncated ...]"
             
             context_parts.append(header + content)
         

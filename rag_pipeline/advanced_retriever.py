@@ -521,9 +521,10 @@ class AdvancedRetriever:
             )
 
             content = chunk.content
-            max_chars = 2500 if not result.is_expanded else 1500
-            if len(content) > max_chars:
-                content = content[:max_chars] + "\n[... truncated ...]"
+            # Only truncate expanded chunks; main chunks pass through fully
+            # (Instagram chunks rarely exceed 10k chars)
+            if result.is_expanded and len(content) > 10000:
+                content = content[:10000] + "\n[... truncated ...]"
 
             context_parts.append(header + content)
 
