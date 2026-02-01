@@ -10,7 +10,9 @@ from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional, Tuple, Any
 from collections import defaultdict
 
+
 from .config import Config, default_config
+from .chunk_utils import repeat_with_budget
 
 
 @dataclass

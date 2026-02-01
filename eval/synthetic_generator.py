@@ -124,23 +124,23 @@ CONTENU DE LA CONVERSATION :
 RÉSUMÉ :
 {summary}
 
-PARTICIPANTS: {participants}
-PERIOD: {date_start} - {date_end}
+PARTICIPANTS : {participants}
+PÉRIODE : {date_start} - {date_end}
 
-RULES:
-1. Generate 3 questions of different types:
-   - 1 FACTUAL question (answer directly in the text)
-   - 1 SUMMARY question (asking for a synthesis)
-   - 1 IMPLICIT question (requiring slight inference)
+RÈGLES :
+1. Génère 3 questions de types différents :
+   - 1 question FACTUELLE (réponse directement dans le texte)
+   - 1 question de SYNTHÈSE (demandant un résumé)
+   - 1 question IMPLICITE (nécessitant une légère inférence)
 
-2. Answers must be:
-   - Based ONLY on the provided content
-   - Concise but complete
-   - In English
+2. Les réponses doivent être :
+   - Basées UNIQUEMENT sur le contenu fourni
+   - Concises mais complètes
+   - En Français
 
-3. Questions must be natural, as if a user was asking them.
+3. Les questions doivent être naturelles, comme si un utilisateur les posait.
 
-OUTPUT FORMAT (Strict JSON):
+FORMAT DE SORTIE (JSON Strict) :
 [
   {{
     "question": "...",
@@ -151,34 +151,34 @@ OUTPUT FORMAT (Strict JSON):
   ...
 ]
 
-Answer ONLY with the JSON, no explanation."""
+Réponds UNIQUEMENT avec le JSON, sans explication."""
 
 
-MULTICHUNK_GENERATION_PROMPT = """You are an expert in creating multi-chunk RAG evaluation datasets.
+MULTICHUNK_GENERATION_PROMPT = """Tu es un expert dans la création de jeux de données d'évaluation RAG multi-chunks.
 
-You will receive {num_chunks} conversation chunks. Generate a question that REQUIRES reading multiple chunks to answer correctly.
+Tu vas recevoir {num_chunks} extraits (chunks) de conversation. Génère une question qui NÉCESSITE la lecture de plusieurs extraits pour y répondre correctement.
 
-CHUNKS:
+EXTRAITS :
 {chunks_content}
 
-RULES:
-1. The question MUST genuinely need information from at least {min_chunks} different chunks
-2. Types to generate (based on intent "{intent}"):
-   - "specific_fact": Cross-reference question requiring 3-5 chunks (e.g., "How did X's opinion on Y change over time?")
-   - "complex_reasoning": Multi-step reasoning requiring 5-10 chunks (e.g., "What were the main themes in conversations about Z?")
-   - "broad_summary": Comprehensive synthesis requiring 10-15 chunks (e.g., "Summarize all discussions about topic X")
+RÈGLES :
+1. La question DOIT impérativement nécessiter des informations provenant d'au moins {min_chunks} extraits différents.
+2. Types à générer (basé sur l'intention "{intent}") :
+   - "specific_fact" : Question de recoupement nécessitant 3-5 extraits (ex: "Comment l'opinion de X sur Y a-t-elle évolué ?")
+   - "complex_reasoning" : Raisonnement en plusieurs étapes nécessitant 5-10 extraits (ex: "Quels étaient les thèmes principaux des discussions sur Z ?")
+   - "broad_summary" : Synthèse complète nécessitant 10-15 extraits (ex: "Résume toutes les discussions sur le sujet X")
 
-3. Expected answer should:
-   - Synthesize information from the specified chunks
-   - Be factual and based ONLY on provided content
-   - Be in English
+3. La réponse attendue doit :
+   - Synthétiser les informations des extraits fournis
+   - Être factuelle et basée UNIQUEMENT sur le contenu fourni
+   - Être en Français
 
-4. Indicate which chunks contain critical information for the answer
+4. Indique quels extraits contiennent les informations critiques pour la réponse.
 
-OUTPUT FORMAT (Strict JSON):
+FORMAT DE SORTIE (JSON Strict) :
 {{
-  "question": "A question requiring multi-chunk synthesis...",
-  "expected_answer": "Answer synthesizing information from multiple chunks...",
+  "question": "Une question nécessitant une synthèse multi-extraits...",
+  "expected_answer": "Réponse synthétisant les informations de plusieurs extraits...",
   "source_chunk_ids": ["chunk_1", "chunk_3", "chunk_7", ...],
   "expected_chunk_attribution": ["chunk_1", "chunk_3"],
   "cross_chunk_required": true,
@@ -186,7 +186,7 @@ OUTPUT FORMAT (Strict JSON):
   "difficulty": "easy|medium|hard"
 }}
 
-Answer ONLY with the JSON, no explanation."""
+Réponds UNIQUEMENT avec le JSON, sans explication."""
 
 
 class SyntheticDataGenerator:
