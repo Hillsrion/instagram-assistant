@@ -47,13 +47,13 @@ class Config:
 
     # === Retrieval ===
     # Number of chunks to retrieve
-    top_k: int = field(default_factory=lambda: int(os.getenv('TOP_K', '5')))
+    top_k: int = field(default_factory=lambda: int(os.getenv('TOP_K', '12')))
     # Minimum similarity score (cosine)
     min_similarity: float = field(default_factory=lambda: float(os.getenv('MIN_SIMILARITY', '0.3')))
 
     # === Advanced Retrieval ===
     # Initial candidates for reranking
-    initial_k: int = 20
+    initial_k: int = 50
     # Dense vs BM25 weight (0.5 = balanced)
     hybrid_alpha: float = 0.5
     # Context expansion window (adjacent chunks)
@@ -94,7 +94,7 @@ class Config:
     # Max output tokens
     max_tokens: int = 1024
     # Ollama context window size (RAG + History)
-    num_ctx: int = field(default_factory=lambda: int(os.getenv('LLM_NUM_CTX', '8192')))
+    num_ctx: int = field(default_factory=lambda: int(os.getenv('LLM_NUM_CTX', '32768')))
 
     # === User ===
     user_name: str = field(default_factory=lambda: os.getenv('USER_NAME', 'Ismaël'))

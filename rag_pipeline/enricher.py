@@ -89,8 +89,8 @@ class ChunkEnricher:
         Returns:
             (summary, questions, speaker_intents, temporal_context, entities, emotions, interaction_pattern, initiative, emotional_shift, open_loops)
         """
-        # Limit text size to avoid saturating context window of small models
-        content_preview = chunk.content[:4000]
+        # Limit text size removed as per user request (128k context available)
+        content_preview = chunk.content
 
         prompt = ENRICH_PROMPT.format(
             content=content_preview,
