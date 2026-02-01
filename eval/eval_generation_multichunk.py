@@ -300,7 +300,8 @@ def generate_multichunk_comparison_json(
     judge_model: str,
     provider: str,
     num_questions: int,
-    summary_synthesis: str = ""
+    summary_synthesis: str = "",
+    run_timestamp: datetime = None
 ) -> Path:
     """Generate a single consolidated JSON report for all models (Multi-Chunk)."""
     models = list(all_results.keys())
@@ -348,12 +349,7 @@ def generate_multichunk_comparison_json(
         report_data["results"].append(q_entry)
 
     # Save consolidated JSON
-    report_dir = Path(__file__).parent / "results" / "eval_generation_multichunk"
-    report_dir.mkdir(parents=True, exist_ok=True)
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"gen_multichunk_comp_{num_questions}q_{timestamp}.json"
-    report_path = report_dir / filename
+    report_path = get_multichunk_report_path(models, num_questions, timestamp=run_timestamp, format="json")
 
     with open(report_path, 'w', encoding='utf-8') as f:
         json.dump(report_data, f, ensure_ascii=False, indent=2)
@@ -367,7 +363,8 @@ def generate_json_report(
     qa_pairs: List[MultiChunkQAPair],
     judge_model: str,
     provider: str,
-    trials: int
+    trials: int,
+    run_timestamp: datetime = None
 ) -> Path:
     """Generate JSON report for a single model."""
     report_data = {
@@ -400,13 +397,8 @@ def generate_json_report(
     }
 
     # Save per-model JSON
-    report_dir = Path(__file__).parent / "results" / "eval_generation_multichunk"
-    report_dir.mkdir(parents=True, exist_ok=True)
-
-    safe_model_name = model.replace(":", "_").replace("/", "_")
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{safe_model_name}_{trials}trials_{provider}_{timestamp}.json"
-    report_path = report_dir / filename
+    report_path = get_multichunk_report_path([model], trials, timestamp=run_timestamp, format="json")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(report_path, 'w', encoding='utf-8') as f:
         json.dump(report_data, f, ensure_ascii=False, indent=2)
@@ -421,10 +413,11 @@ def generate_html_report(
     chunks_map: Dict[str, Chunk],
     models: List[str],
     num_questions: int,
-    synthesis: str = ""
+    synthesis: str = "",
+    run_timestamp: datetime = None
 ) -> Path:
     """Generate comprehensive HTML report with multi-chunk visualizations."""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp_str = run_timestamp.strftime("%Y-%m-%d %H:%M:%S") if run_timestamp else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Compute statistics
     stats_by_model = {}
@@ -465,7 +458,7 @@ def generate_html_report(
                     📊 Multi-Chunk LLM Evaluation
                 </h1>
                 <p class="mt-4 text-lg text-slate-600">
-                    Generated on <span class="font-semibold text-indigo-600">{timestamp}</span> •
+                    Generated on <span class="font-semibold text-indigo-600">{timestamp_str}</span> •
                     <span class="font-semibold text-indigo-600">{num_questions}</span> multi-chunk questions •
                     Judge: <span class="font-semibold text-indigo-600">{escape_html(judge_model)}</span>
                 </p>
@@ -849,7 +842,7 @@ def generate_html_report(
 """
 
     # Save report
-    report_path = get_multichunk_report_path(models, num_questions)
+    report_path = get_multichunk_report_path(models, num_questions, timestamp=run_timestamp, format="html")
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write(html)
 
@@ -1017,6 +1010,9 @@ Examples:
     providers = {m: create_provider(config, m, args.provider) for m in models}
     judge_provider = create_provider(config, judge_model, judge_provider_type)
 
+    # Use a single timestamp for all reports in this run
+    run_timestamp = datetime.now()
+
     # Run evaluation
     all_results = {m: [] for m in models}
 
@@ -1044,14 +1040,14 @@ Examples:
     # Generate consolidated JSON report
     print("\n📊 Génération du rapport JSON consolidé...")
     json_path = generate_multichunk_comparison_json(
-        all_results, qa_pairs, judge_model, args.provider, len(qa_pairs), synth_resp
+        all_results, qa_pairs, judge_model, args.provider, len(qa_pairs), synth_resp, run_timestamp=run_timestamp
     )
     print(f"  ✅ Rapport JSON enregistré : {json_path}")
 
     if args.html:
         print("\n📊 Generating HTML report...")
         html_path = generate_html_report(
-            all_results, qa_pairs, judge_model, chunks_map, models, len(qa_pairs), synth_resp
+            all_results, qa_pairs, judge_model, chunks_map, models, len(qa_pairs), synth_resp, run_timestamp=run_timestamp
         )
         print(f"✅ HTML report saved: {html_path}")
 

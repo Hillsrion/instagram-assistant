@@ -23,7 +23,8 @@ def scan_reports() -> List[Dict[str, Any]]:
         return []
 
     reports = []
-    for path in sorted(report_dir.glob("*.json")):
+    # Search recursively for JSON reports
+    for path in sorted(report_dir.rglob("*.json")):
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)

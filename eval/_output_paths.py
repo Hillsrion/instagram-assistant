@@ -20,18 +20,17 @@ def ensure_dir(path: Path) -> Path:
     return path
 
 
-def _generation_base_name(models: List[str], trials: int, timestamp: Optional[datetime] = None) -> tuple:
-    """Generate base filename components for generation reports."""
+def _get_run_dir(eval_type: str, models: List[str], timestamp: Optional[datetime] = None) -> Path:
+    """Create and return a run-specific subfolder."""
     ts = timestamp or datetime.now()
+    # Use a fixed format for the run folder to avoid sub-second mismatches
     ts_str = ts.strftime("%Y%m%d_%H%M%S")
-
-    # Clean model names for filename (replace colons and special chars)
+    
     clean_models = [m.replace(":", "-").replace("/", "-") for m in models]
-    models_str = "_vs_".join(clean_models[:3])  # Limit to first 3 models
-
-    base = f"gen_{trials}trials_{models_str}_{ts_str}"
-    output_dir = ensure_dir(EVAL_RESULTS_DIR / "eval_generation")
-    return output_dir, base
+    models_str = "_vs_".join(clean_models[:2]) # Keep it relative short
+    
+    run_name = f"run_{ts_str}_{models_str}"
+    return ensure_dir(EVAL_RESULTS_DIR / eval_type / run_name)
 
 
 def get_generation_report_path(
@@ -41,21 +40,11 @@ def get_generation_report_path(
     format: str = "html"
 ) -> Path:
     """
-    Get output path for generation evaluation report.
-
-    Format: eval/results/eval_generation/gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.<ext>
-
-    Args:
-        models: List of model names being compared
-        trials: Number of trials run
-        timestamp: Optional timestamp (defaults to now)
-        format: Output format ("html" or "json")
-
-    Returns:
-        Path to the report file
+    Get output path for generation evaluation report (in run subfolder).
     """
-    output_dir, base = _generation_base_name(models, trials, timestamp)
-    return output_dir / f"{base}.{format}"
+    run_dir = _get_run_dir("eval_generation", models, timestamp)
+    filename = "report" if format == "html" else "results"
+    return run_dir / f"{filename}.{format}"
 
 
 def get_retrieval_report_path(
@@ -165,27 +154,8 @@ def get_multichunk_report_path(
     format: str = "html"
 ) -> Path:
     """
-    Get output path for multi-chunk generation evaluation report.
-
-    Format: eval/results/eval_generation_multichunk/multichunk_<trials>trials_<model1>_vs_<model2>_<timestamp>.<ext>
-
-    Args:
-        models: List of model names being compared
-        trials: Number of trials run
-        timestamp: Optional timestamp (defaults to now)
-        format: Output format ("html" or "json")
-
-    Returns:
-        Path to the report file
+    Get output path for multi-chunk generation evaluation report (in run subfolder).
     """
-    ts = timestamp or datetime.now()
-    ts_str = ts.strftime("%Y%m%d_%H%M%S")
-
-    # Clean model names for filename (replace colons and special chars)
-    clean_models = [m.replace(":", "-").replace("/", "-") for m in models]
-    models_str = "_vs_".join(clean_models[:3])  # Limit to first 3 models
-
-    filename = f"multichunk_{trials}trials_{models_str}_{ts_str}.{format}"
-
-    output_dir = ensure_dir(EVAL_RESULTS_DIR / "eval_generation_multichunk")
-    return output_dir / filename
+    run_dir = _get_run_dir("eval_generation_multichunk", models, timestamp)
+    filename = "report" if format == "html" else "results"
+    return run_dir / f"{filename}.{format}"

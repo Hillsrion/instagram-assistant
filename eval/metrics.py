@@ -629,12 +629,20 @@ class RAGASMetrics:
             )
         chunks_info = "\n\n".join(chunks_info_parts)
 
+        # Extract chunk IDs if they are dicts (from some dataset formats)
+        clean_expected_ids = []
+        for item in expected_chunk_ids:
+            if isinstance(item, dict):
+                clean_expected_ids.append(item.get('chunk_id', str(item)))
+            else:
+                clean_expected_ids.append(str(item))
+
         prompt = CHUNK_ATTRIBUTION_PROMPT.format(
             question=question,
             generated_answer=generated_answer,
             num_chunks=len(all_chunks),
             chunks_info=chunks_info,
-            expected_chunk_ids=", ".join(expected_chunk_ids)
+            expected_chunk_ids=", ".join(clean_expected_ids)
         )
 
         result = self._llm_judge(prompt, return_explanation=True)

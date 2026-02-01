@@ -28,7 +28,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from rag_pipeline.config import Config
 from rag_pipeline.chunker import ConversationChunker, Chunk
 from eval.metrics import RAGASMetrics
-from eval._output_paths import get_generation_report_path
+from eval._output_paths import (
+    EVAL_RESULTS_DIR,
+    get_generation_report_path,
+    get_dashboard_path
+)
 from eval.llm_provider import create_provider
 
 def escape_html(text: str) -> str:
@@ -302,7 +306,8 @@ def generate_comparison_json(
     judge_model: str,
     provider: str,
     num_questions: int,
-    summary_synthesis: str = ""
+    summary_synthesis: str = "",
+    run_timestamp: datetime = None
 ) -> Path:
     """Generate a single consolidated JSON report for all models."""
     models = list(results.keys())
@@ -341,12 +346,7 @@ def generate_comparison_json(
         report_data["results"].append(q_entry)
 
     # Save consolidated JSON
-    report_dir = Path(__file__).parent / "results" / "eval_generation"
-    report_dir.mkdir(parents=True, exist_ok=True)
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"gen_comp_{num_questions}q_{timestamp}.json"
-    report_path = report_dir / filename
+    report_path = get_generation_report_path(models, num_questions, timestamp=run_timestamp, format="json")
 
     with open(report_path, 'w', encoding='utf-8') as f:
         json.dump(report_data, f, ensure_ascii=False, indent=2)
@@ -355,8 +355,8 @@ def generate_comparison_json(
 
 
 
-def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_synthesis: str, judge_model: str, chunks_map: Dict[str, Chunk] = None, models: List[str] = None, trials: int = 0):
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_synthesis: str, judge_model: str, chunks_map: Dict[str, Chunk] = None, models: List[str] = None, trials: int = 0, run_timestamp: datetime = None):
+    timestamp_str = run_timestamp.strftime("%Y-%m-%d %H:%M:%S") if run_timestamp else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     chunks_map = chunks_map or {}
 
     html = f"""
@@ -394,7 +394,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
                     📊 LLM Comparison Report
                 </h1>
                 <p class="mt-4 text-lg text-slate-600">
-                    Generated on <span class="font-semibold text-indigo-600">{timestamp}</span> • Based on <span class="font-semibold text-indigo-600">{len(qa_pairs)}</span> test questions • Judge: <span class="font-semibold text-indigo-600">{escape_html(judge_model)}</span>
+                    Generated on <span class="font-semibold text-indigo-600">{timestamp_str}</span> • Based on <span class="font-semibold text-indigo-600">{len(qa_pairs)}</span> test questions • Judge: <span class="font-semibold text-indigo-600">{escape_html(judge_model)}</span>
                 </p>
             </div>
 
@@ -602,7 +602,7 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
 </html>
     """
 
-    report_path = get_generation_report_path(models or list(results.keys()), trials or len(qa_pairs))
+    report_path = get_generation_report_path(models or list(results.keys()), trials or len(qa_pairs), timestamp=run_timestamp, format="html")
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write(html)
     return report_path
@@ -815,14 +815,17 @@ Examples:
     for m in models:
         results[m]["avg_speed"] = sum(t["words_per_sec"] for t in results[m]["trials"]) / len(qa_pairs)
 
+    # Use a single timestamp for all reports in this run
+    run_timestamp = datetime.now()
+
     # Generate consolidated JSON report
     print("\n📊 Génération du rapport JSON consolidé...")
-    json_path = generate_comparison_json(results, qa_pairs, judge_model, args.provider, num_questions, synth_resp)
+    json_path = generate_comparison_json(results, qa_pairs, judge_model, args.provider, num_questions, synth_resp, run_timestamp=run_timestamp)
     print(f"  ✅ Rapport JSON enregistré : {json_path}")
 
     # Optionally generate HTML report
     if args.html:
-        html_path = generate_html_report(results, qa_pairs, synth_resp, judge_model, chunks_map, models=models, trials=num_questions)
+        html_path = generate_html_report(results, qa_pairs, synth_resp, judge_model, chunks_map, models=models, trials=num_questions, run_timestamp=run_timestamp)
         print(f"✅ Rapport HTML généré : {html_path}")
 
 
