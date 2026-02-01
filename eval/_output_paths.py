@@ -156,3 +156,36 @@ def get_comparison_report_path(
 
     output_dir = ensure_dir(EVAL_RESULTS_DIR / "compare_configs")
     return output_dir / filename
+
+
+def get_multichunk_report_path(
+    models: List[str],
+    trials: int,
+    timestamp: Optional[datetime] = None,
+    format: str = "html"
+) -> Path:
+    """
+    Get output path for multi-chunk generation evaluation report.
+
+    Format: eval/results/eval_generation_multichunk/multichunk_<trials>trials_<model1>_vs_<model2>_<timestamp>.<ext>
+
+    Args:
+        models: List of model names being compared
+        trials: Number of trials run
+        timestamp: Optional timestamp (defaults to now)
+        format: Output format ("html" or "json")
+
+    Returns:
+        Path to the report file
+    """
+    ts = timestamp or datetime.now()
+    ts_str = ts.strftime("%Y%m%d_%H%M%S")
+
+    # Clean model names for filename (replace colons and special chars)
+    clean_models = [m.replace(":", "-").replace("/", "-") for m in models]
+    models_str = "_vs_".join(clean_models[:3])  # Limit to first 3 models
+
+    filename = f"multichunk_{trials}trials_{models_str}_{ts_str}.{format}"
+
+    output_dir = ensure_dir(EVAL_RESULTS_DIR / "eval_generation_multichunk")
+    return output_dir / filename

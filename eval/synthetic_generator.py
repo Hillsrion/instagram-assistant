@@ -68,6 +68,52 @@ class QAPair:
         return cls(**data)
 
 
+@dataclass
+class MultiChunkQAPair(QAPair):
+    """QA pair requiring multiple chunks for evaluation.
+
+    Used for testing LLM's ability to synthesize information
+    from multiple conversation chunks, reflecting real-world usage
+    where 5-25 chunks are typically provided as context.
+    """
+    intent: str = "broad_summary"  # "specific_fact", "complex_reasoning", "broad_summary"
+    expected_chunk_attribution: List[str] = None  # Chunks that should be cited in answer
+    cross_chunk_required: bool = True  # Whether synthesis across chunks is needed
+
+    def __post_init__(self):
+        super().__post_init__()
+        if self.expected_chunk_attribution is None:
+            self.expected_chunk_attribution = []
+
+    def to_dict(self) -> dict:
+        d = super().to_dict()
+        d['intent'] = self.intent
+        d['expected_chunk_attribution'] = self.expected_chunk_attribution
+        d['cross_chunk_required'] = self.cross_chunk_required
+        return d
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "MultiChunkQAPair":
+        # Convert enums first
+        data['question_type'] = QuestionType(data['question_type'])
+        data['difficulty'] = Difficulty(data['difficulty'])
+        if 'tags' not in data:
+            data['tags'] = []
+        # Backward compat for source_chunk_ids
+        if 'source_chunk_ids' not in data and 'source_chunk_id' in data:
+            data['source_chunk_ids'] = [data.pop('source_chunk_id')]
+        elif 'source_chunk_id' in data and 'source_chunk_ids' in data:
+            data.pop('source_chunk_id')
+        # Set defaults for multichunk fields
+        if 'intent' not in data:
+            data['intent'] = "broad_summary"
+        if 'expected_chunk_attribution' not in data:
+            data['expected_chunk_attribution'] = []
+        if 'cross_chunk_required' not in data:
+            data['cross_chunk_required'] = True
+        return cls(**data)
+
+
 GENERATION_PROMPT = """You are an expert in creating datasets for RAG system evaluation.
 
 From the following Instagram conversation content, generate exactly 3 varied question-answer pairs.
@@ -104,6 +150,41 @@ OUTPUT FORMAT (Strict JSON):
   }},
   ...
 ]
+
+Answer ONLY with the JSON, no explanation."""
+
+
+MULTICHUNK_GENERATION_PROMPT = """You are an expert in creating multi-chunk RAG evaluation datasets.
+
+You will receive {num_chunks} conversation chunks. Generate a question that REQUIRES reading multiple chunks to answer correctly.
+
+CHUNKS:
+{chunks_content}
+
+RULES:
+1. The question MUST genuinely need information from at least {min_chunks} different chunks
+2. Types to generate (based on intent "{intent}"):
+   - "specific_fact": Cross-reference question requiring 3-5 chunks (e.g., "How did X's opinion on Y change over time?")
+   - "complex_reasoning": Multi-step reasoning requiring 5-10 chunks (e.g., "What were the main themes in conversations about Z?")
+   - "broad_summary": Comprehensive synthesis requiring 10-15 chunks (e.g., "Summarize all discussions about topic X")
+
+3. Expected answer should:
+   - Synthesize information from the specified chunks
+   - Be factual and based ONLY on provided content
+   - Be in English
+
+4. Indicate which chunks contain critical information for the answer
+
+OUTPUT FORMAT (Strict JSON):
+{{
+  "question": "A question requiring multi-chunk synthesis...",
+  "expected_answer": "Answer synthesizing information from multiple chunks...",
+  "source_chunk_ids": ["chunk_1", "chunk_3", "chunk_7", ...],
+  "expected_chunk_attribution": ["chunk_1", "chunk_3"],
+  "cross_chunk_required": true,
+  "intent": "{intent}",
+  "difficulty": "easy|medium|hard"
+}}
 
 Answer ONLY with the JSON, no explanation."""
 
@@ -352,6 +433,235 @@ class SyntheticDataGenerator:
             data = json.load(f)
 
         return [QAPair.from_dict(qa) for qa in data['qa_pairs']]
+
+    def _group_chunks_by_similarity(
+        self,
+        chunks: List[Chunk],
+        max_groups: int = 10
+    ) -> List[List[Chunk]]:
+        """
+        Group chunks by similarity (participant, timeframe, etc.).
+
+        Args:
+            chunks: All available chunks
+            max_groups: Maximum number of groups to create
+
+        Returns:
+            List of chunk groups
+        """
+        # Group by participant combination first
+        by_participants = {}
+        for chunk in chunks:
+            key = tuple(sorted(chunk.participants))
+            if key not in by_participants:
+                by_participants[key] = []
+            by_participants[key].append(chunk)
+
+        # For each participant group, further group by time proximity
+        groups = []
+        for participant_key, participant_chunks in by_participants.items():
+            # Sort by date
+            sorted_chunks = sorted(participant_chunks, key=lambda c: c.date_start)
+
+            # Create temporal groups (chunks within ~30 days of each other)
+            current_group = []
+            for chunk in sorted_chunks:
+                if not current_group:
+                    current_group.append(chunk)
+                else:
+                    # Simple heuristic: if chunks are from same conversation file, group them
+                    if chunk.file_source == current_group[0].file_source:
+                        current_group.append(chunk)
+                    else:
+                        if len(current_group) >= 3:  # Only keep groups with 3+ chunks
+                            groups.append(current_group)
+                        current_group = [chunk]
+
+            # Add final group
+            if len(current_group) >= 3:
+                groups.append(current_group)
+
+        # Sort groups by size (prefer larger groups) and limit
+        groups.sort(key=len, reverse=True)
+        return groups[:max_groups]
+
+    def generate_multichunk_qa_pairs(
+        self,
+        chunks: List[Chunk],
+        num_pairs: int = 30,
+        chunk_counts: List[int] = None,
+        progress_callback=None
+    ) -> List[MultiChunkQAPair]:
+        """
+        Generate QA pairs requiring multiple chunks.
+
+        Args:
+            chunks: All available chunks
+            num_pairs: Target number of QA pairs to generate
+            chunk_counts: List of chunk counts to use (default: [5, 10, 15])
+            progress_callback: Function(current, total, message)
+
+        Returns:
+            List of MultiChunkQAPair instances
+        """
+        if chunk_counts is None:
+            chunk_counts = [5, 10, 15]
+
+        # Group chunks by similarity
+        chunk_groups = self._group_chunks_by_similarity(chunks)
+
+        if not chunk_groups:
+            print("No suitable chunk groups found for multi-chunk generation")
+            return []
+
+        print(f"Found {len(chunk_groups)} chunk groups for multi-chunk QA generation")
+
+        all_qa_pairs = []
+        pairs_per_count = num_pairs // len(chunk_counts)
+
+        # Intent mapping based on chunk count
+        intent_map = {
+            5: "specific_fact",
+            10: "complex_reasoning",
+            15: "broad_summary"
+        }
+
+        for chunk_count in chunk_counts:
+            intent = intent_map.get(chunk_count, "broad_summary")
+            min_chunks = max(2, chunk_count // 2)  # At least half the chunks should be needed
+
+            for i in range(pairs_per_count):
+                if progress_callback:
+                    current = len(all_qa_pairs) + 1
+                    progress_callback(current, num_pairs, f"Generating {intent} question (need {chunk_count} chunks)")
+
+                # Select a group with enough chunks
+                suitable_groups = [g for g in chunk_groups if len(g) >= chunk_count]
+                if not suitable_groups:
+                    print(f"Not enough chunks in groups for count={chunk_count}, skipping")
+                    continue
+
+                group = random.choice(suitable_groups)
+                selected_chunks = random.sample(group, min(chunk_count, len(group)))
+
+                # Format chunks for LLM
+                chunks_content = []
+                for idx, chunk in enumerate(selected_chunks):
+                    chunk_preview = chunk.content[:800]  # Truncate for context
+                    chunks_content.append(
+                        f"=== CHUNK {idx+1} (ID: {chunk.chunk_id}) ===\n"
+                        f"Participants: {', '.join(chunk.participants)}\n"
+                        f"Period: {chunk.date_start[:10]} to {chunk.date_end[:10]}\n"
+                        f"---\n{chunk_preview}\n"
+                    )
+
+                chunks_str = "\n\n".join(chunks_content)
+
+                # Generate QA pair with LLM
+                prompt = MULTICHUNK_GENERATION_PROMPT.format(
+                    num_chunks=len(selected_chunks),
+                    chunks_content=chunks_str,
+                    min_chunks=min_chunks,
+                    intent=intent
+                )
+
+                try:
+                    payload = {
+                        "model": self.config.llm_model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "stream": False,
+                        "options": {
+                            "temperature": 0.4,
+                            "top_p": 0.9,
+                            "num_predict": 2048,
+                        }
+                    }
+
+                    response = requests.post(
+                        f"{self.config.ollama_url}/api/chat",
+                        json=payload,
+                        timeout=120
+                    )
+                    response.raise_for_status()
+
+                    content = response.json()["message"]["content"].strip()
+
+                    # Parse JSON
+                    if "```json" in content:
+                        content = content.split("```json")[1].split("```")[0]
+                    elif "```" in content:
+                        content = content.split("```")[1].split("```")[0]
+
+                    qa_data = json.loads(content)
+
+                    # Create MultiChunkQAPair
+                    qa_pair = MultiChunkQAPair(
+                        question=qa_data["question"],
+                        expected_answer=qa_data["expected_answer"],
+                        source_chunk_ids=[c.chunk_id for c in selected_chunks],
+                        question_type=QuestionType.SUMMARY,  # Most multi-chunk are summary-type
+                        difficulty=Difficulty(qa_data.get("difficulty", "medium")),
+                        intent=intent,
+                        expected_chunk_attribution=qa_data.get("expected_chunk_attribution", []),
+                        cross_chunk_required=qa_data.get("cross_chunk_required", True),
+                        metadata={
+                            'num_chunks': len(selected_chunks),
+                            'participants': list(set(p for c in selected_chunks for p in c.participants))
+                        }
+                    )
+
+                    all_qa_pairs.append(qa_pair)
+
+                except Exception as e:
+                    print(f"Error generating multi-chunk QA pair: {e}")
+                    continue
+
+                if len(all_qa_pairs) >= num_pairs:
+                    break
+
+            if len(all_qa_pairs) >= num_pairs:
+                break
+
+        return all_qa_pairs[:num_pairs]
+
+    def save_multichunk_dataset(self, qa_pairs: List[MultiChunkQAPair], path: Path = None):
+        """Save multi-chunk QA dataset to JSON file in eval/ folder."""
+        path = path or (Path(__file__).parent / "eval_dataset_multichunk.json")
+
+        data = {
+            'metadata': {
+                'total_pairs': len(qa_pairs),
+                'by_intent': {},
+                'by_chunk_count': {},
+                'avg_chunks_per_question': sum(len(qa.source_chunk_ids) for qa in qa_pairs) / len(qa_pairs) if qa_pairs else 0
+            },
+            'qa_pairs': [qa.to_dict() for qa in qa_pairs]
+        }
+
+        # Count by intent
+        for qa in qa_pairs:
+            intent = qa.intent
+            data['metadata']['by_intent'][intent] = data['metadata']['by_intent'].get(intent, 0) + 1
+
+            num_chunks = len(qa.source_chunk_ids)
+            data['metadata']['by_chunk_count'][num_chunks] = data['metadata']['by_chunk_count'].get(num_chunks, 0) + 1
+
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        print(f"Saved {len(qa_pairs)} multi-chunk QA pairs to {path}")
+
+    def load_multichunk_dataset(self, path: Path = None) -> List[MultiChunkQAPair]:
+        """Load multi-chunk QA dataset from JSON file in eval/ folder."""
+        path = path or (Path(__file__).parent / "eval_dataset_multichunk.json")
+
+        if not path.exists():
+            return []
+
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        return [MultiChunkQAPair.from_dict(qa) for qa in data['qa_pairs']]
 
 
 class QuestionFilter:

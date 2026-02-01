@@ -52,11 +52,19 @@ python -m eval.eval_routing --type simple_fact            # Test specific query 
 python -m eval.eval_routing --html                        # Generate HTML report
 python -m eval.eval_routing --trials 10                   # Limit test queries
 
-# Generation quality evaluation
+# Generation quality evaluation (single-chunk)
 python -m eval.eval_generation qwen3:latest mistral       # Compare models (Ollama)
 python -m eval.eval_generation --provider mlx model1      # Use MLX provider
 python -m eval.eval_generation model1 model2 --trials 10  # Multiple trial runs
 python -m eval.eval_generation --html model1 model2       # With HTML report
+
+# Multi-chunk generation evaluation
+python -m eval.generate_multichunk_dataset                # Generate multi-chunk dataset
+python -m eval.generate_multichunk_dataset --size 50      # Custom dataset size
+python -m eval.eval_generation_multichunk qwen3:latest    # Evaluate model(s)
+python -m eval.eval_generation_multichunk --trials 10     # Limit questions
+python -m eval.eval_generation_multichunk --html model1   # With HTML report
+python -m eval.eval_generation_multichunk --generate-dataset  # Alternative dataset generation
 
 # Summary evaluation
 python -m eval.evaluate_summaries                         # Default (Ollama)

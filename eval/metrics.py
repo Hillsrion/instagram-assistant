@@ -6,7 +6,7 @@ Implements Retrieval Accuracy, MRR, and Faithfulness metrics.
 import json
 import requests
 from dataclasses import dataclass, field, asdict
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, Tuple
 from pathlib import Path
 
 import sys
@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from rag_pipeline.config import Config, default_config
 from rag_pipeline.advanced_retriever import AdvancedSearchResult
+from rag_pipeline.chunker import Chunk
 
 
 @dataclass
@@ -39,6 +40,40 @@ class EvalResult:
 
     # Metadata
     config_used: dict = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
+class MultiChunkEvalResult:
+    """Result of evaluating a single multi-chunk question.
+
+    Extends basic evaluation with multi-chunk specific metrics:
+    - Chunk attribution: Did the LLM use the correct source chunks?
+    - Cross-chunk coherence: Quality of synthesis across multiple chunks
+    """
+    question: str
+    expected_answer: str
+    generated_answer: str
+    source_chunk_ids: List[str]
+    intent: str  # "specific_fact", "complex_reasoning", "broad_summary"
+
+    # Core metrics (compatible with single-chunk eval)
+    faithfulness: Dict[str, Any]  # {score: float, explanation: str}
+    relevance: Dict[str, Any]  # {score: float, explanation: str}
+
+    # Multi-chunk specific metrics
+    chunk_attribution_score: float = 0.0  # 0-1: Did LLM cite correct chunks?
+    chunk_attribution_explanation: str = ""
+    cross_chunk_coherence: float = 0.0  # 0-1: Quality of multi-chunk synthesis
+    cross_chunk_explanation: str = ""
+
+    # Performance metrics
+    num_chunks_provided: int = 0
+    num_chunks_used: int = 0  # Estimated from answer
+    generation_time: float = 0.0
+    words_per_sec: float = 0.0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -168,6 +203,57 @@ Réponds avec un JSON strict:
 0.0 = Extrêmement verbose / hors sujet
 0.5 = Contient du remplissage mais reste lisible
 1.0 = Parfaitement concise et directe"""
+
+
+CHUNK_ATTRIBUTION_PROMPT = """You are an expert evaluator for RAG systems.
+
+QUESTION: {question}
+
+GENERATED ANSWER: {generated_answer}
+
+CHUNKS PROVIDED (total: {num_chunks}):
+{chunks_info}
+
+EXPECTED CHUNKS TO BE USED: {expected_chunk_ids}
+
+Evaluate CHUNK ATTRIBUTION: Did the LLM correctly use the expected source chunks?
+
+Consider:
+1. Does the answer reference information from the expected chunks?
+2. Are citations or information traceable to the correct chunks?
+3. Did the LLM avoid hallucinating information not in the expected chunks?
+4. Did the LLM use chunks that weren't expected (potential error)?
+
+Respond with strict JSON:
+{{"score": 0.0 to 1.0, "explanation": "which chunks were used and if correct"}}
+
+0.0 = Wrong chunks used or heavy hallucination
+0.5 = Partially correct attribution
+1.0 = Perfect attribution to expected chunks"""
+
+
+CROSS_CHUNK_COHERENCE_PROMPT = """You are an expert evaluator for RAG systems.
+
+QUESTION: {question}
+
+GENERATED ANSWER: {generated_answer}
+
+NUMBER OF CHUNKS PROVIDED: {num_chunks}
+
+Evaluate CROSS-CHUNK COHERENCE: Quality of synthesis across multiple chunks.
+
+Consider:
+1. Does the answer combine information from multiple chunks logically?
+2. Are there contradictions or inconsistencies in the synthesis?
+3. Is the multi-chunk synthesis fluent and coherent?
+4. Does the answer demonstrate understanding across chunk boundaries?
+
+Respond with strict JSON:
+{{"score": 0.0 to 1.0, "explanation": "synthesis quality assessment"}}
+
+0.0 = Incoherent or contradictory synthesis
+0.5 = Adequate synthesis with minor issues
+1.0 = Excellent cross-chunk synthesis"""
 
 
 class RAGASMetrics:
@@ -468,6 +554,77 @@ class RAGASMetrics:
             generated_answer=generated_answer
         )
         return self._llm_judge(prompt)
+
+    def compute_chunk_attribution(
+        self,
+        question: str,
+        generated_answer: str,
+        expected_chunk_ids: List[str],
+        all_chunks: List[Chunk]
+    ) -> Tuple[float, str]:
+        """
+        Use LLM-as-judge to evaluate chunk attribution.
+
+        Checks if the LLM correctly used the expected source chunks
+        in generating its answer.
+
+        Args:
+            question: The question asked
+            generated_answer: The LLM's answer
+            expected_chunk_ids: IDs of chunks that should be cited
+            all_chunks: All chunks provided to the LLM
+
+        Returns:
+            (score: 0-1, explanation: str)
+        """
+        # Build chunks info (truncated for context limit)
+        chunks_info_parts = []
+        for i, chunk in enumerate(all_chunks[:15]):  # Limit to 15 chunks
+            chunk_preview = chunk.content[:300] + "..." if len(chunk.content) > 300 else chunk.content
+            chunks_info_parts.append(
+                f"CHUNK {i+1} (ID: {chunk.chunk_id}):\n{chunk_preview}"
+            )
+        chunks_info = "\n\n".join(chunks_info_parts)
+
+        prompt = CHUNK_ATTRIBUTION_PROMPT.format(
+            question=question,
+            generated_answer=generated_answer,
+            num_chunks=len(all_chunks),
+            chunks_info=chunks_info,
+            expected_chunk_ids=", ".join(expected_chunk_ids)
+        )
+
+        result = self._llm_judge(prompt, return_explanation=True)
+        return result["score"], result["explanation"]
+
+    def compute_cross_chunk_coherence(
+        self,
+        question: str,
+        generated_answer: str,
+        num_chunks: int
+    ) -> Tuple[float, str]:
+        """
+        Use LLM-as-judge to evaluate cross-chunk coherence.
+
+        Checks if the LLM synthesized information across multiple
+        chunks logically and coherently.
+
+        Args:
+            question: The question asked
+            generated_answer: The LLM's answer
+            num_chunks: Number of chunks provided to the LLM
+
+        Returns:
+            (score: 0-1, explanation: str)
+        """
+        prompt = CROSS_CHUNK_COHERENCE_PROMPT.format(
+            question=question,
+            generated_answer=generated_answer,
+            num_chunks=num_chunks
+        )
+
+        result = self._llm_judge(prompt, return_explanation=True)
+        return result["score"], result["explanation"]
 
     def aggregate_results(
         self,
