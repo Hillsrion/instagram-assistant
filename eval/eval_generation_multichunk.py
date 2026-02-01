@@ -91,23 +91,22 @@ def format_multichunk_context(
 
 def get_eval_prompt(question: str, context: str) -> str:
     """
-    Build the evaluation prompt for any model.
-
-    Uses strict anti-hallucination rules.
+    Build the evaluation prompt for any model in French.
     """
-    return f"""Answer the question below based ONLY on the provided context.
+    return f"""Réponds à la question ci-dessous en te basant UNIQUEMENT sur le contexte fourni.
 
-Rules:
-- Answer directly and concisely
-- Do not add interpretations or assumptions beyond the text
-- If the information is not in the context, say so
+Règles :
+- Réponds directement et de manière concise
+- N'ajoute pas d'interprétations ou de suppositions au-delà du texte
+- Si l'information n'est pas dans le contexte, dis-le
+- TA RÉPONSE DOIT ÊTRE EN FRANÇAIS
 
-Context:
+Contexte :
 {context}
 
-Question: {question}
+Question : {question}
 
-Answer:"""
+Réponse :"""
 
 
 class MultiChunkEvaluator:
@@ -117,6 +116,97 @@ class MultiChunkEvaluator:
         self.config = config
         self.provider_type = provider_type
         self.metrics = RAGASMetrics(config, provider_type)
+
+    def evaluate_single_qa(
+        self,
+        model: str,
+        qa: MultiChunkQAPair,
+        chunks_map: Dict[str, Chunk],
+        provider
+    ) -> MultiChunkEvalResult:
+        """
+        Evaluate a single model answer for a multi-chunk QA pair.
+        """
+        # 1. Retrieve all chunks
+        chunks = [chunks_map[cid] for cid in qa.source_chunk_ids
+                 if cid in chunks_map]
+
+        if not chunks:
+            return MultiChunkEvalResult(
+                question=qa.question,
+                expected_answer=qa.expected_answer,
+                generated_answer="Error: No chunks found",
+                source_chunk_ids=qa.source_chunk_ids,
+                intent=qa.intent,
+                faithfulness={"score": 0.0, "explanation": "No chunks found"},
+                relevance={"score": 0.0, "explanation": "No chunks found"},
+                num_chunks_provided=0,
+                generation_time=0.0,
+                words_per_sec=0.0
+            )
+
+        # 2. Format context (production-style)
+        context = format_multichunk_context(chunks, qa.intent)
+
+        # 3. Generate answer
+        prompt = get_eval_prompt(qa.question, context)
+        start = time.time()
+
+        try:
+            answer = provider.generate(
+                [{"role": "user", "content": prompt}],
+                timeout=180
+            )
+        except Exception as e:
+            return MultiChunkEvalResult(
+                question=qa.question,
+                expected_answer=qa.expected_answer,
+                generated_answer=f"Error: {e}",
+                source_chunk_ids=qa.source_chunk_ids,
+                intent=qa.intent,
+                faithfulness={"score": 0.0, "explanation": "Generation failed"},
+                relevance={"score": 0.0, "explanation": "Generation failed"},
+                num_chunks_provided=len(chunks),
+                generation_time=0.0,
+                words_per_sec=0.0
+            )
+
+        duration = time.time() - start
+        word_count = len(answer.split())
+        wps = word_count / duration if duration > 0 else 0
+
+        # 4. Compute metrics
+        faith_data = self.metrics.compute_faithfulness_with_explanation(
+            qa.question, answer, context
+        )
+        relev_data = self.metrics.compute_relevance_with_explanation(
+            qa.question, qa.expected_answer, answer
+        )
+        attr_score, attr_explanation = self.metrics.compute_chunk_attribution(
+            qa.question, answer, qa.expected_chunk_attribution or qa.source_chunk_ids[:3], chunks
+        )
+        coherence_score, coherence_explanation = self.metrics.compute_cross_chunk_coherence(
+            qa.question, answer, len(chunks)
+        )
+
+        return MultiChunkEvalResult(
+            question=qa.question,
+            expected_answer=qa.expected_answer,
+            generated_answer=answer,
+            source_chunk_ids=qa.source_chunk_ids,
+            intent=qa.intent,
+            faithfulness=faith_data,
+            relevance=relev_data,
+            chunk_attribution_score=attr_score,
+            chunk_attribution_explanation=attr_explanation,
+            cross_chunk_coherence=coherence_score,
+            cross_chunk_explanation=coherence_explanation,
+            num_chunks_provided=len(chunks),
+            num_chunks_used=len(chunks),
+            generation_time=duration,
+            words_per_sec=wps
+        )
+
 
     def evaluate_model(
         self,
@@ -141,89 +231,14 @@ class MultiChunkEvaluator:
 
         for i, qa in enumerate(qa_pairs):
             print(f"  [{i+1}/{len(qa_pairs)}] Processing: {qa.question[:60]}...")
+            result = self.evaluate_single_qa(model, qa, chunks_map, provider)
+            results.append(result)
 
-            # 1. Retrieve all chunks (not just the first!)
-            chunks = [chunks_map[cid] for cid in qa.source_chunk_ids
-                     if cid in chunks_map]
-
-            if not chunks:
-                print(f"  ⚠️  No chunks found for question {i+1}, skipping")
-                continue
-
-            # 2. Format context (production-style)
-            context = format_multichunk_context(chunks, qa.intent)
-
-            # 3. Generate answer
-            prompt = get_eval_prompt(qa.question, context)
-            start = time.time()
-
-            try:
-                answer = provider.generate(
-                    [{"role": "user", "content": prompt}],
-                    timeout=180
-                )
-            except Exception as e:
-                print(f"  ❌ Generation failed: {e}")
-                # Create error result
-                results.append(MultiChunkEvalResult(
-                    question=qa.question,
-                    expected_answer=qa.expected_answer,
-                    generated_answer=f"Error: {e}",
-                    source_chunk_ids=qa.source_chunk_ids,
-                    intent=qa.intent,
-                    faithfulness={"score": 0.0, "explanation": "Generation failed"},
-                    relevance={"score": 0.0, "explanation": "Generation failed"},
-                    num_chunks_provided=len(chunks),
-                    generation_time=0.0,
-                    words_per_sec=0.0
-                ))
-                continue
-
-            duration = time.time() - start
-            word_count = len(answer.split())
-            wps = word_count / duration if duration > 0 else 0
-
-            # 4. Compute metrics
-            # Faithfulness
-            faith_data = self.metrics.compute_faithfulness_with_explanation(
-                qa.question, answer, context
-            )
-
-            # Relevance
-            relev_data = self.metrics.compute_relevance_with_explanation(
-                qa.question, qa.expected_answer, answer
-            )
-
-            # Chunk Attribution
-            attr_score, attr_explanation = self.metrics.compute_chunk_attribution(
-                qa.question, answer, qa.expected_chunk_attribution or qa.source_chunk_ids[:3], chunks
-            )
-
-            # Cross-Chunk Coherence
-            coherence_score, coherence_explanation = self.metrics.compute_cross_chunk_coherence(
-                qa.question, answer, len(chunks)
-            )
-
-            results.append(MultiChunkEvalResult(
-                question=qa.question,
-                expected_answer=qa.expected_answer,
-                generated_answer=answer,
-                source_chunk_ids=qa.source_chunk_ids,
-                intent=qa.intent,
-                faithfulness=faith_data,
-                relevance=relev_data,
-                chunk_attribution_score=attr_score,
-                chunk_attribution_explanation=attr_explanation,
-                cross_chunk_coherence=coherence_score,
-                cross_chunk_explanation=coherence_explanation,
-                num_chunks_provided=len(chunks),
-                num_chunks_used=len(chunks),  # TODO: Could parse answer to estimate
-                generation_time=duration,
-                words_per_sec=wps
-            ))
-
-            print(f"    ✓ Faith: {faith_data['score']:.2f}, Relev: {relev_data['score']:.2f}, "
-                  f"Attr: {attr_score:.2f}, Coherence: {coherence_score:.2f} ({wps:.1f} w/s)")
+            if "Error" in result.generated_answer:
+                print(f"  ❌ Generation failed for question {i+1}: {result.generated_answer}")
+            else:
+                print(f"    ✓ Faith: {result.faithfulness['score']:.2f}, Relev: {result.relevance['score']:.2f}, "
+                      f"Attr: {result.chunk_attribution_score:.2f}, Coherence: {result.cross_chunk_coherence:.2f} ({result.words_per_sec:.1f} w/s)")
 
         return results
 
@@ -277,6 +292,73 @@ def generate_dataset(size: int = 30, chunk_counts: List[int] = None):
         by_intent[qa.intent] = by_intent.get(qa.intent, 0) + 1
     for intent, count in by_intent.items():
         print(f"  {intent}: {count}")
+
+
+def generate_multichunk_comparison_json(
+    all_results: Dict[str, List[MultiChunkEvalResult]],
+    qa_pairs: List[MultiChunkQAPair],
+    judge_model: str,
+    provider: str,
+    num_questions: int,
+    summary_synthesis: str = ""
+) -> Path:
+    """Generate a single consolidated JSON report for all models (Multi-Chunk)."""
+    models = list(all_results.keys())
+    
+    report_data = {
+        "metadata": {
+            "timestamp": datetime.now().isoformat(),
+            "models": models,
+            "provider": provider,
+            "judge_model": judge_model,
+            "num_questions": num_questions
+        },
+        "synthesis": summary_synthesis,
+        "results": []
+    }
+
+    for i, qa in enumerate(qa_pairs):
+        q_entry = {
+            "question": qa.question,
+            "expected_answer": qa.expected_answer,
+            "source_chunk_ids": qa.source_chunk_ids,
+            "intent": qa.intent,
+            "model_responses": {}
+        }
+        
+        for model in models:
+            if i < len(all_results[model]):
+                res = all_results[model][i]
+                q_entry["model_responses"][model] = {
+                    "answer": res.generated_answer,
+                    "time": res.generation_time,
+                    "wps": res.words_per_sec,
+                    "faithfulness": res.faithfulness,
+                    "relevance": res.relevance,
+                    "attribution": {
+                        "score": res.chunk_attribution_score,
+                        "explanation": res.chunk_attribution_explanation
+                    },
+                    "coherence": {
+                        "score": res.cross_chunk_coherence,
+                        "explanation": res.cross_chunk_explanation
+                    }
+                }
+        
+        report_data["results"].append(q_entry)
+
+    # Save consolidated JSON
+    report_dir = Path(__file__).parent / "results" / "eval_generation_multichunk"
+    report_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"gen_multichunk_comp_{num_questions}q_{timestamp}.json"
+    report_path = report_dir / filename
+
+    with open(report_path, 'w', encoding='utf-8') as f:
+        json.dump(report_data, f, ensure_ascii=False, indent=2)
+
+    return report_path
 
 
 def generate_json_report(
@@ -338,7 +420,8 @@ def generate_html_report(
     judge_model: str,
     chunks_map: Dict[str, Chunk],
     models: List[str],
-    trials: int
+    num_questions: int,
+    synthesis: str = ""
 ) -> Path:
     """Generate comprehensive HTML report with multi-chunk visualizations."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -383,9 +466,21 @@ def generate_html_report(
                 </h1>
                 <p class="mt-4 text-lg text-slate-600">
                     Generated on <span class="font-semibold text-indigo-600">{timestamp}</span> •
-                    <span class="font-semibold text-indigo-600">{len(qa_pairs)}</span> multi-chunk questions •
+                    <span class="font-semibold text-indigo-600">{num_questions}</span> multi-chunk questions •
                     Judge: <span class="font-semibold text-indigo-600">{escape_html(judge_model)}</span>
                 </p>
+            </div>
+
+            <!-- Synthesis Section -->
+            <div class="bg-indigo-900 rounded-2xl shadow-xl overflow-hidden mb-12 border border-indigo-800">
+                <div class="px-8 py-6 border-b border-indigo-800/50 flex items-center justify-between">
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <span>📝 Synthèse du Juge (Multi-Chunk)</span>
+                    </h2>
+                </div>
+                <div class="px-8 py-8 bg-indigo-950/40 text-indigo-50 prose-content">
+                    {markdown_to_html(synthesis) if synthesis else "<p class='italic opacity-70'>No synthesis generated.</p>"}
+                </div>
             </div>
 
             <!-- Summary Cards -->
@@ -459,9 +554,9 @@ def generate_html_report(
     for i, qa in enumerate(qa_pairs):
         # Get results for this question from all models
         model_results_for_q = {}
-        for model, results in all_results.items():
+        for model_name, results in all_results.items():
             if i < len(results):
-                model_results_for_q[model] = results[i]
+                model_results_for_q[model_name] = results[i]
 
         # Get chunks for this question
         chunks = [chunks_map[cid] for cid in qa.source_chunk_ids if cid in chunks_map]
@@ -534,11 +629,15 @@ def generate_html_report(
 """
 
         # Show results from each model
-        for model, result in model_results_for_q.items():
+        for model_name, result in model_results_for_q.items():
             faith_score = result.faithfulness["score"]
+            faith_expl = result.faithfulness.get("explanation", "")
             relev_score = result.relevance["score"]
+            relev_expl = result.relevance.get("explanation", "")
             attr_score = result.chunk_attribution_score
+            attr_expl = result.chunk_attribution_explanation
             coherence_score = result.cross_chunk_coherence
+            coherence_expl = result.cross_chunk_explanation
 
             # Badge colors
             bg_f = "bg-green-100 text-green-800" if faith_score > 0.8 else ("bg-yellow-100 text-yellow-800" if faith_score > 0.4 else "bg-red-100 text-red-800")
@@ -554,7 +653,7 @@ def generate_html_report(
                                             🤖
                                         </div>
                                         <div>
-                                            <h4 class="font-bold text-slate-900">{escape_html(model)}</h4>
+                                            <h4 class="font-bold text-slate-900">{escape_html(model_name)}</h4>
                                             <span class="text-xs text-slate-500">
                                                 {result.generation_time:.2f}s • {result.words_per_sec:.1f} words/s
                                             </span>
@@ -572,14 +671,22 @@ def generate_html_report(
                                     {markdown_to_html(result.generated_answer)}
                                 </div>
 
-                                <div class="space-y-2">
+                                <div class="space-y-2 mt-auto">
                                     <div class="bg-indigo-50/50 p-3 rounded-lg">
-                                        <p class="text-xs font-bold text-indigo-900 uppercase mb-1">Attribution</p>
-                                        <p class="text-xs text-indigo-800 italic">"{escape_html(result.chunk_attribution_explanation[:150])}..."</p>
+                                        <p class="text-xs font-bold text-indigo-900 uppercase mb-1">Faithfulness Judge</p>
+                                        <p class="text-xs text-indigo-800 italic">"{escape_html(faith_expl[:150])}..."</p>
+                                    </div>
+                                    <div class="bg-green-50/50 p-3 rounded-lg">
+                                        <p class="text-xs font-bold text-green-900 uppercase mb-1">Relevance Judge</p>
+                                        <p class="text-xs text-green-800 italic">"{escape_html(relev_expl[:150])}..."</p>
+                                    </div>
+                                    <div class="bg-purple-50/50 p-3 rounded-lg">
+                                        <p class="text-xs font-bold text-purple-900 uppercase mb-1">Attribution Judge</p>
+                                        <p class="text-xs text-purple-800 italic">"{escape_html(attr_expl[:150])}..."</p>
                                     </div>
                                     <div class="bg-cyan-50/50 p-3 rounded-lg">
-                                        <p class="text-xs font-bold text-cyan-900 uppercase mb-1">Coherence</p>
-                                        <p class="text-xs text-cyan-800 italic">"{escape_html(result.cross_chunk_explanation[:150])}..."</p>
+                                        <p class="text-xs font-bold text-cyan-900 uppercase mb-1">Coherence Judge</p>
+                                        <p class="text-xs text-cyan-800 italic">"{escape_html(coherence_expl[:150])}..."</p>
                                     </div>
                                 </div>
                             </div>
@@ -603,32 +710,33 @@ def generate_html_report(
 
     # Performance by chunk count
     chunk_count_data = {}
-    for model, results in all_results.items():
-        chunk_count_data[model] = {}
+    for model_name, results in all_results.items():
+        chunk_count_data[model_name] = {}
         for result in results:
             count = result.num_chunks_provided
-            if count not in chunk_count_data[model]:
-                chunk_count_data[model][count] = []
-            chunk_count_data[model][count].append(result.faithfulness["score"])
+            if count not in chunk_count_data[model_name]:
+                chunk_count_data[model_name][count] = []
+            chunk_count_data[model_name][count].append(result.faithfulness["score"])
 
     # Average by chunk count
     chunk_counts = sorted(set(r.num_chunks_provided for results in all_results.values() for r in results))
     chunk_count_datasets = []
-    colors = ["#4f46e5", "#10b981", "#f59e0b", "#ef4444"]
-    for idx, model in enumerate(models_list):
+    colors = ["#4f46e5", "#10b981", "#f59e0b", "#ef4444", "#a855f7"]
+    for idx, model_name in enumerate(models_list):
         data = []
         for count in chunk_counts:
-            if count in chunk_count_data.get(model, {}):
-                avg = sum(chunk_count_data[model][count]) / len(chunk_count_data[model][count])
+            if count in chunk_count_data.get(model_name, {}):
+                avg = sum(chunk_count_data[model_name][count]) / len(chunk_count_data[model_name][count])
                 data.append(avg)
             else:
                 data.append(None)
         chunk_count_datasets.append({
-            "label": model,
+            "label": model_name,
             "data": data,
             "backgroundColor": colors[idx % len(colors)],
             "borderColor": colors[idx % len(colors)],
-            "borderWidth": 2
+            "borderWidth": 2,
+            "tension": 0.2
         })
 
     html += f"""
@@ -651,13 +759,13 @@ def generate_html_report(
             }}
         }}
 
-        const models = {json.dumps(models_list)};
+        const models_list = {json.dumps(models_list)};
 
         // Core metrics chart
         new Chart(document.getElementById('coreMetricsChart'), {{
             type: 'bar',
             data: {{
-                labels: models,
+                labels: models_list,
                 datasets: [
                     {{
                         label: 'Faithfulness',
@@ -684,7 +792,7 @@ def generate_html_report(
         new Chart(document.getElementById('multiChunkMetricsChart'), {{
             type: 'bar',
             data: {{
-                labels: models,
+                labels: models_list,
                 datasets: [
                     {{
                         label: 'Attribution',
@@ -741,7 +849,7 @@ def generate_html_report(
 """
 
     # Save report
-    report_path = get_multichunk_report_path(models, trials)
+    report_path = get_multichunk_report_path(models, num_questions)
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write(html)
 
@@ -870,8 +978,6 @@ Examples:
                 return
             print(f"Continuing with available models: {', '.join(available_test_models)}\n")
             models = available_test_models
-    else:
-        print(f"Using {args.provider} provider for run models - skipping Ollama availability check")
 
     # Check Ollama availability for judge model
     if judge_provider_type == "ollama":
@@ -880,8 +986,6 @@ Examples:
             display_missing_models_help(judge_missing)
             print(f"❌ Error: Judge model '{judge_model}' is not available on Ollama.")
             return
-    else:
-        print(f"Using {judge_provider_type} provider for judge - skipping Ollama availability check")
 
     print(f"Models: {', '.join(models)}")
     print(f"Judge: {judge_model}")
@@ -911,46 +1015,47 @@ Examples:
 
     # Create providers: run models use args.provider
     providers = {m: create_provider(config, m, args.provider) for m in models}
+    judge_provider = create_provider(config, judge_model, judge_provider_type)
 
     # Run evaluation
-    all_results = {}
+    all_results = {m: [] for m in models}
 
-    for model in models:
-        print(f"\n{'='*60}")
-        print(f"Evaluating {model}")
-        print(f"{'='*60}")
+    for i, qa in enumerate(qa_pairs):
+        print(f"\n[{i+1}/{len(qa_pairs)}] Question : {qa.question}")
+        
+        for model in models:
+            print(f"  🤖 {model}...", end="", flush=True)
+            res = evaluator.evaluate_single_qa(model, qa, chunks_map, providers[model])
+            all_results[model].append(res)
+            print(f" Done ({res.words_per_sec:.1f} words/s)")
 
-        results = evaluator.evaluate_model(model, qa_pairs, chunks_map, providers[model])
-        all_results[model] = results
-
-        # Generate JSON report
-        json_path = generate_json_report(
-            model, results, qa_pairs, judge_model, args.provider, args.trials
+    # Final Synthesis in French
+    print("\n✍️ Génération de la synthèse finale...")
+    synth_prompt = f"Tu es un juge expert. Compare ces résultats pour les modèles {models} et fournis une conclusion humaine détaillée sur leurs forces et faiblesses respectives basées sur ces tests de génération RAG MULTI-CHUNK.\n\nDonnées : " + json.dumps({m: [r.to_dict() for r in all_results[m]] for m in models})
+    
+    try:
+        synth_resp = judge_provider.generate(
+            [{"role": "user", "content": synth_prompt}],
+            timeout=180
         )
-        print(f"\n✅ Saved JSON report: {json_path}")
+    except Exception as e:
+        synth_resp = f"Erreur lors de la génération de la synthèse : {e}"
 
-        # Print summary
-        if results:
-            avg_faith = sum(r.faithfulness["score"] for r in results) / len(results)
-            avg_relev = sum(r.relevance["score"] for r in results) / len(results)
-            avg_attr = sum(r.chunk_attribution_score for r in results) / len(results)
-            avg_coherence = sum(r.cross_chunk_coherence for r in results) / len(results)
-            avg_speed = sum(r.words_per_sec for r in results) / len(results)
-
-            print(f"\n📊 Summary for {model}:")
-            print(f"  Faithfulness: {avg_faith:.2%}")
-            print(f"  Relevance: {avg_relev:.2%}")
-            print(f"  Attribution: {avg_attr:.2%}")
-            print(f"  Coherence: {avg_coherence:.2%}")
-            print(f"  Speed: {avg_speed:.1f} words/sec")
+    # Generate consolidated JSON report
+    print("\n📊 Génération du rapport JSON consolidé...")
+    json_path = generate_multichunk_comparison_json(
+        all_results, qa_pairs, judge_model, args.provider, len(qa_pairs), synth_resp
+    )
+    print(f"  ✅ Rapport JSON enregistré : {json_path}")
 
     if args.html:
         print("\n📊 Generating HTML report...")
         html_path = generate_html_report(
-            all_results, qa_pairs, judge_model, chunks_map, models, args.trials
+            all_results, qa_pairs, judge_model, chunks_map, models, len(qa_pairs), synth_resp
         )
         print(f"✅ HTML report saved: {html_path}")
 
+    print("\n" + synth_resp)
     print("\n✅ Evaluation complete!")
 
 

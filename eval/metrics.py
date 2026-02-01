@@ -246,14 +246,46 @@ Consider:
 1. Does the answer combine information from multiple chunks logically?
 2. Are there contradictions or inconsistencies in the synthesis?
 3. Is the multi-chunk synthesis fluent and coherent?
-4. Does the answer demonstrate understanding across chunk boundaries?
+CHUNKS ATTENDUS : {expected_chunk_ids}
 
-Respond with strict JSON:
-{{"score": 0.0 to 1.0, "explanation": "synthesis quality assessment"}}
+Évalue l'ATTRIBUTION DES CHUNKS : l'IA a-t-elle correctement utilisé les chunks sources attendus ?
 
-0.0 = Incoherent or contradictory synthesis
-0.5 = Adequate synthesis with minor issues
-1.0 = Excellent cross-chunk synthesis"""
+Considère :
+1. La réponse contient-elle des informations provenant des chunks attendus ?
+2. Les citations ou informations sont-elles traçables vers les bons chunks ?
+3. L'IA a-t-elle évité d'halluciner des informations non présentes dans les chunks attendus ?
+4. L'IA a-t-elle utilisé des chunks non attendus (erreur potentielle) ?
+
+Réponds avec un JSON strict :
+{{"score" : 0.0 à 1.0, "explanation" : "quels chunks ont été utilisés et si c'est correct"}}
+
+0.0 = Mauvais chunks utilisés ou forte hallucination
+0.5 = Attribution partiellement correcte
+1.0 = Attribution parfaite aux chunks attendus"""
+
+
+CROSS_CHUNK_COHERENCE_PROMPT = """Tu es un évaluateur expert pour les systèmes RAG.
+
+QUESTION : {question}
+
+RÉPONSE GÉNÉRÉE : {generated_answer}
+
+NOMBRE DE CHUNKS FOURNIS : {num_chunks}
+
+Évalue la COHÉRENCE MULTI-CHUNKS : qualité de la synthèse à travers plusieurs chunks.
+
+Considère :
+1. La réponse combine-t-elle les informations de plusieurs chunks de manière logique ?
+2. Y a-t-il des contradictions ou des incohérences dans la synthèse ?
+3. La synthèse multi-chunks est-elle fluide et cohérente ?
+4. La réponse démontre-t-elle une compréhension globale au-delà des limites de chaque chunk ?
+
+Réponds avec un JSON strict :
+{{"score" : 0.0 à 1.0, "explanation" : "évaluation de la qualité de la synthèse"}}
+
+0.0 = Synthèse incohérente ou contradictoire
+0.5 = Synthèse adéquate avec des problèmes mineurs
+1.0 = Excellente synthèse multi-chunks"""
 
 
 class RAGASMetrics:
@@ -398,7 +430,7 @@ class RAGASMetrics:
     def _extract_score_from_response(self, content: str) -> tuple:
         """
         Extract score and explanation from LLM response robustly.
-        Handles malformed JSON with unescaped newlines.
+        Handles malformed JSON with unescaped newlines or truncation.
 
         Returns:
             (score: float, explanation: str)
@@ -408,8 +440,8 @@ class RAGASMetrics:
         # Try to extract score with regex first (most reliable)
         score_match = re.search(r'"score"\s*:\s*([\d.]+)', content, re.IGNORECASE)
         if not score_match:
-            # Fallback: look for just a number
-            score_match = re.search(r':\s*([\d.]+)\s*[,}]', content)
+            # Fallback: look for just a number after "score" or similar
+            score_match = re.search(r'score.*?([\d.]+)', content, re.IGNORECASE | re.DOTALL)
 
         score = 0.5  # Default
         if score_match:
@@ -419,17 +451,28 @@ class RAGASMetrics:
             except (ValueError, IndexError):
                 pass
 
-        # Extract explanation: get everything between "explanation": "..." and the closing brace
-        explanation_match = re.search(r'"explanation"\s*:\s*"((?:[^"\\]|\\.)*?)"\s*[}]', content, re.IGNORECASE | re.DOTALL)
+        # Extract explanation: robustly handle truncated JSON
+        # Look for "explanation": " then capture everything until end of string or a potential closing quote + brace
         explanation = ""
-        if explanation_match:
-            explanation = explanation_match.group(1)
-            # Unescape common escapes
-            explanation = explanation.replace('\\n', '\n')
-            explanation = explanation.replace('\\t', '\t')
-            explanation = explanation.replace('\\"', '"')
+        expl_match = re.search(r'"explanation"\s*:\s*"(.*?)(?:"\s*[}]|$)', content, re.IGNORECASE | re.DOTALL)
+        if expl_match:
+            explanation = expl_match.group(1).strip()
+            # Clean up escape characters if they exist
+            explanation = explanation.replace('\\n', '\n').replace('\\"', '"').replace('\\t', '\t')
+        else:
+            # Fallback: if we didn't find the pattern, just try to take everything after the score
+            if score_match:
+                after_score = content[score_match.end():].strip()
+                # Try to find a string-like block
+                msg_match = re.search(r'"(.*?)"', after_score, re.DOTALL)
+                if msg_match:
+                    explanation = msg_match.group(1).strip()
+
+        if not explanation:
+            explanation = "Explication non disponible (erreur de formatage)"
 
         return score, explanation
+
 
     def _llm_judge(self, prompt: str, return_explanation: bool = False) -> Union[float, Dict[str, Any]]:
         """

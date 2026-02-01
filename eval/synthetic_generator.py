@@ -114,14 +114,14 @@ class MultiChunkQAPair(QAPair):
         return cls(**data)
 
 
-GENERATION_PROMPT = """You are an expert in creating datasets for RAG system evaluation.
+GENERATION_PROMPT = """Tu es un expert dans la création de jeux de données pour l'évaluation de systèmes RAG.
 
-From the following Instagram conversation content, generate exactly 3 varied question-answer pairs.
+À partir du contenu de la conversation Instagram suivante, génère exactement 3 paires questions-réponses variées.
 
-CONVERSATION CONTENT:
+CONTENU DE LA CONVERSATION :
 {content}
 
-SUMMARY:
+RÉSUMÉ :
 {summary}
 
 PARTICIPANTS: {participants}

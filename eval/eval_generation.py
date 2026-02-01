@@ -172,24 +172,23 @@ def format_chunk_as_chat(chunk: Chunk, chunk_id: str = "") -> str:
 
 def get_eval_prompt(question: str, context: str) -> str:
     """
-    Build the evaluation prompt for any model.
-
-    Uses strict anti-hallucination rules that benefit all models,
-    especially smaller ones like Ministral 8B.
+    Build the evaluation prompt for any model in French.
     """
-    return f"""Answer the question below based ONLY on the provided context.
+    return f"""Réponds à la question ci-dessous en te basant UNIQUEMENT sur le contexte fourni.
 
-Rules:
-- Answer directly and concisely
-- Do not add interpretations or assumptions beyond the text
-- If the information is not in the context, say so
+Règles :
+- Réponds directement et de manière concise
+- N'ajoute pas d'interprétations ou de suppositions au-delà du texte
+- Si l'information n'est pas dans le contexte, dis-le
+- TA RÉPONSE DOIT ÊTRE EN FRANÇAIS
 
-Context:
+Contexte :
 {context}
 
-Question: {question}
+Question : {question}
 
-Answer:"""
+Réponse :"""
+
 
 
 def create_judge(config: Config, judge_model: str = None, provider_type: str = "ollama") -> RAGASMetrics:
@@ -297,57 +296,63 @@ def display_missing_models_help(missing_models: List[str]):
     print("   Run 'ollama serve' in another terminal if needed.\n")
 
 
-def generate_per_model_json(
-    model: str,
-    model_results: Dict[str, Any],
+def generate_comparison_json(
+    results: Dict[str, Any],
     qa_pairs: List[Any],
     judge_model: str,
     provider: str,
-    trials: int
+    num_questions: int,
+    summary_synthesis: str = ""
 ) -> Path:
-    """Generate JSON report for a single model."""
+    """Generate a single consolidated JSON report for all models."""
+    models = list(results.keys())
+    
     report_data = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
-            "model": model,
+            "models": models,
             "provider": provider,
             "judge_model": judge_model,
-            "num_trials": trials,
-            "num_questions": len(qa_pairs)
+            "num_questions": num_questions
         },
-        "summary": {
-            "avg_faithfulness": round(
-                sum(t["faith"]["score"] for t in model_results["trials"]) / len(model_results["trials"]), 3
-            ) if model_results["trials"] else 0,
-            "avg_relevance": round(
-                sum(t["relev"]["score"] for t in model_results["trials"]) / len(model_results["trials"]), 3
-            ) if model_results["trials"] else 0,
-            "avg_speed_wps": round(model_results["avg_speed"], 2)
-        },
-        "trials": model_results["trials"],
-        "qa_pairs": [
-            {
-                "question": qa["question"],
-                "expected_answer": qa["expected_answer"],
-                "source_chunk_ids": qa.get("source_chunk_ids", [qa["source_chunk_id"]] if "source_chunk_id" in qa else [])
-            }
-            for qa in qa_pairs
-        ]
+        "synthesis": summary_synthesis,
+        "results": []
     }
 
-    # Save per-model JSON
+    for i, qa in enumerate(qa_pairs):
+        q_entry = {
+            "question": qa["question"],
+            "expected_answer": qa["expected_answer"],
+            "source_chunk_ids": qa.get("source_chunk_ids", [qa["source_chunk_id"]] if "source_chunk_id" in qa else []),
+            "model_responses": {}
+        }
+        
+        for model in models:
+            if i < len(results[model]["trials"]):
+                res = results[model]["trials"][i]
+                q_entry["model_responses"][model] = {
+                    "answer": res["answer"],
+                    "time": res["time"],
+                    "wps": res["words_per_sec"],
+                    "faithfulness": res["faith"],
+                    "relevance": res["relev"]
+                }
+        
+        report_data["results"].append(q_entry)
+
+    # Save consolidated JSON
     report_dir = Path(__file__).parent / "results" / "eval_generation"
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    safe_model_name = model.replace(":", "_").replace("/", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{safe_model_name}_{trials}trials_{provider}_{timestamp}.json"
+    filename = f"gen_comp_{num_questions}q_{timestamp}.json"
     report_path = report_dir / filename
 
     with open(report_path, 'w', encoding='utf-8') as f:
         json.dump(report_data, f, ensure_ascii=False, indent=2)
 
     return report_path
+
 
 
 def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_synthesis: str, judge_model: str, chunks_map: Dict[str, Chunk] = None, models: List[str] = None, trials: int = 0):
@@ -450,11 +455,10 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 mb-2">
                                 Question {i+1}
                             </span>
-                            <h3 class="text-xl font-bold text-slate-900 mb-2">{escape_html(qa['question'])}</h3>
-                            <div class="flex items-start text-sm text-slate-600">
-                                <span class="font-bold text-slate-900 mr-2">Target:</span>
-                                <span>{escape_html(qa['expected_answer'])}</span>
+                            <div class="flex flex-col space-y-1 text-sm text-slate-600">
+                                <div><span class="font-bold text-slate-900 mr-2">Cible :</span>{escape_html(qa['expected_answer'])}</div>
                             </div>
+
         """
 
         # Add source toggle button
@@ -515,10 +519,17 @@ def generate_html_report(results: Dict[str, Any], qa_pairs: List[Any], summary_s
                                     {markdown_to_html(res['answer'])}
                                 </div>
 
-                                <div class="mt-auto bg-indigo-50/50 p-4 rounded-lg">
-                                    <p class="text-xs font-bold text-indigo-900 uppercase tracking-tighter mb-1">Judge's Observation</p>
-                                    <p class="text-sm text-indigo-800 italic leading-snug">"{escape_html(res['faith']['explanation'])}"</p>
+                                <div class="mt-auto space-y-2">
+                                    <div class="bg-indigo-50/50 p-4 rounded-lg">
+                                        <p class="text-xs font-bold text-indigo-900 uppercase tracking-tighter mb-1">Fidélité (Judge)</p>
+                                        <p class="text-sm text-indigo-800 italic leading-snug">"{escape_html(res['faith']['explanation'])}"</p>
+                                    </div>
+                                    {f'''<div class="bg-emerald-50/50 p-4 rounded-lg">
+                                        <p class="text-xs font-bold text-emerald-900 uppercase tracking-tighter mb-1">Pertinence (Judge)</p>
+                                        <p class="text-sm text-emerald-800 italic leading-snug">"{escape_html(res['relev']['explanation'])}"</p>
+                                    </div>''' if res['relev'].get('explanation') else ''}
                                 </div>
+
                             </div>
             """
         html += """
@@ -629,11 +640,13 @@ Examples:
         help="Models to compare (comma-separated alternative syntax)"
     )
     parser.add_argument(
+        "--num-questions",
         "--trials",
         type=int,
         default=3,
-        help="Number of trials per model (default: 3)"
+        help="Number of questions to evaluate (default: 3)"
     )
+
     parser.add_argument(
         "--html",
         action="store_true",
@@ -734,15 +747,17 @@ Examples:
         print("Error: Dataset not found. Run: python -m eval.generate_dataset 10")
         return
 
-    qa_pairs = dataset['qa_pairs'][:args.trials]
+    num_questions = args.num_questions
+    qa_pairs = dataset['qa_pairs'][:num_questions]
     results = {m: {"trials": [], "avg_speed": 0} for m in models}
 
-    # Create provider instances: run models use args.provider, judge uses judge_provider_type
+    # Create provider instances
     providers = {m: create_provider(config, m, args.provider) for m in models}
     judge_provider = create_provider(config, judge_model, judge_provider_type)
 
     for i, qa in enumerate(qa_pairs):
-        print(f"\n[{i+1}/{len(qa_pairs)}] Question: {qa['question']}")
+        print(f"\n[{i+1}/{len(qa_pairs)}] Question : {qa['question']}")
+
 
         # Find the chunk (support both source_chunk_ids and legacy source_chunk_id)
         chunk_ids = qa.get('source_chunk_ids', [qa['source_chunk_id']] if 'source_chunk_id' in qa else [])
@@ -787,28 +802,29 @@ Examples:
             })
             print(f" Done ({wps:.1f} words/s)")
 
-    # Final Synthesis
-    print("\n✍️ Generating final synthesis...")
-    synth_prompt = f"You are an expert judge. Compare these results for {models} and provide a detailed human conclusion on their respective strengths and weaknesses based on these tests.\n\nData: {json.dumps(results)}"
+    # Final Synthesis in French
+    print("\n✍️ Génération de la synthèse finale...")
+    synth_prompt = f"Tu es un juge expert. Compare ces résultats pour les modèles {models} et fournis une conclusion humaine détaillée sur leurs forces et faiblesses respectives basées sur ces tests de génération RAG.\n\nDonnées : {json.dumps(results)}"
     synth_resp = judge_provider.generate(
         [{"role": "user", "content": synth_prompt}],
         timeout=180
     )
 
+
     # Calculate avg speed
     for m in models:
         results[m]["avg_speed"] = sum(t["words_per_sec"] for t in results[m]["trials"]) / len(qa_pairs)
 
-    # Generate per-model JSON reports
-    print("\n📊 Generating per-model JSON reports...")
-    for model in models:
-        json_path = generate_per_model_json(model, results[model], qa_pairs, judge_model, args.provider, args.trials)
-        print(f"  ✅ Saved {model} results: {json_path}")
+    # Generate consolidated JSON report
+    print("\n📊 Génération du rapport JSON consolidé...")
+    json_path = generate_comparison_json(results, qa_pairs, judge_model, args.provider, num_questions, synth_resp)
+    print(f"  ✅ Rapport JSON enregistré : {json_path}")
 
     # Optionally generate HTML report
     if args.html:
-        html_path = generate_html_report(results, qa_pairs, synth_resp, judge_model, chunks_map, models=models, trials=args.trials)
-        print(f"✅ HTML report generated: {html_path}")
+        html_path = generate_html_report(results, qa_pairs, synth_resp, judge_model, chunks_map, models=models, trials=num_questions)
+        print(f"✅ Rapport HTML généré : {html_path}")
+
 
     print("\n" + synth_resp)
 

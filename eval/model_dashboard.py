@@ -37,43 +37,95 @@ def scan_reports() -> List[Dict[str, Any]]:
 def extract_model_metrics(reports: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     """
     Extract per-model metrics from all reports.
+    Handles legacy summary, single-model reports, and consolidated comparison reports.
 
     Returns dict mapping model name to aggregated metrics.
     """
     model_data: Dict[str, Dict[str, List[float]]] = {}
 
+    def add_metric(model: str, faith: float, relev: float, speed: float, report: Dict[str, Any], metadata: Dict[str, Any]):
+        if model not in model_data:
+            model_data[model] = {
+                "faithfulness": [],
+                "relevance": [],
+                "speed": [],
+                "reports": [],
+            }
+        
+        model_data[model]["faithfulness"].append(faith)
+        model_data[model]["relevance"].append(relev)
+        model_data[model]["speed"].append(speed)
+        model_data[model]["reports"].append({
+            "file": report.get("_file", ""),
+            "timestamp": metadata.get("timestamp", ""),
+            "faithfulness": faith,
+            "relevance": relev,
+            "speed": speed,
+            "num_questions": metadata.get("num_questions", 0),
+            "judge": metadata.get("judge_model", ""),
+        })
+
     for report in reports:
-        summary = report.get("summary", {}).get("by_model", {})
         metadata = report.get("metadata", {})
-        timestamp = metadata.get("timestamp", "")
+        summary = report.get("summary", {})
+        
+        # Case 1: Legacy by_model summary
+        if "by_model" in summary:
+            for model, metrics in summary["by_model"].items():
+                add_metric(
+                    model,
+                    metrics.get("avg_faithfulness", 0),
+                    metrics.get("avg_relevance", 0),
+                    metrics.get("avg_speed_wps", 0),
+                    report,
+                    metadata
+                )
+        
+        # Case 2: Single model report
+        elif "model" in metadata and any(k in summary for k in ["avg_faithfulness", "avg_relevance", "avg_speed_wps"]):
+            model = metadata["model"]
+            add_metric(
+                model,
+                summary.get("avg_faithfulness", 0),
+                summary.get("avg_relevance", 0),
+                summary.get("avg_speed_wps", 0),
+                report,
+                metadata
+            )
+            
+        # Case 3: Consolidated comparison report
+        elif "results" in report and isinstance(report["results"], list):
+            # Aggregate metrics for each model across all questions in this report
+            per_report_totals: Dict[str, Dict[str, List[float]]] = {}
+            
+            for q_res in report["results"]:
+                responses = q_res.get("model_responses", {})
+                for model, res in responses.items():
+                    if model not in per_report_totals:
+                        per_report_totals[model] = {"f": [], "r": [], "s": []}
+                    
+                    # Resilience to different naming (faith/faithfulness)
+                    f = res.get("faithfulness", {}).get("score", 0) if isinstance(res.get("faithfulness"), dict) else res.get("faith", 0)
+                    r = res.get("relevance", {}).get("score", 0) if isinstance(res.get("relevance"), dict) else res.get("relev", 0)
+                    s = res.get("wps", 0) or res.get("words_per_sec", 0)
+                    
+                    per_report_totals[model]["f"].append(f)
+                    per_report_totals[model]["r"].append(r)
+                    per_report_totals[model]["s"].append(s)
+            
+            # Add aggregated averages for this report
+            for model, totals in per_report_totals.items():
+                n = len(totals["f"])
+                add_metric(
+                    model,
+                    sum(totals["f"]) / n if n else 0,
+                    sum(totals["r"]) / n if n else 0,
+                    sum(totals["s"]) / n if n else 0,
+                    report,
+                    metadata
+                )
 
-        for model, metrics in summary.items():
-            if model not in model_data:
-                model_data[model] = {
-                    "faithfulness": [],
-                    "relevance": [],
-                    "speed": [],
-                    "reports": [],
-                }
-
-            faith = metrics.get("avg_faithfulness", 0)
-            relev = metrics.get("avg_relevance", 0)
-            speed = metrics.get("avg_speed_wps", 0)
-
-            model_data[model]["faithfulness"].append(faith)
-            model_data[model]["relevance"].append(relev)
-            model_data[model]["speed"].append(speed)
-            model_data[model]["reports"].append({
-                "file": report.get("_file", ""),
-                "timestamp": timestamp,
-                "faithfulness": faith,
-                "relevance": relev,
-                "speed": speed,
-                "num_questions": metadata.get("num_questions", 0),
-                "judge": metadata.get("judge_model", ""),
-            })
-
-    # Compute averages
+    # Compute overall averages across all reports
     result = {}
     for model, data in model_data.items():
         n = len(data["faithfulness"])
