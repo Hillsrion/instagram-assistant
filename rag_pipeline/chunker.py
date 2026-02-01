@@ -60,80 +60,76 @@ class Chunk:
     
     def get_embedding_text(self) -> str:
         """
-        Returns text to encode (Questions + Summary + Content).
-        Including hypothetical questions drastically improves retrieval.
+        Returns a weighted textual representation for embeddings.
+        Uses normalized repetition budgets to avoid signal domination.
         """
-        text_parts = []
-        
-        # 1. Hypothetical questions (High priority for matching)
+
+        parts = []
+
+        # 🔥🔥🔥 1. Hypothetical questions (normalized high priority)
+        QUESTION_BUDGET = default_config.max_questions
         if self.hypothetical_questions:
-            text_parts.append("Questions answered by this document:")
-            text_parts.extend(self.hypothetical_questions)
-            text_parts.append("")
+            weighted_questions = repeat_with_budget(
+                self.hypothetical_questions,
+                QUESTION_BUDGET
+            )
+            for q in weighted_questions:
+                parts.append(f"[QUESTION] {q}")
 
-        # 2. Semantic temporal context
-        if self.temporal_context:
-            text_parts.append(f"Period: {self.temporal_context}")
-            text_parts.append("")
-
-        # 3. Named Entities (Locations, People, etc.)
+        # 🔥🔥 2. Entities (fixed repetition)
         if self.entities:
-            text_parts.append("Mentioned entities:")
             for category, items in self.entities.items():
                 if items:
-                    # Sanitize items to ensure they are strings
-                    safe_items = [str(item) for item in items if item]
-                    if safe_items:
-                        text_parts.append(f"  - {category}: {', '.join(safe_items)}")
-            text_parts.append("")
+                    for item in items:
+                        if item:
+                            parts.append(f"[ENTITY:{category}] {item}")
+                            parts.append(f"[ENTITY:{category}] {item}")  # x2
 
-        # 4. Participant intents
-        if self.speaker_intents:
-            text_parts.append("Participant intents:")
-            for participant, intent in self.speaker_intents.items():
-                text_parts.append(f"  - {participant} : {intent}")
-            text_parts.append("")
-
-        # 5. Emotions (Emotional context)
-        if self.emotions:
-            emotion_parts = []
-            if self.emotions.get("dominant"):
-                emotion_parts.append(f"dominant emotion: {self.emotions['dominant']}")
-            if self.emotions.get("tone"):
-                emotion_parts.append(f"tone: {self.emotions['tone']}")
-            if self.emotions.get("tension_level"):
-                emotion_parts.append(f"tension: {self.emotions['tension_level']}")
-            if emotion_parts:
-                text_parts.append(f"Mood: {', '.join(emotion_parts)}")
-                text_parts.append("")
-        
-        # 6. Interaction Dynamics (New fields)
-        dynamics_parts = []
-        if self.interaction_pattern:
-            dynamics_parts.append(f"Interaction Type: {self.interaction_pattern}")
-        if self.initiative:
-            dynamics_parts.append(f"Dynamics: {self.initiative}")
-        if self.emotional_shift:
-            dynamics_parts.append(f"Emotional Shift: {self.emotional_shift}")
-        if self.open_loops:
-            dynamics_parts.append(f"Open Topics: {', '.join(self.open_loops)}")
-        
-        if dynamics_parts:
-            text_parts.append("Conversation Dynamics:")
-            text_parts.extend(dynamics_parts)
-            text_parts.append("")
-
-        # 7. Narrative summary (Semantic context)
+        # 🔥🔥 3. Narrative summary
         if self.narrative_summary:
-            text_parts.append(f"Summary: {self.narrative_summary}")
+            parts.append(f"[SUMMARY] {self.narrative_summary}")
+            parts.append(f"[SUMMARY] {self.narrative_summary}")
 
-        text_parts.append("")
+        # 🔥 4. Temporal context
+        if self.temporal_context:
+            parts.append(f"[TIME] {self.temporal_context}")
 
-        # 8. Raw content (Details)
-        text_parts.append("Conversation content:")
-        text_parts.append(self.content)
-        
-        return "\n".join(text_parts)
+        # 🔥 5. Speaker intents
+        if self.speaker_intents:
+            for participant, intent in self.speaker_intents.items():
+                parts.append(f"[INTENT] {participant}: {intent}")
+
+        # 🔥 6. Structural dynamics
+        if self.initiative:
+            parts.append(f"[INITIATIVE] {self.initiative}")
+
+        if self.open_loops:
+            for loop in self.open_loops:
+                parts.append(f"[OPEN_LOOP] {loop}")
+
+        # · 7. Emotional / social (low weight)
+        if self.emotions:
+            emo = []
+            if self.emotions.get("dominant"):
+                emo.append(self.emotions["dominant"])
+            if self.emotions.get("tone"):
+                emo.append(self.emotions["tone"])
+            if self.emotions.get("tension_level"):
+                emo.append(f"tension:{self.emotions['tension_level']}")
+            if emo:
+                parts.append(f"[EMOTION] {' | '.join(emo)}")
+
+        if self.interaction_pattern:
+            parts.append(f"[INTERACTION] {self.interaction_pattern}")
+
+        if self.emotional_shift:
+            parts.append(f"[EMOTIONAL_SHIFT] {self.emotional_shift}")
+
+        # · 8. Raw content (single pass)
+        parts.append("[CONTENT]")
+        parts.append(self.content)
+
+        return "\n".join(parts)
 
 
 

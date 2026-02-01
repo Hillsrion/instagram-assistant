@@ -34,6 +34,8 @@ class Config:
     min_messages_per_conversation: int = field(default_factory=lambda: int(os.getenv('MIN_MESSAGES_PER_CONVERSATION', '2')))
     # Skip conversations with deactivated accounts (utilisateurinstagram_*)
     skip_deactivated_accounts: bool = field(default_factory=lambda: os.getenv('SKIP_DEACTIVATED_ACCOUNTS', 'true').lower() == 'true')
+    # Max hypothetical questions to generate/process per chunk
+    max_questions: int = field(default_factory=lambda: int(os.getenv('MAX_QUESTIONS', '5')))
 
     # === Embeddings ===
     # Embedding model (bge-m3 recommended for multilingual)

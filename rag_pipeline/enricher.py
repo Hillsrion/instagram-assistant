@@ -14,7 +14,7 @@ ENRICH_PROMPT = """Tu es un analyseur de conversations (STRICT, basé sur le tex
 ANALYSE CETTE CONVERSATION ET GÉNÈRE JSON :
 
 1. **RÉSUMÉ** : 1 phrase max, l'action/intention/résultat
-2. **QUESTIONS** : 1 à 5 questions précises que cet extrait répond, selon la densité (ce qu'un utilisateur demanderait)
+2. **QUESTIONS** : 1 à {max_questions} questions précises que cet extrait répond, selon la densité (ce qu'un utilisateur demanderait)
 3. **INTENTIONS** : Pour chaque participant → son objectif principal (une phrase max)
 4. **CONTEXTE TEMPOREL** : Moment/période (ex: "avant X", "durant vacances")
 5. **ENTITÉS** : Éléments EXPLICITEMENT mentionnés dans le texte :
@@ -92,7 +92,10 @@ class ChunkEnricher:
         # Limit text size to avoid saturating context window of small models
         content_preview = chunk.content[:4000]
 
-        prompt = ENRICH_PROMPT.format(content=content_preview)
+        prompt = ENRICH_PROMPT.format(
+            content=content_preview,
+            max_questions=self.config.max_questions
+        )
 
         try:
             result = ""
