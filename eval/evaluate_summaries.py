@@ -21,6 +21,7 @@ from rag_pipeline.config import Config
 from rag_pipeline.summary_store import SummaryStore
 from rag_pipeline.summary_models import ConversationSummary, PeriodSummary
 from eval._output_paths import get_summaries_report_path
+from eval.llm_provider import create_provider
 
 
 @dataclass
@@ -43,9 +44,11 @@ class SummaryEvalResult:
 class SummaryEvaluator:
     """Evaluate summary quality."""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, provider_type: str = "ollama"):
         self.config = config
         self.summary_store = SummaryStore(config)
+        self.provider_type = provider_type
+        self.provider = create_provider(config, config.llm_model, provider_type)
 
     def evaluate_conversation_summary(self, summary: ConversationSummary) -> List[SummaryEvalResult]:
         """Generate and evaluate questions about a conversation summary."""
@@ -278,19 +281,12 @@ Réponds en JSON:
 
     def _call_llm(self, prompt: str) -> str:
         """Call LLM for evaluation."""
-        payload = {
-            "model": self.config.llm_model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "options": {"temperature": 0.1}
-        }
         try:
-            response = requests.post(
-                f"{self.config.ollama_url}/api/chat",
-                json=payload,
+            return self.provider.generate(
+                [{"role": "user", "content": prompt}],
+                temperature=0.1,
                 timeout=60
             )
-            return response.json()["message"]["content"].strip()
         except Exception as e:
             return f"Error: {e}"
 
@@ -589,6 +585,13 @@ Examples:
         action="store_true",
         help="Generate HTML report"
     )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["ollama", "mlx"],
+        default="ollama",
+        help="LLM provider to use (default: ollama)"
+    )
     args = parser.parse_args()
 
     print("=" * 60)
@@ -597,7 +600,7 @@ Examples:
     print()
 
     config = Config()
-    evaluator = SummaryEvaluator(config)
+    evaluator = SummaryEvaluator(config, provider_type=args.provider)
 
     # Load summary store
     if not evaluator.summary_store.load():

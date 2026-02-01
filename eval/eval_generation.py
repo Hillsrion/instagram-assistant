@@ -29,6 +29,7 @@ from rag_pipeline.config import Config
 from rag_pipeline.chunker import ConversationChunker, Chunk
 from eval.metrics import RAGASMetrics
 from eval._output_paths import get_generation_report_path
+from eval.llm_provider import create_provider
 
 def escape_html(text: str) -> str:
     """Escape HTML special characters."""
@@ -191,18 +192,19 @@ Question: {question}
 Answer:"""
 
 
-def create_judge(config: Config, judge_model: str = None) -> RAGASMetrics:
+def create_judge(config: Config, judge_model: str = None, provider_type: str = "ollama") -> RAGASMetrics:
     """
     Create a RAGASMetrics instance configured as a judge.
 
     Args:
         config: Base configuration
         judge_model: Optional model override for judging
+        provider_type: "ollama" or "mlx"
 
     Returns:
         RAGASMetrics instance configured for judging
     """
-    metrics = RAGASMetrics(config)
+    metrics = RAGASMetrics(config, provider_type=provider_type)
     if judge_model:
         metrics.config.llm_model = judge_model
     return metrics
@@ -295,28 +297,34 @@ def display_missing_models_help(missing_models: List[str]):
     print("   Run 'ollama serve' in another terminal if needed.\n")
 
 
-def generate_json_report(
-    results: Dict[str, Any],
+def generate_per_model_json(
+    model: str,
+    model_results: Dict[str, Any],
     qa_pairs: List[Any],
-    summary_synthesis: str,
     judge_model: str,
-    models: List[str],
+    provider: str,
     trials: int
 ) -> Path:
-    """Generate JSON report with evaluation results."""
+    """Generate JSON report for a single model."""
     report_data = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
+            "model": model,
+            "provider": provider,
             "judge_model": judge_model,
-            "models_compared": models,
             "num_trials": trials,
             "num_questions": len(qa_pairs)
         },
         "summary": {
-            "synthesis": summary_synthesis,
-            "by_model": {}
+            "avg_faithfulness": round(
+                sum(t["faith"]["score"] for t in model_results["trials"]) / len(model_results["trials"]), 3
+            ) if model_results["trials"] else 0,
+            "avg_relevance": round(
+                sum(t["relev"]["score"] for t in model_results["trials"]) / len(model_results["trials"]), 3
+            ) if model_results["trials"] else 0,
+            "avg_speed_wps": round(model_results["avg_speed"], 2)
         },
-        "results": results,
+        "trials": model_results["trials"],
         "qa_pairs": [
             {
                 "question": qa["question"],
@@ -327,21 +335,15 @@ def generate_json_report(
         ]
     }
 
-    # Calculate summary metrics per model
-    for model in models:
-        model_trials = results[model]["trials"]
-        if model_trials:
-            avg_faith = sum(t["faith"]["score"] for t in model_trials) / len(model_trials)
-            avg_relev = sum(t["relev"]["score"] for t in model_trials) / len(model_trials)
-            avg_speed = results[model].get("avg_speed", 0)
+    # Save per-model JSON
+    report_dir = Path(__file__).parent / "results" / "eval_generation"
+    report_dir.mkdir(parents=True, exist_ok=True)
 
-            report_data["summary"]["by_model"][model] = {
-                "avg_faithfulness": round(avg_faith, 3),
-                "avg_relevance": round(avg_relev, 3),
-                "avg_speed_wps": round(avg_speed, 2)
-            }
+    safe_model_name = model.replace(":", "_").replace("/", "_")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{safe_model_name}_{trials}trials_{provider}_{timestamp}.json"
+    report_path = report_dir / filename
 
-    report_path = get_generation_report_path(models, trials, format="json")
     with open(report_path, 'w', encoding='utf-8') as f:
         json.dump(report_data, f, ensure_ascii=False, indent=2)
 
@@ -642,6 +644,13 @@ Examples:
         type=str,
         help="Model to use as judge (default: from config)"
     )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["ollama", "mlx"],
+        default="ollama",
+        help="LLM provider to use (default: ollama)"
+    )
     args = parser.parse_args()
 
     # Parse models from either positional or --models argument
@@ -670,37 +679,42 @@ Examples:
     print("=" * 60)
     print()
 
-    # Check Ollama models
-    print(f"Checking Ollama models at {Config().ollama_url}...")
     config = Config()
-    
+
     # Judge model
     judge_model = args.judge if args.judge else config.llm_model
-    models_to_check = list(set(models + [judge_model]))
-    
-    available, missing = check_ollama_models_available(config, models_to_check)
 
-    if missing:
-        display_missing_models_help(missing)
-        # If judge is missing, we can't continue safely if we want evaluations
-        if judge_model in missing:
-            print(f"❌ Error: Judge model '{judge_model}' is not available.")
-            return
+    # Only check Ollama models if using Ollama provider
+    if args.provider == "ollama":
+        print(f"Checking Ollama models at {config.ollama_url}...")
+        models_to_check = list(set(models + [judge_model]))
 
-        # Check if we still have at least 2 models to compare (if that was the goal)
-        available_test_models = [m for m in models if m in available]
-        if not available_test_models:
-             print("Error: No test models available. Please install at least one model.")
-             return
-        
-        print(f"Continuing with available models: {', '.join(available_test_models)}\n")
-        models = available_test_models
+        available, missing = check_ollama_models_available(config, models_to_check)
+
+        if missing:
+            display_missing_models_help(missing)
+            # If judge is missing, we can't continue safely if we want evaluations
+            if judge_model in missing:
+                print(f"❌ Error: Judge model '{judge_model}' is not available.")
+                return
+
+            # Check if we still have at least 2 models to compare (if that was the goal)
+            available_test_models = [m for m in models if m in available]
+            if not available_test_models:
+                print("Error: No test models available. Please install at least one model.")
+                return
+
+            print(f"Continuing with available models: {', '.join(available_test_models)}\n")
+            models = available_test_models
+    else:
+        print(f"Using {args.provider} provider - skipping Ollama availability check")
 
     print(f"Using models: {', '.join(models)}")
     print(f"Using judge: {judge_model}")
+    print(f"Using provider: {args.provider}")
     print()
 
-    judge_metrics = create_judge(config, judge_model=judge_model)
+    judge_metrics = create_judge(config, judge_model=judge_model, provider_type=args.provider)
     chunker = ConversationChunker(config)
     chunks = chunker.load_chunks()
     chunks_map = {c.chunk_id: c for c in chunks}
@@ -712,6 +726,10 @@ Examples:
 
     qa_pairs = dataset['qa_pairs'][:args.trials]
     results = {m: {"trials": [], "avg_speed": 0} for m in models}
+
+    # Create provider instances for each model
+    providers = {m: create_provider(config, m, args.provider) for m in models}
+    judge_provider = create_provider(config, judge_model, args.provider)
 
     for i, qa in enumerate(qa_pairs):
         print(f"\n[{i+1}/{len(qa_pairs)}] Question: {qa['question']}")
@@ -727,11 +745,10 @@ Examples:
             start = time.time()
             try:
                 prompt = get_eval_prompt(qa['question'], content)
-                resp = requests.post(f"{config.ollama_url}/api/chat", json={
-                    "model": model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "stream": False
-                }, timeout=180).json()
+                answer = providers[model].generate(
+                    [{"role": "user", "content": prompt}],
+                    timeout=180
+                )
             except Exception as e:
                 print(f" Failed ({e})")
                 results[model]["trials"].append({
@@ -744,7 +761,6 @@ Examples:
                 continue
 
             duration = time.time() - start
-            answer = resp["message"]["content"]
 
             word_count = len(answer.split())
             wps = word_count / duration if duration > 0 else 0
@@ -764,19 +780,20 @@ Examples:
     # Final Synthesis
     print("\n✍️ Generating final synthesis...")
     synth_prompt = f"You are an expert judge. Compare these results for {models} and provide a detailed human conclusion on their respective strengths and weaknesses based on these tests.\n\nData: {json.dumps(results)}"
-    synth_resp = requests.post(f"{config.ollama_url}/api/chat", json={
-        "model": judge_model,
-        "messages": [{"role": "user", "content": synth_prompt}],
-        "stream": False
-    }).json()["message"]["content"]
+    synth_resp = judge_provider.generate(
+        [{"role": "user", "content": synth_prompt}],
+        timeout=180
+    )
 
     # Calculate avg speed
     for m in models:
         results[m]["avg_speed"] = sum(t["words_per_sec"] for t in results[m]["trials"]) / len(qa_pairs)
 
-    # Always generate JSON report
-    json_path = generate_json_report(results, qa_pairs, synth_resp, judge_model, models, args.trials)
-    print(f"\n✅ JSON report generated: {json_path}")
+    # Generate per-model JSON reports
+    print("\n📊 Generating per-model JSON reports...")
+    for model in models:
+        json_path = generate_per_model_json(model, results[model], qa_pairs, judge_model, args.provider, args.trials)
+        print(f"  ✅ Saved {model} results: {json_path}")
 
     # Optionally generate HTML report
     if args.html:

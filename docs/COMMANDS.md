@@ -40,14 +40,29 @@ pytest tests/setup/               # Run setup script tests
 ## Evaluation
 
 ```bash
+# Dataset generation
 python -m eval.generate_dataset 50                        # Generate QA dataset
+
+# Retrieval evaluation
 python -m eval.eval_retrieval                             # Evaluate retrieval quality
+
+# Routing evaluation
 python -m eval.eval_routing                               # Evaluate binary routing system
 python -m eval.eval_routing --type simple_fact            # Test specific query types
 python -m eval.eval_routing --html                        # Generate HTML report
 python -m eval.eval_routing --trials 10                   # Limit test queries
-python -m eval.eval_generation qwen3:latest mistral       # Compare model generation
+
+# Generation quality evaluation
+python -m eval.eval_generation qwen3:latest mistral       # Compare models (Ollama)
+python -m eval.eval_generation --provider mlx model1      # Use MLX provider
 python -m eval.eval_generation model1 model2 --trials 10  # Multiple trial runs
+python -m eval.eval_generation --html model1 model2       # With HTML report
+
+# Summary evaluation
+python -m eval.evaluate_summaries                         # Default (Ollama)
+python -m eval.evaluate_summaries --provider mlx          # Use MLX provider
+python -m eval.evaluate_summaries --html                  # Generate HTML report
+
+# Dashboard
 python -m eval.model_dashboard                            # Multi-model comparison dashboard
-python -m eval.evaluate_summaries                         # Evaluate summary quality
 ```

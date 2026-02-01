@@ -173,8 +173,10 @@ Réponds avec un JSON strict:
 class RAGASMetrics:
     """Compute RAGAS-style metrics for RAG evaluation."""
 
-    def __init__(self, config: Config = None):
+    def __init__(self, config: Config = None, provider_type: str = "ollama"):
         self.config = config or default_config
+        self.provider_type = provider_type
+        self.provider = None  # Lazy init
 
     def compute_retrieval_hit(
         self,
@@ -354,26 +356,19 @@ class RAGASMetrics:
         Returns:
             Score (float) if return_explanation=False, else dict with score and explanation
         """
-        payload = {
-            "model": self.config.llm_model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "options": {
-                "temperature": 0.1,
-                "top_p": 0.9,
-                "num_predict": 1024,
-            }
-        }
+        # Lazy init provider
+        if self.provider is None:
+            from eval.llm_provider import create_provider
+            self.provider = create_provider(self.config, self.config.llm_model, self.provider_type)
 
         try:
-            response = requests.post(
-                f"{self.config.ollama_url}/api/chat",
-                json=payload,
+            content = self.provider.generate(
+                [{"role": "user", "content": prompt}],
+                temperature=0.1,
+                top_p=0.9,
+                max_tokens=1024,
                 timeout=120
-            )
-            response.raise_for_status()
-
-            content = response.json()["message"]["content"].strip()
+            ).strip()
 
             # Parse JSON - try direct parse first
             try:

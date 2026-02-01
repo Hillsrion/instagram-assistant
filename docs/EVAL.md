@@ -24,7 +24,7 @@ eval/
 ├── eval_dataset.json         # Generated dataset (ignored by git)
 └── eval_dataset.sample.json  # Versioned sample dataset
 
-eval_results/                 # Evaluation results (ignored by git)
+eval/results/                 # Evaluation results (ignored by git)
 ├── eval_generation/          # LLM comparison reports + dashboards
 ├── eval_retrieval/           # Retrieval benchmark reports
 ├── evaluate_summaries/       # Summaries evaluation reports
@@ -203,7 +203,7 @@ python -m eval.eval_generation --models qwen3:latest,mistral --judge qwen3:lates
 
 **Generated Reports:**
 
-A JSON report is always generated in `eval_results/eval_generation/`:
+A JSON report is always generated in `eval/results/eval_generation/`:
 - Name: `gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.json`
 - Contains metrics, summary, and details per question
 
@@ -248,14 +248,14 @@ python -m eval.model_dashboard
 python -m eval.model_dashboard --output dashboard_report.html
 ```
 
-The script scans `eval_results/eval_generation/*.json`, extracts metrics per model from each report, and generates an interactive HTML with:
+The script scans `eval/results/eval_generation/*.json`, extracts metrics per model from each report, and generates an interactive HTML with:
 
 - **Checkboxes** per model (checked by default) to dynamically filter
 - **3 bar charts** (Faithfulness, Relevance, Speed) via Chart.js, updated in real-time
 - **Detailed table** with averages and number of reports per model
 - Stack: Tailwind CSS + Chart.js (consistent with other reports)
 
-**Output:** `eval_results/eval_generation/dashboard_<timestamp>.html`
+**Output:** `eval/results/eval_generation/dashboard_<timestamp>.html`
 
 ---
 
@@ -391,10 +391,10 @@ class BenchmarkConfig:
 
 ## Generated Files
 
-All evaluation results are stored in `eval_results/` (ignored by git):
+All evaluation results are stored in `eval/results/` (ignored by git):
 
 ```
-eval_results/
+eval/results/
 ├── eval_generation/
 │   ├── gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.json  (always)
 │   ├── gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.html  (with --html)
@@ -412,12 +412,12 @@ eval_results/
 |------|-------------|-----------|
 | `eval/eval_dataset.json` | QA pairs dataset | No |
 | `eval/eval_dataset.sample.json` | Sample with dummy data | Yes |
-| `eval_results/eval_generation/*.json` | LLM comparison JSON reports (always generated) | No |
-| `eval_results/eval_generation/*.html` | LLM comparison HTML reports (with --html) | No |
-| `eval_results/eval_generation/dashboard_*.html` | Multi-model dashboard | No |
-| `eval_results/eval_retrieval/*.json` | Retrieval benchmark reports | No |
-| `eval_results/evaluate_summaries/*.json` | Summary evaluation JSON reports (always generated) | No |
-| `eval_results/evaluate_summaries/*.html` | Summary evaluation HTML reports (with --html) | No |
-| `eval_results/compare_configs/*.json` | Config comparison reports | No |
+| `eval/results/eval_generation/*.json` | LLM comparison JSON reports (always generated) | No |
+| `eval/results/eval_generation/*.html` | LLM comparison HTML reports (with --html) | No |
+| `eval/results/eval_generation/dashboard_*.html` | Multi-model dashboard | No |
+| `eval/results/eval_retrieval/*.json` | Retrieval benchmark reports | No |
+| `eval/results/evaluate_summaries/*.json` | Summary evaluation JSON reports (always generated) | No |
+| `eval/results/evaluate_summaries/*.html` | Summary evaluation HTML reports (with --html) | No |
+| `eval/results/compare_configs/*.json` | Config comparison reports | No |
 
 ---

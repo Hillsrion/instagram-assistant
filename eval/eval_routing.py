@@ -637,7 +637,7 @@ def generate_html_report(results: List[RoutingEvalResult], summary: Dict) -> Pat
 </html>
     """
 
-    report_dir = Path(__file__).parent.parent / "eval_results" / "eval_routing"
+    report_dir = Path(__file__).parent / "results" / "eval_routing"
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"routing_eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
 
@@ -747,7 +747,7 @@ def run_evaluation(
     }
 
     # Save JSON report
-    report_dir = Path(__file__).parent.parent / "eval_results" / "eval_routing"
+    report_dir = Path(__file__).parent / "results" / "eval_routing"
     report_dir.mkdir(parents=True, exist_ok=True)
     json_path = report_dir / f"routing_eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
 

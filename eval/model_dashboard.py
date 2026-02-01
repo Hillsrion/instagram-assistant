@@ -1,7 +1,7 @@
 """
 Multi-model comparison dashboard.
 
-Scans eval_results/eval_generation/*.json reports and generates
+Scans eval/results/eval_generation/*.json reports and generates
 an interactive HTML dashboard comparing models across metrics.
 
 Usage:
@@ -17,7 +17,7 @@ from eval._output_paths import EVAL_RESULTS_DIR, get_dashboard_path
 
 
 def scan_reports() -> List[Dict[str, Any]]:
-    """Scan eval_results/eval_generation/ for JSON reports."""
+    """Scan eval/results/eval_generation/ for JSON reports."""
     report_dir = EVAL_RESULTS_DIR / "eval_generation"
     if not report_dir.exists():
         return []
@@ -300,11 +300,11 @@ def main():
     )
     args = parser.parse_args()
 
-    print("Scanning eval_results/eval_generation/ for JSON reports...")
+    print("Scanning eval/results/eval_generation/ for JSON reports...")
     reports = scan_reports()
 
     if not reports:
-        print("No JSON reports found in eval_results/eval_generation/")
+        print("No JSON reports found in eval/results/eval_generation/")
         print("Run eval_generation first: python -m eval.eval_generation model1 model2")
         return
 

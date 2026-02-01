@@ -1,7 +1,7 @@
 """
 Centralized output path management for evaluation results.
 
-All evaluation results are stored in eval_results/ at the project root,
+All evaluation results are stored in eval/results/,
 organized by script name with descriptive filenames.
 """
 
@@ -11,7 +11,7 @@ from typing import List, Optional
 
 
 # Root directory for all evaluation results
-EVAL_RESULTS_DIR = Path(__file__).parent.parent / "eval_results"
+EVAL_RESULTS_DIR = Path(__file__).parent / "results"
 
 
 def ensure_dir(path: Path) -> Path:
@@ -43,7 +43,7 @@ def get_generation_report_path(
     """
     Get output path for generation evaluation report.
 
-    Format: eval_results/eval_generation/gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.<ext>
+    Format: eval/results/eval_generation/gen_<trials>trials_<model1>_vs_<model2>_<timestamp>.<ext>
 
     Args:
         models: List of model names being compared
@@ -65,7 +65,7 @@ def get_retrieval_report_path(
     """
     Get output path for retrieval evaluation report.
 
-    Format: eval_results/eval_retrieval/retrieval_<config>_<timestamp>.json
+    Format: eval/results/eval_retrieval/retrieval_<config>_<timestamp>.json
 
     Args:
         config_name: Name of the benchmark configuration
@@ -92,7 +92,7 @@ def get_summaries_report_path(
     """
     Get output path for summaries evaluation report.
 
-    Format: eval_results/evaluate_summaries/summaries_<conv>conv_<periods>periods_<timestamp>.<ext>
+    Format: eval/results/evaluate_summaries/summaries_<conv>conv_<periods>periods_<timestamp>.<ext>
 
     Args:
         conversations: Number of conversation summaries evaluated
@@ -118,7 +118,7 @@ def get_dashboard_path(
     """
     Get output path for multi-model dashboard.
 
-    Format: eval_results/eval_generation/dashboard_<timestamp>.html
+    Format: eval/results/eval_generation/dashboard_<timestamp>.html
 
     Args:
         timestamp: Optional timestamp (defaults to now)
@@ -141,7 +141,7 @@ def get_comparison_report_path(
     """
     Get output path for config comparison report.
 
-    Format: eval_results/compare_configs/comparison_<timestamp>.json
+    Format: eval/results/compare_configs/comparison_<timestamp>.json
 
     Args:
         timestamp: Optional timestamp (defaults to now)
