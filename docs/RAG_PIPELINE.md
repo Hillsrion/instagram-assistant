@@ -19,7 +19,16 @@ Each chunk stores: participants, timestamps, message count, file source, and emp
 
 ### Step 2 — LLM Enrichment (`rag_pipeline/enricher.py`)
 
-The **Enricher agent** (Ollama, `ministral-8b`) processes each chunk with a strict JSON prompt and extracts:
+The **Enricher agent** (default: Ollama, `ministral-8b`) processes each chunk with a strict JSON prompt.
+
+**Providers:**
+- **Ollama:** Standard provider, easiest to use.
+- **MLX (Apple Silicon):** High-speed batch processing (~20% faster overall, 13x faster prompt processing). Recommended for large re-indexing jobs.
+  ```bash
+  python setup_enrich.py --provider mlx
+  ```
+
+It extracts:
 
 | Field | Purpose |
 |-------|---------|

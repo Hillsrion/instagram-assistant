@@ -8,6 +8,7 @@
 
 2.  **Dependencies:**
     - Backend: `pip install -r requirements.txt`
+      - *Note:* For MLX acceleration (Apple Silicon), install: `pip install mlx mlx-lm`.
     - Frontend: `cd frontend && pnpm install`
 
 ## Workflow

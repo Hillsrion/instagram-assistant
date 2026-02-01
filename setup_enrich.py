@@ -23,7 +23,7 @@ from rag_pipeline.enricher import ChunkEnricher
 from rag_pipeline.cli_utils import print_header, format_duration
 
 
-def run(config: Config, reset: bool = False, model: str = None, total_shards: int = 1, shard_index: int = 0) -> bool:
+def run(config: Config, reset: bool = False, model: str = None, total_shards: int = 1, shard_index: int = 0, provider: str = "ollama") -> bool:
     """Entry point callable by the orchestrator.
 
     Args:
@@ -32,6 +32,7 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
         model: Override LLM model
         total_shards: Total number of machines/processes
         shard_index: Index of this process (0 to total_shards-1)
+        provider: "ollama" or "mlx"
 
     Returns:
         True if success, False otherwise
@@ -88,11 +89,11 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
         print()
         return True
 
-    print(f"Enriching {len(to_enrich)} chunks via Ollama ({config.llm_model})...")
+    print(f"Enriching {len(to_enrich)} chunks via {provider.upper()} ({config.llm_model})...")
     print("   This drastically improves search quality.")
     print("   (Auto-saving every 20 chunks)")
 
-    enricher = ChunkEnricher(config)
+    enricher = ChunkEnricher(config, provider=provider)
 
     try:
         start_time = time.time()
@@ -177,6 +178,8 @@ def main():
                         help="Total number of participating machines")
     parser.add_argument("--shard-index", type=int, default=0,
                         help="Index of this machine (0 to total-shards - 1)")
+    parser.add_argument("--provider", type=str, default="ollama", choices=["ollama", "mlx"],
+                        help="LLM provider: 'ollama' or 'mlx'")
 
     args = parser.parse_args()
     config = Config()
@@ -186,7 +189,8 @@ def main():
         reset=args.reset,
         model=args.model,
         total_shards=args.total_shards,
-        shard_index=args.shard_index
+        shard_index=args.shard_index,
+        provider=args.provider
     )
 
     sys.exit(0 if success else 1)

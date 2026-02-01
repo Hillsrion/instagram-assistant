@@ -7,7 +7,7 @@ This `GEMINI.md` provides context for the Gemini CLI agent working on the Instag
 **Instagram Assistant** is a local, privacy-focused RAG (Retrieval-Augmented Generation) application for exploring and querying exported Instagram conversations. It uses a hybrid search approach (Dense + BM25), hierarchical summarization, and a modern React frontend.
 
 **Key Characteristics:**
-- **Local-First:** Runs entirely on the user's machine (Ollama, local embeddings, FAISS).
+- **Local-First:** Runs entirely on the user's machine (Ollama + MLX, local embeddings, FAISS).
 - **RAG Pipeline:** Advanced two-stage retrieval with cross-encoder reranking and query analysis.
 - **Multi-Agent:** Uses specialized "agents" (Enricher, Summarizer, Analyzer, Chat, Evaluator).
 

@@ -61,12 +61,26 @@ FORMAT JSON (les valeurs sont des exemples de format, PAS des données à recopi
 """
 
 class ChunkEnricher:
-    """Uses an LLM (via Ollama) to enrich chunk metadata."""
+    """Uses an LLM (via Ollama or MLX) to enrich chunk metadata."""
     
-    def __init__(self, config: Config = None):
+    def __init__(self, config: Config = None, provider: str = "ollama"):
         self.config = config or default_config
+        self.provider = provider
         # Lightweight model recommended for mass indexing
-        self.model = self.config.llm_model 
+        self.model = self.config.llm_model
+        self.mlx_provider = None
+        
+        if self.provider == "mlx":
+            from .mlx_provider import MlxProvider
+            # Use a default MLX model if config.llm_model looks like an Ollama model name
+            # or use the one specified in config if it looks like a path/hf-repo
+            mlx_model = "mlx-community/Ministral-3-8B-Instruct-2512-4bit"
+            # If the config model contains '/' it's likely a HF repo, so use it.
+            if "/" in self.model:
+                mlx_model = self.model
+            
+            print(f"[Enricher] Loading MLX model: {mlx_model}")
+            self.mlx_provider = MlxProvider(model_path=mlx_model) 
         
     def enrich_chunk(self, chunk: Chunk) -> Tuple[str, List[str], Dict[str, str], str, Dict[str, List[str]], Dict[str, str], Optional[str], Optional[str], Optional[str], Optional[List[str]]]:
         """
@@ -80,25 +94,12 @@ class ChunkEnricher:
 
         prompt = ENRICH_PROMPT.format(content=content_preview)
 
-        payload = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "format": "json", # Request JSON from Ollama
-            "options": {
-                "temperature": 0.1,
-                "num_predict": 2048,  # Increased to accommodate emotions, entities, and long explanations
-            }
-        }
-
         try:
-            response = requests.post(
-                f"{self.config.ollama_url}/api/chat",
-                json=payload,
-                timeout=300
-            )
-            response.raise_for_status()
-            result = response.json()["message"]["content"]
+            result = ""
+            if self.provider == "mlx":
+                result = self._call_mlx(prompt)
+            else:
+                result = self._call_ollama(prompt)
 
             # Clean response (in case LLM adds markdown code blocks)
             cleaned_result = result.strip()
@@ -157,6 +158,35 @@ class ChunkEnricher:
             if 'result' in locals():
                 print(f"[ENRICH LOG] Raw result:\n{result[:500]}...")
             return "", [], {}, "", {}, {}, None, None, None, None
+
+    def _call_mlx(self, prompt: str) -> str:
+        """Calls the MLX provider."""
+        if not self.mlx_provider:
+             raise ValueError("MLX Provider not initialized")
+        
+        messages = [{"role": "user", "content": prompt}]
+        return self.mlx_provider.generate_chat(messages, max_tokens=2048, temperature=0.1)
+
+    def _call_ollama(self, prompt: str) -> str:
+        """Calls the Ollama API."""
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+            "format": "json", # Request JSON from Ollama
+            "options": {
+                "temperature": 0.1,
+                "num_predict": 2048,  # Increased to accommodate emotions, entities, and long explanations
+            }
+        }
+        
+        response = requests.post(
+            f"{self.config.ollama_url}/api/chat",
+            json=payload,
+            timeout=300
+        )
+        response.raise_for_status()
+        return response.json()["message"]["content"]
 
     def enrich_batch(
         self,

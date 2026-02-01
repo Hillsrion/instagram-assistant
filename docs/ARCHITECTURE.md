@@ -46,7 +46,10 @@
 - **Backend:** Python 3.13+, FastAPI, Pydantic v2.
 - **Frontend:** React 19, TypeScript, Vite, TanStack Router, Tailwind CSS v4, Shadcn UI.
 - **AI/ML:**
-  - **LLM:** Ollama (default: `ministral-8b` for tasks, `qwen3:14b` for eval).
+  - **LLM Strategy (Hybrid):**
+    - **Interactive/API:** Uses **Ollama** for low-latency serving and ease of integration with the React frontend.
+    - **Batch Processing (Enrichment):** Uses **MLX** (Apple Silicon) for high-throughput batch processing. MLX provides ~20% faster overall throughput and significantly faster prompt processing (prefill) for large contexts.
+  - **LLM Models:** `ministral-8b` (default), `qwen2.5:3b` (fast option).
   - **Embeddings:** `BAAI/bge-m3`.
   - **Vector Store:** FAISS.
   - **Reranker:** `BAAI/bge-reranker-base`.
