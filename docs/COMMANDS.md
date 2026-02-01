@@ -1,5 +1,27 @@
 # Command Reference
 
+### Initial Setup
+
+```bash
+# 1. Create a dedicated virtual environment (Recommended)
+python3 -m venv .venv
+
+# 2. Activate and install
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Alternative: use the Makefile
+make install
+```
+
+### ⚠️ Important: MLX Environment Issues
+If you encounter errors like `ValueError: Tokenizer class TokenizersBackend does not exist` or library version conflicts with MLX, **ensure you are using the project's virtual environment (`.venv`)**. Global Python environments often have conflicting `transformers` versions.
+
+To fix environment issues:
+1. Delete the existing environment: `rm -rf .venv`
+2. Re-install: `make install`
+3. Always run commands through `make` or with the `.venv` activated.
+
 ## Quick Access (Recommended)
 
 The project includes a `Makefile` that handles virtual environment activation automatically.
