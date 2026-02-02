@@ -86,7 +86,8 @@ The **Analyzer agent** performs 4 tasks in a single LLM call ("omni-prompt"):
 
 1. **Routing**: `retrieval` (factual search) vs `analytics` (counting/stats)
 2. **Rewriting**: resolves pronouns and conversational context into a standalone query
-3. **Intent classification**: `specific_fact` (top_k=5) / `broad_summary` (top_k=15) / `complex_reasoning` (top_k=10)
+3. **Intent classification**: `specific_fact` (top_k=15) / `broad_summary` (top_k=40) / `complex_reasoning` (top_k=30)
+   - *Values optimized from 32k chunks statistical analysis (see [TOP_K_ANALYSIS_REPORT.md](TOP_K_ANALYSIS_REPORT.md))*
 4. **Date extraction**: natural language ("last summer") to ISO date range
 
 ### Step 2 — Binary Routing (`api/routing.py`)

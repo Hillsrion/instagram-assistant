@@ -57,10 +57,12 @@ nano .env  # or vim, code, etc.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `TOP_K` | Number of chunks retrieved | `5` |
+| `TOP_K` | Number of chunks retrieved (fallback) | `12` |
 | `MIN_SIMILARITY` | Minimum similarity score | `0.3` |
 | `USE_RERANKING` | Enable reranking | `true` |
 | `USE_HYBRID` | Enable hybrid search | `true` |
+
+**Note:** The `top_k` value is dynamically set per intent by `query_analyzer.py` (specific_fact: 15, broad_summary: 40, complex_reasoning: 30). These values are optimized from statistical analysis of 32k chunks. See [TOP_K_ANALYSIS_REPORT.md](TOP_K_ANALYSIS_REPORT.md) for details.
 
 ### Chunking Configuration
 
@@ -72,12 +74,15 @@ nano .env  # or vim, code, etc.
 
 ## Analysis Tools and Statistics
 
-The project now includes analysis tools in the `utils/` folder:
+The project now includes analysis tools:
 
 | Script | Description |
 |--------|-------------|
 | `python utils/rag_stats.py` | Detailed statistical analysis (conversations, messages, chunks) |
 | `python utils/top_20_messages.py` | Displays the 20 largest conversations |
+| `python analyze_chunks_stats.py` | Chunk size analysis and top_k optimization recommendations |
+
+For detailed chunk analysis and top_k configuration guidance, see [TOP_K_ANALYSIS_REPORT.md](TOP_K_ANALYSIS_REPORT.md).
 
 ## Advanced Indexing Scripts
 

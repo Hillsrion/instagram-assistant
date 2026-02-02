@@ -125,4 +125,10 @@ python scripts/conversation_stats.py                       # List all conversati
 python scripts/conversation_stats.py --limit 10            # Top 10 conversations
 python scripts/conversation_stats.py --min-messages 100    # Filter small conversations
 python scripts/conversation_stats.py --json                # JSON output for external tools
+
+# Analyze chunks for top_k optimization
+python analyze_chunks_stats.py                             # Analyze all chunks, display stats
+python analyze_chunks_stats.py --output report.md          # Generate markdown report
+python analyze_chunks_stats.py --chunks path/to/chunks.json # Custom chunks path
+# See docs/TOP_K_ANALYSIS_REPORT.md for detailed analysis and recommendations
 ```

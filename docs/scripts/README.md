@@ -54,8 +54,8 @@ python docs/scripts/analyze_chunks_stats.py --chunks /path/to/chunks.json
 ### Rapports Générés
 
 Les résultats d'analyse sont documentés dans :
-- `docs/CHUNKS_ANALYSIS_REPORT.md` - Rapport complet avec recommandations
-- `docs/CHUNKS_STATISTICS.md` - Statistiques brutes
+- `docs/TOP_K_ANALYSIS_REPORT.md` - Rapport complet avec recommandations
+- `docs/TOP_K_STATISTICS.md` - Statistiques brutes
 
 ### Dernière Analyse
 
