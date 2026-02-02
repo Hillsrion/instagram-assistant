@@ -75,38 +75,43 @@ pytest tests/setup/               # Run setup script tests
 
 ```bash
 # Dataset generation
-python -m eval.generate_dataset 50                        # Generate QA dataset
+python -m eval.dataset.generate_dataset 50                           # Generate QA dataset
+python -m eval.dataset.generate_multichunk_dataset --size 50         # Multi-chunk dataset
 
 # Retrieval evaluation
-python -m eval.eval_retrieval                             # Evaluate retrieval quality
+python -m eval.retrieval.eval_retrieval                              # Evaluate retrieval quality
 
 # Routing evaluation
-python -m eval.eval_routing                               # Evaluate binary routing system
-python -m eval.eval_routing --type simple_fact            # Test specific query types
-python -m eval.eval_routing --html                        # Generate HTML report
-python -m eval.eval_routing --trials 10                   # Limit test queries
+python -m eval.routing.eval_routing                                  # Evaluate binary routing system
+python -m eval.routing.eval_routing --type simple_fact               # Test specific query types
+python -m eval.routing.eval_routing --html                           # Generate HTML report
+python -m eval.routing.eval_routing --trials 10                      # Limit test queries
 
 # Generation quality evaluation (single-chunk)
-python -m eval.eval_generation qwen3:latest mistral       # Compare models (Ollama)
-python -m eval.eval_generation --provider mlx model1      # Use MLX provider
-python -m eval.eval_generation model1 model2 --trials 10  # Multiple trial runs
-python -m eval.eval_generation --html model1 model2       # With HTML report
+python -m eval.generation.eval_generation qwen3:latest mistral       # Compare models (Ollama)
+python -m eval.generation.eval_generation --provider mlx model1      # Use MLX provider
+python -m eval.generation.eval_generation model1 model2 --trials 10  # Multiple trial runs
+python -m eval.generation.eval_generation --html model1 model2       # With HTML report
 
 # Multi-chunk generation evaluation
-python -m eval.generate_multichunk_dataset                # Generate multi-chunk dataset
-python -m eval.generate_multichunk_dataset --size 50      # Custom dataset size
-python -m eval.eval_generation_multichunk qwen3:latest    # Evaluate model(s)
-python -m eval.eval_generation_multichunk --trials 10     # Limit questions
-python -m eval.eval_generation_multichunk --html model1   # With HTML report
-python -m eval.eval_generation_multichunk --generate-dataset  # Alternative dataset generation
+python -m eval.generation.eval_generation_multichunk qwen3:latest    # Evaluate model(s)
+python -m eval.generation.eval_generation_multichunk --trials 10     # Limit questions
+python -m eval.generation.eval_generation_multichunk --html model1   # With HTML report
 
 # Summary evaluation
-python -m eval.evaluate_summaries                         # Default (Ollama)
-python -m eval.evaluate_summaries --provider mlx          # Use MLX provider
-python -m eval.evaluate_summaries --html                  # Generate HTML report
+python -m eval.summaries.evaluate_summaries                          # Default (Ollama)
+python -m eval.summaries.evaluate_summaries --provider mlx           # Use MLX provider
+python -m eval.summaries.evaluate_summaries --html                   # Generate HTML report
+
+# Configuration comparison
+python -m eval.config_comparison.compare_configs                     # Compare RAG configs
+
+# Enrichment validation
+python -m eval.enrichment.validate_enrichment --sample --size 20     # Validate enrichment quality
+python -m eval.enrichment.validate_enrichment --enrich --model mistral-8b  # Enrich & validate
 
 # Dashboard
-python -m eval.model_dashboard                            # Multi-model comparison dashboard
+python -m eval.generation.model_dashboard                            # Multi-model comparison dashboard
 ```
 
 ## Utility Scripts

@@ -30,7 +30,7 @@ pip install rouge-score
 ### Calculate ROUGE-L Score
 
 ```python
-from eval.eval_enrichment import EnrichmentValidator
+from eval.enrichment.eval_enrichment import EnrichmentValidator
 
 validator = EnrichmentValidator()
 
@@ -45,7 +45,7 @@ print(f"ROUGE-L: {score:.2%}")  # Output: ROUGE-L: 50.00%
 
 ```python
 from rag_pipeline.chunker import Chunk
-from eval.eval_enrichment import EnrichmentValidator
+from eval.enrichment.eval_enrichment import EnrichmentValidator
 
 chunk = Chunk(
     chunk_id="chunk_001",
@@ -256,7 +256,7 @@ print(f"Word Overlap: {overlap:.2%}")  # Jaccard similarity
 ```python
 from rag_pipeline.chunker import ConversationChunker
 from rag_pipeline.enricher import ChunkEnricher
-from eval.eval_enrichment import EnrichmentValidator
+from eval.enrichment.eval_enrichment import EnrichmentValidator
 
 # Your workflow
 chunker = ConversationChunker(config)

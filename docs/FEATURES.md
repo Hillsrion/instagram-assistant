@@ -482,7 +482,7 @@ Automatically generates question-answer pairs from indexed chunks using an LLM.
 #### Usage
 
 ```python
-from eval.synthetic_generator import SyntheticDataGenerator
+from eval.core import SyntheticDataGenerator
 
 generator = SyntheticDataGenerator()
 qa_pairs = generator.generate_dataset(chunks, target_size=50)
@@ -491,7 +491,7 @@ generator.save_dataset(qa_pairs)
 
 ### 3.2 RAGAS Metrics
 
-Module: `eval/metrics.py`
+Module: `eval/core/metrics.py`
 
 Implements RAGAS-inspired metrics for RAG evaluation:
 
@@ -511,7 +511,7 @@ Module: `eval/benchmark.py`
 Compare different RAG configurations:
 
 ```python
-from eval.benchmark import BenchmarkRunner, BenchmarkConfig
+from eval.core import BenchmarkRunner, BenchmarkConfig
 
 runner = BenchmarkRunner()
 

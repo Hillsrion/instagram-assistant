@@ -51,7 +51,7 @@ python eval/validate_enrichment.py --sample --size 50 --enrich --model ministral
 
 ```python
 from rag_pipeline.chunker import Chunk
-from eval.eval_enrichment import EnrichmentValidator
+from eval.enrichment.eval_enrichment import EnrichmentValidator
 from rag_pipeline.config import default_config
 
 # Create or load a chunk with enrichment fields
@@ -111,7 +111,7 @@ for field_name, field_result in report.field_results.items():
 ### Batch Validation
 
 ```python
-from eval.eval_enrichment import EnrichmentValidator, print_benchmark_report
+from eval.enrichment.eval_enrichment import EnrichmentValidator, print_benchmark_report
 
 # Load or create multiple chunks
 chunks = [...]
@@ -382,7 +382,7 @@ python eval/validate_enrichment.py --ground-truth ground_truth.json --size 50
 ```python
 from rag_pipeline.chunker import ConversationChunker
 from rag_pipeline.enricher import ChunkEnricher
-from eval.eval_enrichment import EnrichmentValidator
+from eval.enrichment.eval_enrichment import EnrichmentValidator
 
 # Your normal pipeline
 chunker = ConversationChunker(config)
