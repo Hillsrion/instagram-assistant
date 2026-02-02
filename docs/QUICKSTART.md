@@ -125,19 +125,19 @@ python update_index.py
 ### Generate Test Dataset
 
 ```bash
-python -m eval.run_eval --generate 50
+python -m eval.dataset.generate_dataset 50
 ```
 
-### Run Benchmark
+### Run Benchmark (Retrieval)
 
 ```bash
-python -m eval.run_eval --benchmark
+python -m eval.retrieval.eval_retrieval
 ```
 
 ### Compare Configurations
 
 ```bash
-python -m eval.run_eval --compare
+python -m eval.config_comparison.compare_configs
 ```
 
 ## Useful Commands
@@ -152,9 +152,10 @@ python -m eval.run_eval --compare
 | `python update_index.py --full` | Force full rebuild |
 | `python utils/rag_stats.py` | View dataset statistics |
 | `python utils/top_20_messages.py` | List top conversations by size |
-| `python -m eval.run_eval --generate N` | Generate N QA pairs |
-| `python -m eval.run_eval --benchmark` | Run benchmark |
-| `python -m eval.run_eval --compare` | Compare configs |
+| `python -m eval.dataset.generate_dataset N` | Generate N QA pairs |
+| `python -m eval.retrieval.eval_retrieval` | Run retrieval benchmark |
+| `python -m eval.generation.eval_generation <models>` | Compare LLM generation |
+| `python -m eval.config_comparison.compare_configs` | Compare RAG configurations |
 
 ## Data Structure
 
