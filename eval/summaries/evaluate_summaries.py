@@ -15,13 +15,13 @@ from datetime import datetime
 from dataclasses import dataclass
 
 # Add root to sys.path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from rag_pipeline.config import Config
 from rag_pipeline.summary_store import SummaryStore
 from rag_pipeline.summary_models import ConversationSummary, PeriodSummary
-from eval._output_paths import get_summaries_report_path
-from eval.llm_provider import create_provider
+from eval.core._output_paths import get_summaries_report_path
+from rag_pipeline.llm_provider import create_provider
 
 
 @dataclass

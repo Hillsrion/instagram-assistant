@@ -11,12 +11,12 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from rag_pipeline.config import Config
 
-from .benchmark import BenchmarkRunner
-from ._cli_utils import print_header, add_filter_arguments, parse_filters, load_qa_pairs
+from eval.core import BenchmarkRunner
+from eval.core._cli_utils import print_header, add_filter_arguments, parse_filters, load_qa_pairs
 
 
 def run_comparison(config: Config, filters: dict = None):

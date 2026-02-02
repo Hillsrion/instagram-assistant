@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Any, Union, Tuple
 from pathlib import Path
 
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from rag_pipeline.config import Config, default_config
 from rag_pipeline.advanced_retriever import AdvancedSearchResult

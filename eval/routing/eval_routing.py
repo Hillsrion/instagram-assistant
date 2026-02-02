@@ -32,7 +32,7 @@ from rag_pipeline.embeddings import EmbeddingModel
 from rag_pipeline.vector_store import VectorStore
 from rag_pipeline.query_analyzer import QueryAnalyzer
 from api.routing import should_use_agent
-from eval.metrics import RAGASMetrics
+from eval.core import RAGASMetrics
 
 
 # ============================================================

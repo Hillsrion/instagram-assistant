@@ -11,11 +11,11 @@ This example shows:
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from rag_pipeline.chunker import Chunk
 from rag_pipeline.config import default_config
-from eval_enrichment import EnrichmentValidator, print_validation_report, print_benchmark_report
+from eval.enrichment.eval_enrichment import EnrichmentValidator, print_validation_report, print_benchmark_report
 
 
 def example_1_validate_single_chunk():

@@ -23,12 +23,12 @@ from typing import List, Dict, Any, Tuple
 from datetime import datetime
 
 # Add root to sys.path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from rag_pipeline.config import Config
 from rag_pipeline.chunker import ConversationChunker, Chunk
-from eval.metrics import RAGASMetrics
-from eval._output_paths import (
+from eval.core import RAGASMetrics
+from eval.core._output_paths import (
     EVAL_RESULTS_DIR,
     get_generation_report_path,
     get_dashboard_path

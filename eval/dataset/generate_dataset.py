@@ -11,13 +11,13 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from rag_pipeline.config import Config
 from rag_pipeline.chunker import ConversationChunker
 
-from .synthetic_generator import SyntheticDataGenerator
-from ._cli_utils import print_header
+from eval.core import SyntheticDataGenerator
+from eval.core._cli_utils import print_header
 
 
 def generate_dataset(n_samples: int, config: Config):

@@ -13,7 +13,7 @@ import argparse
 from pathlib import Path
 from typing import Dict, List, Any
 
-from eval._output_paths import EVAL_RESULTS_DIR, get_dashboard_path
+from eval.core._output_paths import EVAL_RESULTS_DIR, get_dashboard_path
 
 
 def scan_reports() -> List[Dict[str, Any]]:

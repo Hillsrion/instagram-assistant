@@ -16,7 +16,7 @@ from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Optional, Any, Tuple, Set
 from enum import Enum
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from rag_pipeline.chunker import Chunk
 from rag_pipeline.config import Config, default_config

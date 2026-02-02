@@ -12,7 +12,7 @@ from typing import List, Optional
 from enum import Enum
 
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from rag_pipeline.config import Config, default_config
 from rag_pipeline.chunker import Chunk
