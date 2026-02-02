@@ -114,6 +114,46 @@ python -m eval.enrichment.validate_enrichment --enrich --model mistral-8b  # Enr
 python -m eval.generation.model_dashboard                            # Multi-model comparison dashboard
 ```
 
+## Distributed Enrichment (Multiple Machines)
+
+To speed up enrichment across multiple machines:
+
+**On Machine 1:**
+```bash
+python setup_enrich.py --total-shards 2 --shard-index 0
+# Processes chunks 0, 2, 4, 6... (~50% of work)
+# Output: rag_data/chunks_shard0.json
+```
+
+**On Machine 2:**
+```bash
+# First, copy chunks.json from Machine 1
+scp user@machine1:~/instagram-assistant/rag_data/chunks.json ./rag_data/
+
+python setup_enrich.py --total-shards 2 --shard-index 1
+# Processes chunks 1, 3, 5, 7... (~50% of work)
+# Output: rag_data/chunks_shard1.json
+```
+
+**After both complete:**
+```bash
+# Copy shard files to one machine
+scp user@machine2:~/instagram-assistant/rag_data/chunks_shard1.json ./rag_data/
+
+# Merge shards
+python scripts/merge_enriched_shards.py
+
+# Continue pipeline
+python setup_embeddings.py
+```
+
+Monitor distributed progress:
+```bash
+python scripts/check_enrichment_status.py --show-shards  # Show shard file status
+tail -f enrichment_shard0.log  # On Machine 1
+tail -f enrichment_shard1.log  # On Machine 2
+```
+
 ## Utility Scripts
 
 Scripts located in `scripts/` to help with data analysis and debugging.
@@ -124,6 +164,12 @@ python scripts/check_enrichment_status.py                  # Summary of all conv
 python scripts/check_enrichment_status.py --detailed       # Per-conversation breakdown
 python scripts/check_enrichment_status.py --show-enriched  # List fully enriched conversations
 python scripts/check_enrichment_status.py --show-not-enriched # List conversations not started
+python scripts/check_enrichment_status.py --show-shards    # Show progress on shard files during distributed enrichment
+
+# Merge enriched shards (after distributed enrichment)
+python scripts/merge_enriched_shards.py                    # Auto-detect and merge all shards
+python scripts/merge_enriched_shards.py --dry-run          # Preview merge without writing
+python scripts/merge_enriched_shards.py --verbose          # Show detailed merge progress
 
 # Get conversation statistics
 python scripts/conversation_stats.py                       # List all conversations by message count

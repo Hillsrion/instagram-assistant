@@ -456,11 +456,23 @@ class ConversationChunker:
         
         return all_chunks
     
-    def save_chunks(self, chunks: List[Chunk], path: Path = None):
-        """Saves chunks to JSON."""
-        path = path or self.config.chunks_cache_path
+    def save_chunks(self, chunks: List[Chunk], path: Path = None, shard_index: int = None):
+        """Saves chunks to JSON.
+
+        Args:
+            chunks: List of chunks to save
+            path: Optional path override (defaults to config.chunks_cache_path)
+            shard_index: If provided, save to chunks_shardN.json instead of chunks.json
+        """
+        if path is None:
+            path = self.config.chunks_cache_path
+
+        # If shard mode, modify filename
+        if shard_index is not None:
+            path = path.parent / f"chunks_shard{shard_index}.json"
+
         data = [chunk.to_dict() for chunk in chunks]
-        
+
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     

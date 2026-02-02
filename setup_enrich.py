@@ -38,7 +38,7 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
         True if success, False otherwise
     """
     script_start_time = time.time()
-    log_file = Path("enrichment.log")
+    log_file = Path(f"enrichment_shard{shard_index}.log" if total_shards > 1 else "enrichment.log")
 
     # Reset log if chunks file doesn't exist and log is not empty
     if not config.chunks_cache_path.exists() and log_file.exists() and log_file.stat().st_size > 0:
@@ -81,6 +81,9 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
     if total_shards > 1:
         to_enrich = [c for i, c in enumerate(to_enrich_all) if i % total_shards == shard_index]
         print(f"Shard {shard_index}: Processing {len(to_enrich)} chunks out of {len(to_enrich_all)} remaining")
+        # In shard mode, keep only this shard's chunks in memory to optimize
+        chunks = [c for i, c in enumerate(chunks) if i % total_shards == shard_index]
+        print(f"Memory optimized: keeping only {len(chunks)} chunks for this shard")
     else:
         to_enrich = to_enrich_all
 
@@ -116,15 +119,14 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
             duration = current_time - last_save_time
             last_save_time = current_time
 
-            # In shard mode, we save to the main file anyway
-            # because we loaded all chunks into memory, we only modify ours.
-            chunker.save_chunks(chunks)
-            
+            # Save to shard-specific file in distributed mode
+            chunker.save_chunks(chunks, shard_index=shard_index if total_shards > 1 else None)
+
             log_msg = f"Batch saved. Duration: {duration:.2f}s"
             sys.stdout.write(f"  {log_msg}\n")
-            
+
             try:
-                with open("enrichment.log", "a") as f:
+                with open(log_file, "a") as f:
                     f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {log_msg}\n")
             except Exception as e:
                 sys.stdout.write(f"\nWarning: Could not write to log file: {e}\n")
@@ -136,19 +138,23 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
             save_interval=20
         )
 
-        chunker.save_chunks(chunks)
-        print("\nChunks enriched and saved to cache.")
+        chunker.save_chunks(chunks, shard_index=shard_index if total_shards > 1 else None)
+        if total_shards > 1:
+            print(f"\nShard {shard_index} enriched and saved to chunks_shard{shard_index}.json")
+            print(f"After all shards complete, run: python scripts/merge_enriched_shards.py")
+        else:
+            print("\nChunks enriched and saved to cache.")
 
     except KeyboardInterrupt:
         print("\n\nInterruption: Saving already enriched chunks...")
-        chunker.save_chunks(chunks)
+        chunker.save_chunks(chunks, shard_index=shard_index if total_shards > 1 else None)
         print("Save complete. Rerun script to resume.")
         return False
 
     except Exception as e:
         print(f"\n\nError during enrichment: {e}")
         print("   Attempting to save done work...")
-        chunker.save_chunks(chunks)
+        chunker.save_chunks(chunks, shard_index=shard_index if total_shards > 1 else None)
         print("   Save complete.")
         return False
 
@@ -157,7 +163,7 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
     msg = f"Enrichment finished in {duration_str}."
     print(msg)
     try:
-        with open("enrichment.log", "a") as f:
+        with open(log_file, "a") as f:
             f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
     except Exception:
         pass

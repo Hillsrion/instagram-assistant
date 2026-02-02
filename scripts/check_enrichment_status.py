@@ -50,14 +50,31 @@ def main():
     parser.add_argument("--show-not-enriched", action="store_true", help="List conversations with no enrichment")
     parser.add_argument("--show-in-progress", action="store_true", help="List conversations partially enriched")
     parser.add_argument("--show-enriched", action="store_true", help="List fully enriched and in-progress conversations")
+    parser.add_argument("--show-shards", action="store_true", help="Show shard file status during distributed enrichment")
     args = parser.parse_args()
-    
+
     chunks_path = Path("rag_data/chunks.json")
-    
+    data_dir = chunks_path.parent
+
+    # Check for shard files during distributed enrichment
+    shard_files = sorted(data_dir.glob("chunks_shard*.json"), key=lambda p: int(p.stem.split("shard")[1]))
+    if shard_files and args.show_shards:
+        print("🔀 Distributed enrichment in progress (shard files detected):\n")
+        for shard_file in shard_files:
+            shard_idx = int(shard_file.stem.split("shard")[1])
+            with open(shard_file, "r", encoding="utf-8") as f:
+                shard_chunks = json.load(f)
+            enriched = sum(1 for c in shard_chunks if is_chunk_enriched(c))
+            total = len(shard_chunks)
+            pct = 100 * enriched / total if total > 0 else 0
+            size_mb = shard_file.stat().st_size / (1024 * 1024)
+            print(f"  Shard {shard_idx}: {enriched}/{total} enriched ({pct:.1f}%) - {size_mb:.1f} MB")
+        print("\n  After all shards complete, run: python scripts/merge_enriched_shards.py\n")
+
     if not chunks_path.exists():
         print("❌ No chunks.json found in rag_data/")
         return
-    
+
     with open(chunks_path, "r", encoding="utf-8") as f:
         chunks = json.load(f)
     
