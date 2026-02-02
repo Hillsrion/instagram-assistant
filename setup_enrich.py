@@ -23,7 +23,7 @@ from rag_pipeline.enricher import ChunkEnricher
 from rag_pipeline.cli_utils import print_header, format_duration
 
 
-def run(config: Config, reset: bool = False, model: str = None, total_shards: int = 1, shard_index: int = 0, provider: str = "ollama") -> bool:
+def run(config: Config, reset: bool = False, model: str = None, total_shards: int = 1, shard_index: int = 0, provider: str = "ollama", enable_local_sharding: bool = None) -> bool:
     """Entry point callable by the orchestrator.
 
     Args:
@@ -33,6 +33,7 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
         total_shards: Total number of machines/processes
         shard_index: Index of this process (0 to total_shards-1)
         provider: "ollama" or "mlx"
+        enable_local_sharding: If set, override config.use_local_sharding
 
     Returns:
         True if success, False otherwise
@@ -52,6 +53,10 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
     if model:
         config.llm_model = model
         print(f"LLM Model Override: {config.llm_model}")
+
+    # Apply command-line override for local sharding
+    if enable_local_sharding is not None:
+        config.use_local_sharding = enable_local_sharding
 
     print_header("Semantic Enrichment (LLM)", step="2/8")
     if total_shards > 1:
@@ -186,9 +191,20 @@ def main():
                         help="Index of this machine (0 to total-shards - 1)")
     parser.add_argument("--provider", type=str, default="ollama", choices=["ollama", "mlx"],
                         help="LLM provider: 'ollama' or 'mlx'")
+    parser.add_argument("--enable-local-sharding", action="store_true",
+                        help="Enable GPU/CPU local sharding (overrides USE_LOCAL_SHARDING config)")
+    parser.add_argument("--disable-local-sharding", action="store_true",
+                        help="Disable GPU/CPU local sharding (overrides USE_LOCAL_SHARDING config)")
 
     args = parser.parse_args()
     config = Config()
+
+    # Determine local sharding override from command line
+    enable_local_sharding = None
+    if args.enable_local_sharding:
+        enable_local_sharding = True
+    elif args.disable_local_sharding:
+        enable_local_sharding = False
 
     success = run(
         config,
@@ -196,7 +212,8 @@ def main():
         model=args.model,
         total_shards=args.total_shards,
         shard_index=args.shard_index,
-        provider=args.provider
+        provider=args.provider,
+        enable_local_sharding=enable_local_sharding
     )
 
     sys.exit(0 if success else 1)

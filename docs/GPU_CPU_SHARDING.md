@@ -39,9 +39,12 @@ Both instances must have the **same model** to ensure consistent output quality.
 
 ### 2. Configure `.env`
 
-Edit `.env` with your GPU/CPU URLs and threshold:
+Edit `.env` to enable sharding and configure GPU/CPU URLs:
 
 ```bash
+# Enable local GPU/CPU sharding (required)
+USE_LOCAL_SHARDING=true
+
 # GPU instance (GPU acceleration enabled)
 OLLAMA_URL_GPU=http://localhost:11434
 
@@ -51,6 +54,8 @@ OLLAMA_URL_CPU=http://localhost:11435
 # Route chunks with >=20 messages to GPU, <20 to CPU
 ENRICHMENT_CHUNK_THRESHOLD=20
 ```
+
+**Important:** Sharding is disabled by default. You must explicitly set `USE_LOCAL_SHARDING=true` to enable it, even if GPU/CPU URLs are configured. This prevents accidental activation.
 
 **Threshold tuning:**
 - **Higher (e.g., 30):** More chunks to CPU (faster overall, slightly lower quality)
@@ -78,6 +83,15 @@ OLLAMA_HOST=0.0.0.0:11435 OLLAMA_NUM_GPU=0 ollama serve
 **Terminal 3:**
 ```bash
 python setup_enrich.py
+```
+
+**Alternative: Enable sharding via command-line flag (overrides config):**
+```bash
+# Enable sharding (even if USE_LOCAL_SHARDING=false in .env)
+python setup_enrich.py --enable-local-sharding
+
+# Disable sharding (even if USE_LOCAL_SHARDING=true in .env)
+python setup_enrich.py --disable-local-sharding
 ```
 
 **Expected output:**
@@ -143,12 +157,18 @@ OLLAMA_HOST=0.0.0.0:11435 OLLAMA_NUM_GPU=0 ollama pull ministral-3:8b
 OLLAMA_HOST=0.0.0.0:11435 OLLAMA_NUM_GPU=0 ollama serve
 ```
 
-**Step 3:** Add GPU/CPU URLs to `.env`
+**Step 3:** Enable sharding in `.env`
 
 ```bash
+USE_LOCAL_SHARDING=true
 OLLAMA_URL_GPU=http://localhost:11434
 OLLAMA_URL_CPU=http://localhost:11435
 ENRICHMENT_CHUNK_THRESHOLD=20
+```
+
+Or use command-line override instead:
+```bash
+python setup_enrich.py --enable-local-sharding
 ```
 
 **Step 4:** Start both Ollama instances
@@ -324,10 +344,10 @@ python scripts/merge_enriched_shards.py
 
 To revert to single-instance mode:
 
-1. Clear GPU/CPU URLs in `.env`:
+**Option 1: Via configuration**
+1. Disable in `.env`:
    ```bash
-   OLLAMA_URL_GPU=
-   OLLAMA_URL_CPU=
+   USE_LOCAL_SHARDING=false
    ```
 
 2. Kill CPU instance (Terminal 2)
@@ -339,6 +359,11 @@ To revert to single-instance mode:
    ```bash
    python setup_enrich.py
    ```
+
+**Option 2: Via command-line (temporary override)**
+```bash
+python setup_enrich.py --disable-local-sharding
+```
 
 Already-enriched chunks are preserved. Only remaining chunks use single-instance routing.
 

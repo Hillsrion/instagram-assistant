@@ -73,8 +73,9 @@ class ChunkEnricher:
         self.ollama_provider = None
         self.sharding_enabled = False
 
-        # Detect sharding mode
-        if provider == "ollama" and self.config.ollama_url_gpu and self.config.ollama_url_cpu:
+        # Detect sharding mode (only if USE_LOCAL_SHARDING is enabled)
+        if (provider == "ollama" and self.config.use_local_sharding and
+            self.config.ollama_url_gpu and self.config.ollama_url_cpu):
             self.sharding_enabled = True
             print("[Enricher] GPU/CPU Sharding ENABLED")
             print(f"  GPU: {self.config.ollama_url_gpu}")
