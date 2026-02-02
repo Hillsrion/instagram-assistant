@@ -15,49 +15,82 @@ Specialized evaluation guides:
 
 ```
 eval/
-├── __init__.py               # Exports of main classes
-├── _cli_utils.py             # Shared CLI utilities
-├── _output_paths.py          # Centralized output path management
-├── generate_dataset.py       # Script: dataset generation
-├── eval_retrieval.py         # Script: retrieval evaluation
-├── eval_generation.py        # Script: generation evaluation
-├── compare_configs.py        # Script: RAG configuration comparison
-├── evaluate_summaries.py     # Script: summaries evaluation
-├── model_dashboard.py        # Script: multi-model dashboard
-├── benchmark.py              # Library: BenchmarkRunner
-├── synthetic_generator.py    # Library: SyntheticDataGenerator
-├── metrics.py                # Library: RAGASMetrics
-├── eval_enrichment.py        # Library: EnrichmentValidator
-├── validate_enrichment.py    # Script: enrichment validation CLI
-├── example_enrichment_validation.py  # Examples for enrichment validation
-├── example_rouge_validation.py       # Examples for ROUGE-L validation
-├── eval_dataset.json         # Generated dataset (ignored by git)
-└── eval_dataset.sample.json  # Versioned sample dataset
-
-eval/results/                 # Evaluation results (ignored by git)
-├── eval_generation/          # LLM comparison reports + dashboards
-├── eval_retrieval/           # Retrieval benchmark reports
-├── evaluate_summaries/       # Summaries evaluation reports
-└── compare_configs/          # Config comparison reports
+├── __init__.py                    # Top-level module exports
+│
+├── core/                          # Shared utilities & libraries
+│   ├── __init__.py
+│   ├── metrics.py                 # RAGASMetrics: faithfulness, relevance, etc.
+│   ├── benchmark.py               # BenchmarkRunner & config
+│   ├── synthetic_generator.py     # SyntheticDataGenerator: QA pair generation
+│   ├── _cli_utils.py              # Shared CLI utilities
+│   └── _output_paths.py           # Centralized path management
+│
+├── retrieval/                     # Retrieval Evaluation
+│   ├── __init__.py
+│   ├── eval_retrieval.py          # Script: eval retrieval quality
+│   └── results/                   # Generated reports (ignored by git)
+│
+├── generation/                    # Generation Evaluation
+│   ├── __init__.py
+│   ├── eval_generation.py         # Script: compare LLM generation quality
+│   ├── eval_generation_multichunk.py  # Multi-chunk question evaluation
+│   ├── model_dashboard.py         # Script: multi-model dashboard
+│   └── results/                   # Generated reports (ignored by git)
+│
+├── enrichment/                    # Enrichment Validation
+│   ├── __init__.py
+│   ├── eval_enrichment.py         # Library: EnrichmentValidator
+│   ├── validate_enrichment.py     # Script: CLI validation tool
+│   ├── example_enrichment_validation.py   # Examples
+│   ├── example_rouge_validation.py        # ROUGE-L examples
+│   └── results/                   # Generated reports (ignored by git)
+│
+├── summaries/                     # Summary Evaluation
+│   ├── __init__.py
+│   ├── evaluate_summaries.py      # Script: evaluate hierarchical summaries
+│   └── results/                   # Generated reports (ignored by git)
+│
+├── routing/                       # Routing Evaluation
+│   ├── __init__.py
+│   ├── eval_routing.py            # Script: evaluate routing decisions
+│   └── results/                   # Generated reports (ignored by git)
+│
+├── config_comparison/             # Configuration Comparison
+│   ├── __init__.py
+│   ├── compare_configs.py         # Script: compare RAG configurations
+│   └── results/                   # Generated reports (ignored by git)
+│
+├── dataset/                       # Dataset Generation
+│   ├── __init__.py
+│   ├── generate_dataset.py        # Script: generate QA pairs
+│   ├── generate_multichunk_dataset.py  # Multi-chunk QA generation
+│   └── eval_dataset.sample.json   # Versioned sample (for git)
+│
+├── eval_dataset.json              # Generated dataset (ignored by git)
+├── eval_dataset_multichunk.json   # Generated multi-chunk dataset (ignored by git)
+└── mlx_comparison_dataset.json    # MLX model comparison data (ignored by git)
 ```
 
 ## Quick Start
 
 ```bash
 # 1. Generate an evaluation dataset (50 QA pairs)
-python -m eval.generate_dataset 50
+python -m eval.dataset.generate_dataset 50
 
 # 2. Evaluate RETRIEVAL quality
-python -m eval.eval_retrieval
+python -m eval.retrieval.eval_retrieval
 
 # 3. Evaluate GENERATION quality (compare LLMs)
-python -m eval.eval_generation qwen3:latest mistral --trials 10 --html
+python -m eval.generation.eval_generation qwen3:latest mistral --trials 10 --html
 
 # 4. Compare different RAG configurations
-python -m eval.compare_configs
+python -m eval.config_comparison.compare_configs
 
 # 5. Generate a multi-model dashboard (aggregates all JSON reports)
-python -m eval.model_dashboard
+python -m eval.generation.model_dashboard
+
+# 6. Validate enrichment quality
+python -m eval.enrichment.validate_enrichment --sample --size 20
 ```
 
 ## Evaluation Dataset
@@ -110,13 +143,13 @@ python -m eval.eval_retrieval
 
 ## CLI Scripts
 
-### 1. Dataset Generation (`generate_dataset.py`)
+### 1. Dataset Generation (`dataset/generate_dataset.py`)
 
 Generates synthetic question-answer pairs from indexed chunks.
 
 ```bash
-python -m eval.generate_dataset 50
-python -m eval.generate_dataset --samples 100
+python -m eval.dataset.generate_dataset 50
+python -m eval.dataset.generate_dataset --samples 100
 ```
 
 **Types of questions generated:**
@@ -126,21 +159,21 @@ python -m eval.generate_dataset --samples 100
 
 ---
 
-### 2. Retrieval Evaluation (`eval_retrieval.py`)
+### 2. Retrieval Evaluation (`retrieval/eval_retrieval.py`)
 
 **Objective**: Test if the RAG system retrieves the correct source chunks.
 
 ```bash
 # Basic syntax
-python -m eval.eval_retrieval
+python -m eval.retrieval.eval_retrieval
 
 # With filters
-python -m eval.eval_retrieval --question-type factual,summary
-python -m eval.eval_retrieval --difficulty easy,medium
-python -m eval.eval_retrieval --participant "Alice"
+python -m eval.retrieval.eval_retrieval --question-type factual,summary
+python -m eval.retrieval.eval_retrieval --difficulty easy,medium
+python -m eval.retrieval.eval_retrieval --participant "Alice"
 
 # With custom judge model
-python -m eval.eval_retrieval --judge qwen3:latest
+python -m eval.retrieval.eval_retrieval --judge qwen3:latest
 ```
 
 **Calculated Metrics:**
@@ -177,7 +210,7 @@ By Question Type:
 
 ---
 
-### 3. Generation Evaluation (`eval_generation.py`)
+### 3. Generation Evaluation (`generation/eval_generation.py`)
 
 **Objective**: Compare the generation quality of different LLMs, independently of retrieval.
 
@@ -185,13 +218,13 @@ The script directly provides the source chunk to each LLM, thus isolating genera
 
 ```bash
 # Syntax
-python -m eval.eval_generation <model1> <model2> [options]
+python -m eval.generation.eval_generation <model1> <model2> [options]
 
 # Examples
-python -m eval.eval_generation qwen3:latest mistral
-python -m eval.eval_generation qwen3:latest qwen2.5:3b --trials 10
-python -m eval.eval_generation mistral neural-chat --trials 20 --html
-python -m eval.eval_generation --models qwen3:latest,mistral --judge qwen3:latest
+python -m eval.generation.eval_generation qwen3:latest mistral
+python -m eval.generation.eval_generation qwen3:latest qwen2.5:3b --trials 10
+python -m eval.generation.eval_generation mistral neural-chat --trials 20 --html
+python -m eval.generation.eval_generation --models qwen3:latest,mistral --judge qwen3:latest
 ```
 
 **Options:**
@@ -226,13 +259,13 @@ With `--html`, an interactive HTML report is also generated:
 
 ---
 
-### 4. Configuration Comparison (`compare_configs.py`)
+### 4. Configuration Comparison (`config_comparison/compare_configs.py`)
 
 Compares multiple RAG configurations on the same dataset (retrieval + generation).
 
 ```bash
-python -m eval.compare_configs
-python -m eval.compare_configs --question-type factual
+python -m eval.config_comparison.compare_configs
+python -m eval.config_comparison.compare_configs --question-type factual
 ```
 
 **Configurations compared by default:**
@@ -246,16 +279,16 @@ python -m eval.compare_configs --question-type factual
 
 ---
 
-### 5. Multi-Model Dashboard (`model_dashboard.py`)
+### 5. Multi-Model Dashboard (`generation/model_dashboard.py`)
 
 **Objective**: Aggregate all JSON reports from `eval_generation` and produce an interactive HTML dashboard comparing models.
 
 ```bash
 # Generation with default path
-python -m eval.model_dashboard
+python -m eval.generation.model_dashboard
 
 # Generation with custom path
-python -m eval.model_dashboard --output dashboard_report.html
+python -m eval.generation.model_dashboard --output dashboard_report.html
 ```
 
 The script scans `eval/results/eval_generation/*.json`, extracts metrics per model from each report, and generates an interactive HTML with:
