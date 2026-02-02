@@ -24,7 +24,9 @@ The enrichment pipeline uses a local LLM (via Ollama) to generate semantic metad
 
 ### 1.1 Enriched Fields
 
-Each chunk is enriched with 5 semantic fields:
+Each chunk is enriched with 10 semantic fields organized into three categories:
+
+**Core Semantic Fields (5)**
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -32,7 +34,22 @@ Each chunk is enriched with 5 semantic fields:
 | `hypothetical_questions` | `string[]` | 1 to 5 questions this chunk directly answers (user-like phrasing) |
 | `speaker_intents` | `Dict[str, str]` | Per-participant goals/objectives |
 | `temporal_context` | `string` | Semantic period description (e.g., "during visa application") |
-| `emotions` | `Dict` | Emotional analysis of the exchange |
+| `emotions` | `Dict` | Emotional analysis of the exchange (dominant, tone, tension_level) |
+
+**Entity Extraction (1)**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `entities` | `Dict[str, List[str]]` | Explicitly mentioned elements: `locations`, `people`, `media`, `events` |
+
+**Social Dynamics (4)**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `interaction_pattern` | `string \| null` | Type of exchange: "Planification", "Récit", "Débat", "Soutien", "Conflit", "Catch-up", or null if unclear |
+| `initiative` | `string \| null` | Who leads the conversation (e.g., "Alice", "Équilibré", "Bob pose les questions") |
+| `emotional_shift` | `string \| null` | Emotional trajectory (e.g., "Neutre → Joyeux", "Tendu → Apaisé", "Stable") |
+| `open_loops` | `List[str] \| null` | Unresolved topics mentioned but not concluded |
 
 ### 1.2 Emotions Structure
 
@@ -51,7 +68,56 @@ The `emotions` field captures the emotional context with three dimensions:
 - Query: "Happy moments with X" → matches chunks with `dominant: joy`
 - Query: "Serious discussions" → matches chunks with `tone: serious`
 
-### 1.3 How Enrichment Works
+### 1.3 Entities Structure
+
+The `entities` field extracts explicitly mentioned elements (no hallucination):
+
+```json
+{
+  "locations": ["Paris", "Restaurant La Belle Époque"],
+  "people": ["Marc", "Sophie"],
+  "media": ["Inception", "Spotify playlist"],
+  "events": ["Fête de Marie", "Réunion d'équipe"]
+}
+```
+
+**Rules:**
+- Only EXPLICITLY mentioned items from the text
+- Empty arrays `[]` if no mentions in a category
+- Never invented or inferred data
+
+**Use cases:**
+- Query: "Discussions about Paris" → matches chunks with `locations: ["Paris"]`
+- Query: "When did we talk about Inception?" → matches chunks with `media: ["Inception"]`
+- Query: "Conversations mentioning Marc" → matches chunks with `people: ["Marc"]`
+
+### 1.4 Compact Content Representation
+
+Before enrichment, chunks are converted to a compact format to save tokens and focus on content:
+
+**Transformations:**
+- Remove timestamps: `[2024-01-15 10:30]` → removed
+- Shorten names: `"Lucie Dupont"` → `"Lucie"` or `"Lucie D."` (if collision with another Lucie)
+- Handle name disambiguation automatically
+- Preserve message structure: `Author: Message`
+
+**Example:**
+```
+Original:
+[2024-01-15 10:30:00] Marie Dubois: On se voit demain ?
+[2024-01-15 10:31:15] Lucie Martin: Oui, 14h !
+
+Compact:
+Marie: On se voit demain ?
+Lucie: Oui, 14h !
+```
+
+This compact format is used for:
+- LLM enrichment analysis (reduces token usage)
+- Embedding generation (via `get_compact_content()`)
+- Preserves full content with timestamps in `chunk.content` for display
+
+### 1.5 How Enrichment Works
 
 Module: `rag_pipeline/enricher.py`
 
@@ -60,8 +126,9 @@ from rag_pipeline.enricher import ChunkEnricher
 
 enricher = ChunkEnricher()
 
-# Single chunk
-summary, questions, intents, temporal, emotions = enricher.enrich_chunk(chunk)
+# Single chunk (returns 10 fields)
+summary, questions, intents, temporal, entities, emotions, \
+    interaction_pattern, initiative, emotional_shift, open_loops = enricher.enrich_chunk(chunk)
 
 # Batch with progress
 enricher.enrich_batch(
@@ -72,55 +139,87 @@ enricher.enrich_batch(
 )
 ```
 
-### 1.4 Embedding Priority
+**LLM Provider Support:**
+- Default: Ollama (`provider="ollama"`)
+- Alternative: MLX for Apple Silicon (`provider="mlx"`)
+
+```python
+# Use MLX provider
+enricher = ChunkEnricher(provider="mlx")
+```
+
+### 1.6 Embedding Priority
 
 Enriched fields are prioritized in embeddings (`get_embedding_text()`):
 
-1. **Hypothetical questions** (highest priority - semantic matching)
-2. **Temporal context**
-3. **Speaker intents**
-4. **Emotions** (ambiance)
-5. **Narrative summary**
-6. **Raw content** (lowest priority)
+1. **Hypothetical questions** (highest priority - semantic matching, budget-normalized repetition based on `max_questions`)
+2. **Entities** (locations, people, media, events - repeated x2 each)
+3. **Narrative summary** (repeated x2)
+4. **Temporal context** (single pass)
+5. **Speaker intents** (single pass per participant)
+6. **Initiative** (social dynamics - single pass)
+7. **Open loops** (unresolved topics - single pass per loop)
+8. **Emotions** (ambiance - single pass)
+9. **Interaction pattern** (exchange type - single pass)
+10. **Emotional shift** (trajectory - single pass)
+11. **Raw content** (compact version without timestamps, lowest priority)
 
-This ordering ensures the embedding model focuses on semantic enrichments first.
+This ordering ensures the embedding model focuses on semantic enrichments first, with entities and questions receiving the strongest signal boost.
 
-### 1.5 Reranking Integration
+**Tag Prefixes:**
+Each field is prefixed with a semantic tag in embeddings:
+- `[QUESTION]` for hypothetical questions
+- `[ENTITY:category]` for entities (e.g., `[ENTITY:locations] Paris`)
+- `[SUMMARY]` for narrative summary
+- `[TIME]` for temporal context
+- `[INTENT]` for speaker intents
+- `[INITIATIVE]`, `[OPEN_LOOP]`, `[EMOTION]`, `[INTERACTION]`, `[EMOTIONAL_SHIFT]` for other fields
+- `[CONTENT]` for raw conversation
 
-The cross-encoder reranker uses all enriched fields for scoring:
+### 1.7 Reranking Integration
+
+The cross-encoder reranker uses core semantic fields for scoring (entities and social dynamics not included to avoid token budget issues):
 
 ```
-Questions abordées: [hypothetical questions]
-Période: [temporal context]
-Intentions: [speaker intents]
-Ambiance: [emotions summary]
-Résumé: [narrative summary]
-[content excerpt]
+Questions covered: [hypothetical questions]
+Period: [temporal context]
+Intents: [speaker intents]
+Mood: [emotions summary]
+Summary: [narrative summary]
+[content excerpt - 900 chars]
 ```
 
-### 1.6 Configuration
+**Note:** Entities and social dynamics fields are used in embeddings but not in reranking to keep input under the 512-token limit.
+
+### 1.8 Configuration
 
 ```python
 # In rag_pipeline/config.py or .env
-LLM_MODEL=qwen3:latest      # Ollama model for enrichment
+LLM_MODEL=ministral-3:8b    # Ollama model for enrichment (default)
 OLLAMA_URL=http://localhost:11434
+MAX_QUESTIONS=5             # Max hypothetical questions per chunk
 ```
 
 **LLM Parameters:**
 - Temperature: `0.1` (low variance for factual extraction)
-- Max tokens: `1024`
+- Max tokens: `2048` (increased to accommodate all enrichment fields)
 - Format: JSON (enforced via Ollama API)
-- Content limit: `4000` chars per chunk
+- Content: Full chunk content (no truncation - 128k context available)
+- Max questions: `5` (configurable via `MAX_QUESTIONS` env var)
 
-### 1.7 Re-enriching Existing Data
+### 1.9 Re-enriching Existing Data
 
-To add emotions to already-enriched chunks:
+To add new fields to already-enriched chunks:
 
 ```python
-# Force re-enrichment by clearing the emotions field
+# Force re-enrichment by clearing specific fields
 for chunk in chunks:
-    chunk.emotions = None
-    chunk.narrative_summary = None  # Reset to trigger re-enrichment
+    chunk.entities = None  # Add entities
+    chunk.interaction_pattern = None  # Add social dynamics
+    chunk.initiative = None
+    chunk.emotional_shift = None
+    chunk.open_loops = None
+    # Or clear all: chunk.narrative_summary = None
 
 enricher.enrich_batch(chunks, ...)
 ```
@@ -305,6 +404,9 @@ for result in results:
 ```python
 # In rag_pipeline/config.py or .env
 
+# Retrieval settings
+top_k: int = 12  # Number of chunks to retrieve (default)
+
 # Threshold to trigger fallback to summaries
 fallback_threshold: float = 0.35
 
@@ -419,7 +521,7 @@ config = BenchmarkConfig(
     use_reranking=True,
     use_hybrid=True,
     use_context_expansion=True,
-    top_k=5
+    top_k=12
 )
 
 report = runner.run_benchmark(qa_pairs, config)
@@ -658,23 +760,38 @@ GET /api/chunks/{chunk_id}
 {
   "chunk_id": "conv_chunk_001",
   "content": "...",
-  "summary": "...",
+  "narrative_summary": "Alice and Bob discuss travel plans...",
   "participants": ["Alice", "Bob"],
   "date_start": "2024-01-15 10:00:00",
   "date_end": "2024-01-15 12:30:00",
   "file_source": "conversation_alice.txt",
   "message_count": 45,
   "hypothetical_questions": [
-    "When did Alice and Bob discuss X?",
-    "..."
-  ]
+    "When did Alice and Bob discuss travel plans?",
+    "What destinations were mentioned?"
+  ],
+  "entities": {
+    "locations": ["Paris", "Lyon"],
+    "people": ["Marc"],
+    "media": [],
+    "events": ["Weekend trip"]
+  },
+  "emotions": {
+    "dominant": "excitement",
+    "tone": "playful",
+    "tension_level": "low"
+  },
+  "interaction_pattern": "Planification",
+  "initiative": "Alice leads",
+  "emotional_shift": "Neutre → Excité",
+  "open_loops": ["Hotel reservation pending"]
 }
 ```
 
 #### Interface
 
 - Click on source → Modal with full content
-- Display: summary, metadata, hypothetical questions
+- Display: narrative summary, metadata, hypothetical questions, entities, emotions, social dynamics
 - Raw conversation content
 
 ### 6.2 Follow-up Questions
@@ -820,8 +937,8 @@ flowchart TB
     subgraph "Step 1-2: Data Preparation"
         A[Instagram Conversations<br/>.txt files] --> B[ConversationChunker]
         B --> C[Raw Chunks<br/>50 msgs max, 3 days max]
-        C --> D[ChunkEnricher<br/>via Ollama LLM]
-        D --> E[Enriched Chunks<br/>+ narrative_summary<br/>+ hypothetical_questions<br/>+ emotions]
+        C --> D[ChunkEnricher<br/>via Ollama/MLX LLM]
+        D --> E[Enriched Chunks<br/>+ 5 core fields<br/>+ entities<br/>+ 4 social dynamics fields]
     end
 
     subgraph "Step 3-4: Vector Index"
