@@ -7,7 +7,6 @@ import requests
 from typing import List, Optional, Tuple, Dict
 from .config import Config, default_config
 from .chunker import Chunk
-from .llm_provider import create_provider
 
 # Prompt kept in French as it processes French data
 ENRICH_PROMPT = """Tu es un analyseur de conversations (STRICT, basé sur le texte uniquement).
@@ -70,44 +69,18 @@ class ChunkEnricher:
         # Lightweight model recommended for mass indexing
         self.model = self.config.llm_model
         self.mlx_provider = None
-        self.ollama_provider = None
-        self.sharding_enabled = False
 
-        # Detect sharding mode (only if USE_LOCAL_SHARDING is enabled)
-        if (provider == "ollama" and self.config.use_local_sharding and
-            self.config.ollama_url_gpu and self.config.ollama_url_cpu):
-            self.sharding_enabled = True
-            print("[Enricher] GPU/CPU Sharding ENABLED")
-            print(f"  GPU: {self.config.ollama_url_gpu}")
-            print(f"  CPU: {self.config.ollama_url_cpu}")
-            print(f"  Threshold: {self.config.enrichment_chunk_threshold} messages")
+        if self.provider == "mlx":
+            from .mlx_provider import MlxProvider
+            # Use a default MLX model if config.llm_model looks like an Ollama model name
+            # or use the one specified in config if it looks like a path/hf-repo
+            mlx_model = "mlx-community/Ministral-3-8B-Instruct-2512-4bit"
+            # If the config model contains '/' it's likely a HF repo, so use it.
+            if "/" in self.model:
+                mlx_model = self.model
 
-            # Create sharded provider with health checks
-            self.ollama_provider = create_provider(
-                self.config,
-                self.model,
-                provider_type="ollama",
-                enable_sharding=True,
-                gpu_url=self.config.ollama_url_gpu,
-                cpu_url=self.config.ollama_url_cpu,
-                threshold=self.config.enrichment_chunk_threshold
-            )
-        else:
-            # Single instance mode
-            if self.provider == "ollama":
-                print(f"[Enricher] Single Ollama instance: {self.config.ollama_url}")
-
-            if self.provider == "mlx":
-                from .mlx_provider import MlxProvider
-                # Use a default MLX model if config.llm_model looks like an Ollama model name
-                # or use the one specified in config if it looks like a path/hf-repo
-                mlx_model = "mlx-community/Ministral-3-8B-Instruct-2512-4bit"
-                # If the config model contains '/' it's likely a HF repo, so use it.
-                if "/" in self.model:
-                    mlx_model = self.model
-
-                print(f"[Enricher] Loading MLX model: {mlx_model}")
-                self.mlx_provider = MlxProvider(model_path=mlx_model) 
+            print(f"[Enricher] Loading MLX model: {mlx_model}")
+            self.mlx_provider = MlxProvider(model_path=mlx_model) 
         
     def enrich_chunk(self, chunk: Chunk) -> Tuple[str, List[str], Dict[str, str], str, Dict[str, List[str]], Dict[str, str], Optional[str], Optional[str], Optional[str], Optional[List[str]]]:
         """
@@ -130,7 +103,7 @@ class ChunkEnricher:
             if self.provider == "mlx":
                 result = self._call_mlx(prompt)
             else:
-                result = self._call_ollama(prompt, message_count=chunk.message_count, chunk_id=chunk.chunk_id)
+                result = self._call_ollama(prompt)
 
             # Clean response (in case LLM adds markdown code blocks)
             cleaned_result = result.strip()
@@ -198,19 +171,8 @@ class ChunkEnricher:
         messages = [{"role": "user", "content": prompt}]
         return self.mlx_provider.generate_chat(messages, max_tokens=2048, temperature=0.1)
 
-    def _call_ollama(self, prompt: str, message_count: int = None, chunk_id: str = None) -> str:
-        """Calls the Ollama API, with optional routing for sharded mode."""
-        # Use sharded provider if available
-        if self.ollama_provider:
-            messages = [{"role": "user", "content": prompt}]
-            return self.ollama_provider.generate(
-                messages,
-                message_count=message_count,
-                chunk_id=chunk_id,
-                timeout=300
-            )
-
-        # Fallback to direct API call (single instance mode)
+    def _call_ollama(self, prompt: str) -> str:
+        """Calls the Ollama API."""
         payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
@@ -282,15 +244,5 @@ class ChunkEnricher:
         # Final save
         if save_callback:
             save_callback()
-
-        # Print sharding statistics if available
-        if self.sharding_enabled and self.ollama_provider and hasattr(self.ollama_provider, 'get_stats'):
-            stats = self.ollama_provider.get_stats()
-            print("\n📊 Sharding Statistics:")
-            print(f"   GPU routed: {stats['gpu_routed']}")
-            print(f"   CPU routed: {stats['cpu_routed']}")
-            print(f"   CPU→GPU fallback: {stats['cpu_fallback']}")
-            print(f"   Errors: {stats['errors']}")
-            print(f"   GPU utilization: {stats['gpu_utilization_percent']}%")
 
         return chunks

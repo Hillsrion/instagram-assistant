@@ -90,11 +90,6 @@ class Config:
     llm_model: str = field(default_factory=lambda: os.getenv('LLM_MODEL', 'ministral-3:8b'))
     # Ollama server URL
     ollama_url: str = field(default_factory=lambda: os.getenv('OLLAMA_URL', 'http://localhost:11434'))
-    # GPU/CPU Sharding (optional, enrichment only)
-    use_local_sharding: bool = field(default_factory=lambda: os.getenv('USE_LOCAL_SHARDING', 'false').lower() == 'true')
-    ollama_url_gpu: str = field(default_factory=lambda: os.getenv('OLLAMA_URL_GPU', ''))
-    ollama_url_cpu: str = field(default_factory=lambda: os.getenv('OLLAMA_URL_CPU', ''))
-    enrichment_chunk_threshold: int = field(default_factory=lambda: int(os.getenv('ENRICHMENT_CHUNK_THRESHOLD', '20')))
     # Temperature (low = more factual)
     temperature: float = 0.1
     # Top-p sampling
@@ -137,19 +132,6 @@ class Config:
 
         # Create necessary directories
         self.index_dir.mkdir(exist_ok=True)
-
-        # Validate GPU/CPU sharding configuration (only if enabled)
-        if self.use_local_sharding:
-            if not self.ollama_url_gpu or not self.ollama_url_cpu:
-                raise ValueError(
-                    "Local sharding enabled but GPU and CPU URLs not configured. "
-                    "Set OLLAMA_URL_GPU and OLLAMA_URL_CPU environment variables."
-                )
-            if self.ollama_url_gpu == self.ollama_url_cpu:
-                raise ValueError(
-                    "GPU and CPU Ollama URLs cannot be identical. "
-                    "Configure different ports or hosts for GPU and CPU instances."
-                )
 
 
 # Default instance
