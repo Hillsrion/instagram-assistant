@@ -12,6 +12,7 @@ Local AI assistant for querying exported Instagram conversations using a RAG pip
 - **[Architecture](docs/ARCHITECTURE.md):** System modules, data flow, and tech stack.
 - **[Development](docs/DEVELOPMENT.md):** Setup, workflow, and code conventions.
 - **[RAG Pipeline](docs/RAG_PIPELINE.md):** Detailed indexing and query steps.
+- **[Embedding Strategy](docs/EMBEDDING_STRATEGY.md):** Prioritization hierarchy and rationale for embedding text construction.
 - **[Agents](AGENTS.md):** Details on the LLM agents (Enricher, Summarizer, etc.).
 - **[top_k Optimization](docs/TOP_K_ANALYSIS_REPORT.md):** Statistical analysis and configuration recommendations (32k chunks dataset).
 

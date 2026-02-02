@@ -48,12 +48,16 @@ Checkpoints every 20 chunks for fault tolerance.
 ### Step 3 — Embedding (`rag_pipeline/embeddings.py`)
 
 Each chunk's `get_embedding_text()` method builds a composite string prioritized as:
-1. Hypothetical questions (highest signal)
-2. Temporal context
-3. Entities / Speaker intents / Emotions
-4. Interaction dynamics (new social fields)
-5. Narrative summary
-6. Raw message content
+1. Hypothetical questions (dominant signal, budget-normalized)
+2. Narrative summary (dense semantic condensation)
+3. Explicit entities (factual anchors, x1)
+4. Semantic temporal context
+5. Participant intentions
+6. Emotions & tension (weak but targeted)
+7. Social dynamics (specialized signal)
+8. Raw content (BM25 primary signal at alpha=0.5)
+
+For the complete rationale, design decisions, and trade-offs, see [EMBEDDING_STRATEGY.md](EMBEDDING_STRATEGY.md).
 
 Encoded via **BGE-M3** (1024-dim, multilingual FR/EN), L2-normalized for cosine similarity.
 

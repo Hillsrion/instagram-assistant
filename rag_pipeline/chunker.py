@@ -148,13 +148,14 @@ class Chunk:
 
     def get_embedding_text(self) -> str:
         """
-        Returns a weighted textual representation for embeddings.
-        Uses normalized repetition budgets to avoid signal domination.
+        Texte pondéré pour embeddings (dense + BM25 hybride).
+        Hiérarchie : voir docs/EMBEDDING_STRATEGY.md
         """
 
         parts = []
 
-        # 🔥🔥🔥 1. Hypothetical questions (normalized high priority)
+        # 1. Questions hypothétiques — signal dominant, aligne query ↔ document
+        #    Budget normalisé pour éviter la domination par volume
         QUESTION_BUDGET = default_config.max_questions
         if self.hypothetical_questions:
             weighted_questions = repeat_with_budget(
@@ -164,30 +165,30 @@ class Chunk:
             for q in weighted_questions:
                 parts.append(f"[QUESTION] {q}")
 
-        # 🔥🔥 2. Entities (fixed repetition)
+        # 2. Résumé narratif — condensé sémantique dense (1 phrase)
+        #    Aide le dense retriever sur les requêtes larges/vagues
+        if self.narrative_summary:
+            parts.append(f"[SUMMARY] {self.narrative_summary}")
+
+        # 3. Entités — ancres factuelles (x1, BM25 couvre les termes exacts via le contenu brut)
         if self.entities:
             for category, items in self.entities.items():
                 if items:
                     for item in items:
+                       
                         if item:
                             parts.append(f"[ENTITY:{category}] {item}")
-                            parts.append(f"[ENTITY:{category}] {item}")  # x2
 
-        # 🔥🔥 3. Narrative summary
-        if self.narrative_summary:
-            parts.append(f"[SUMMARY] {self.narrative_summary}")
-            parts.append(f"[SUMMARY] {self.narrative_summary}")
-
-        # 🔥 4. Temporal context
+        # 4. Contexte temporel — temps relationnel ("pendant les vacances")
         if self.temporal_context:
             parts.append(f"[TIME] {self.temporal_context}")
 
-        # 🔥 5. Speaker intents
+        # 5. Intentions — pont entre factuel et social
         if self.speaker_intents:
             for participant, intent in self.speaker_intents.items():
                 parts.append(f"[INTENT] {participant}: {intent}")
 
-        # 🔥 6. Structural dynamics
+        # 6. Dynamique structurelle — initiative, boucles ouvertes
         if self.initiative:
             parts.append(f"[INITIATIVE] {self.initiative}")
 
@@ -195,7 +196,7 @@ class Chunk:
             for loop in self.open_loops:
                 parts.append(f"[OPEN_LOOP] {loop}")
 
-        # · 7. Emotional / social (low weight)
+        # 7. Émotionnel / social — signal faible mais ciblé
         if self.emotions:
             emo = []
             if self.emotions.get("dominant"):
@@ -213,7 +214,7 @@ class Chunk:
         if self.emotional_shift:
             parts.append(f"[EMOTIONAL_SHIFT] {self.emotional_shift}")
 
-        # · 8. Raw content (single pass, compact version)
+        # 8. Contenu brut — signal primaire pour BM25 (alpha=0.5), contexte reranker
         parts.append("[CONTENT]")
         parts.append(self.get_compact_content())
 
