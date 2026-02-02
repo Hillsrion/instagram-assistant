@@ -7,10 +7,9 @@ The `eval/` module provides a comprehensive pipeline to evaluate the quality of 
 
 ## Documentation Index
 
-In-depth guides for evaluation topics:
+Specialized evaluation guides:
 
-- **[Enrichment Validation](eval/ENRICHMENT_VALIDATION.md):** Validate chunk enrichment quality across all 10 fields
-- **[ROUGE-L Validation](eval/ROUGE_VALIDATION.md):** Evaluate narrative summaries using ROUGE-L scoring
+- **[Enrichment Validation Guide](eval/)** - Validate chunk enrichment quality with ROUGE-L scoring
 
 ## Module Structure
 
@@ -431,123 +430,3 @@ eval/results/
 | `eval/results/evaluate_summaries/*.html` | Summary evaluation HTML reports (with --html) | No |
 | `eval/results/compare_configs/*.json` | Config comparison reports | No |
 
----
-
-## Enrichment Validation
-
-**Objective**: Validate and score the quality of chunk enrichment (summaries, questions, entities, emotions, etc.).
-
-See: **[Enrichment Validation Guide](eval/ENRICHMENT_VALIDATION.md)** for full details.
-
-### Quick Start
-
-```bash
-# Run examples to see validation in action
-python eval/example_enrichment_validation.py
-
-# Validate 20 chunks from index
-python eval/validate_enrichment.py --sample --size 20
-
-# Enrich chunks AND validate them
-python eval/validate_enrichment.py --sample --enrich --model ministral-8b
-```
-
-### What Gets Validated
-
-The `EnrichmentValidator` scores 10 enrichment fields:
-
-| Field | Validates | Score |
-|-------|-----------|-------|
-| **Narrative Summary** | Conciseness (5-30 words), content accuracy (with ROUGE-L if reference available) | 0.0-1.0 |
-| **Hypothetical Questions** | Count (1-5), length (3-30 words each), answerability | 0.0-1.0 |
-| **Speaker Intents** | Coverage of participants, clarity of intent | 0.0-1.0 |
-| **Temporal Context** | Meaningfulness, length (2-20 words) | 0.0-1.0 |
-| **Entities** | Structure (locations/people/media/events), type validation | 0.0-1.0 |
-| **Emotions** | Required fields (dominant, tone, tension_level), valid values | 0.0-1.0 |
-| **Interaction Pattern** | Valid pattern (Planning, Debate, Story-telling, etc.) | 0.0-1.0 |
-| **Initiative** | Participant alignment, clarity | 0.0-1.0 |
-| **Emotional Shift** | Format ("X → Y" or "Stable"), trajectory validity | 0.0-1.0 |
-| **Open Loops** | Unresolved topics format and completeness | 0.0-1.0 |
-
-**Overall Chunk Score**: Weighted average of field scores
-
-```
-overall_validity = True if:
-  - No critical issues across any field
-  - overall_score >= 0.5
-```
-
-### ROUGE-L Scoring for Summaries
-
-If chunks have `reference_summary` (ground truth), ROUGE-L is automatically calculated:
-
-```python
-chunk = Chunk(
-    # ... fields ...
-    narrative_summary="Generated summary",
-    reference_summary="Manual ground truth",  # Enables ROUGE-L
-)
-
-validator = EnrichmentValidator()
-report = validator.validate_chunk(chunk)
-
-# ROUGE-L stored in metadata
-rouge_score = report.field_results["narrative_summary"].metadata.get("rouge_l")
-```
-
-See: **[ROUGE-L Validation Guide](eval/ROUGE_VALIDATION.md)** for details.
-
-### Example Report
-
-```
-ENRICHMENT VALIDATION: chunk_001
-Overall Score: 92.00% | Completeness: 90.00%
-Status: ✓ VALID
-Issues: 0 | Warnings: 2
-
-✓ NARRATIVE_SUMMARY (100.00%)
-✓ QUESTIONS (80.00%)
-  ⚠️  Short questions might be too vague
-✓ SPEAKER_INTENTS (100.00%)
-✓ ENTITIES (95.00%)
-  📊 Categories: locations=2, people=0, media=0, events=0
-✓ EMOTIONS (100.00%)
-  📊 Emotion: enthusiasm, Tone: casual, Tension: low
-...
-```
-
-### Programmatic Usage
-
-```python
-from rag_pipeline.chunker import Chunk
-from eval.eval_enrichment import EnrichmentValidator
-
-# Validate single chunk
-chunk = Chunk(...)  # With enrichment fields
-validator = EnrichmentValidator()
-report = validator.validate_chunk(chunk)
-
-print(f"Overall Score: {report.overall_score:.2%}")
-print(f"Valid: {report.overall_validity}")
-
-# Validate multiple chunks
-chunks = [...]
-benchmark_report = validator.validate_chunks(chunks, verbose=True)
-
-print(f"Valid chunks: {benchmark_report.valid_chunks}/{benchmark_report.total_chunks}")
-print(f"Average score: {benchmark_report.avg_overall_score:.2%}")
-```
-
-### Comparing Enrichment Models
-
-```bash
-# Enrich with model A and validate
-python eval/validate_enrichment.py --sample --enrich --model ministral-8b
-
-# Enrich with model B and validate
-python eval/validate_enrichment.py --sample --enrich --model mixtral-8x7b
-
-# Compare ROUGE-L and field scores
-```
-
----
