@@ -127,40 +127,54 @@ class ShardedOllamaProvider(LLMProvider):
                 print(f"⚠️  {error_msg}")
                 print("    Small chunks will fallback to GPU")
 
-    def generate(self, messages: List[Dict[str, str]], message_count: Optional[int] = None, **kwargs) -> str:
+    def generate(self, messages: List[Dict[str, str]], message_count: Optional[int] = None, chunk_id: Optional[str] = None, **kwargs) -> str:
         """
         Route request to GPU or CPU based on message count.
 
         Args:
             messages: Chat messages
             message_count: Number of messages in chunk (determines routing)
+            chunk_id: Optional chunk ID for logging
             **kwargs: Additional options passed to provider
 
         Returns:
             Generated text from appropriate provider
         """
+        import time
+
         # Default to threshold if message_count not provided
         if message_count is None:
             message_count = self.threshold
 
         # Determine routing
         use_gpu = message_count >= self.threshold
+        start_time = time.time()
 
         try:
             if use_gpu:
                 self.stats["gpu_routed"] += 1
-                return self.gpu_provider.generate(messages, **kwargs)
+                instance = "GPU"
+                result = self.gpu_provider.generate(messages, **kwargs)
             else:
                 # Try CPU first
                 try:
                     self.stats["cpu_routed"] += 1
-                    return self.cpu_provider.generate(messages, **kwargs)
+                    instance = "CPU"
+                    result = self.cpu_provider.generate(messages, **kwargs)
                 except Exception as e:
                     # CPU down, fallback to GPU
                     print(f"⚠️  CPU Ollama instance unreachable: {e}")
                     print("    Routing small chunk to GPU (fallback)")
                     self.stats["cpu_fallback"] += 1
-                    return self.gpu_provider.generate(messages, **kwargs)
+                    instance = "GPU (fallback)"
+                    result = self.gpu_provider.generate(messages, **kwargs)
+
+            # Log timing if chunk_id provided
+            if chunk_id:
+                elapsed = time.time() - start_time
+                print(f"   [{instance}] {chunk_id} | {message_count} msgs | {elapsed:.2f}s")
+
+            return result
         except Exception as e:
             self.stats["errors"] += 1
             raise

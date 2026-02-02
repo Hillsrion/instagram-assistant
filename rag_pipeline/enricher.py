@@ -130,7 +130,7 @@ class ChunkEnricher:
             if self.provider == "mlx":
                 result = self._call_mlx(prompt)
             else:
-                result = self._call_ollama(prompt, message_count=chunk.message_count)
+                result = self._call_ollama(prompt, message_count=chunk.message_count, chunk_id=chunk.chunk_id)
 
             # Clean response (in case LLM adds markdown code blocks)
             cleaned_result = result.strip()
@@ -198,7 +198,7 @@ class ChunkEnricher:
         messages = [{"role": "user", "content": prompt}]
         return self.mlx_provider.generate_chat(messages, max_tokens=2048, temperature=0.1)
 
-    def _call_ollama(self, prompt: str, message_count: int = None) -> str:
+    def _call_ollama(self, prompt: str, message_count: int = None, chunk_id: str = None) -> str:
         """Calls the Ollama API, with optional routing for sharded mode."""
         # Use sharded provider if available
         if self.ollama_provider:
@@ -206,6 +206,7 @@ class ChunkEnricher:
             return self.ollama_provider.generate(
                 messages,
                 message_count=message_count,
+                chunk_id=chunk_id,
                 timeout=300
             )
 
