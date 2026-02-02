@@ -166,19 +166,19 @@ RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
         """Returns optimized search parameters for an intent."""
         if intent == "specific_fact":
             return {
-                "top_k": 8,  # Precision-focused: enough to catch near-misses
+                "top_k": 15,  # Increased: 8→15 (+88% coverage) - dataset chunks are lighter than expected
                 "use_reranking": True,
                 "expand_context": False
             }
         elif intent == "broad_summary":
             return {
-                "top_k": 20,  # Quality-filtered breadth for summaries
+                "top_k": 40,  # Increased: 20→40 (+100% coverage) - real avg 375 tokens/chunk allows 2× more context
                 "use_reranking": True,  # Enabled: quality over quantity
                 "expand_context": True
             }
         else: # complex_reasoning or fallback
             return {
-                "top_k": 15,  # Balanced for local inference performance
+                "top_k": 30,  # Increased: 15→30 (+100% coverage) - balanced config based on 32k chunks analysis
                 "use_reranking": True,
                 "expand_context": True
             }
