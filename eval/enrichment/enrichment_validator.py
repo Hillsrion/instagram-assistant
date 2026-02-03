@@ -396,14 +396,24 @@ class EnrichmentValidator:
                 result.score = max(0.8, result.score)
 
         # Check individual intent quality
+        invalid_intents = [
+            speaker for speaker, intent in intents.items()
+            if not isinstance(intent, str)
+        ]
         short_intents = [
             speaker for speaker, intent in intents.items()
-            if intent and len(intent.split()) < 3
+            if isinstance(intent, str) and len(intent.split()) < 3
         ]
         long_intents = [
             speaker for speaker, intent in intents.items()
-            if intent and len(intent.split()) > 15
+            if isinstance(intent, str) and len(intent.split()) > 15
         ]
+
+        if invalid_intents:
+            result.issues.append(
+                f"Non-string intents found for speakers: {invalid_intents}"
+            )
+            result.score = max(0.5, result.score)
 
         if short_intents:
             result.warnings.append(
@@ -441,6 +451,12 @@ class EnrichmentValidator:
             return result
 
         # Check format
+        if not isinstance(temporal, str):
+            result.is_valid = False
+            result.issues.append(f"Temporal context should be string, got {type(temporal)}")
+            result.score = 0.0
+            return result
+
         word_count = len(temporal.split())
         if word_count < 2:
             result.warnings.append("Temporal context is too short to be meaningful")

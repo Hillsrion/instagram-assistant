@@ -256,7 +256,18 @@ class ChunkEnricher:
                 questions = [str(q) if not isinstance(q, str) else q for q in questions]
             
             speaker_intents = data.get("speaker_intents", {})
+            if isinstance(speaker_intents, dict):
+                # Ensure all values are strings (some LLMs return lists)
+                speaker_intents = {
+                    str(k): (", ".join(v) if isinstance(v, list) else str(v))
+                    for k, v in speaker_intents.items()
+                }
+            
             temporal_context = data.get("temporal_context", "")
+            if isinstance(temporal_context, list):
+                temporal_context = ", ".join(temporal_context)
+            else:
+                temporal_context = str(temporal_context)
             
             entities = data.get("entities", {})
             if isinstance(entities, dict):
