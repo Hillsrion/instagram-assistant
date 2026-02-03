@@ -257,6 +257,12 @@ With `--html`, an interactive HTML report is also generated:
 - Judge's observations
 - Final summary
 
+**Performance Optimization (2-Phase Evaluation):**
+The script uses a **2-Phase Batch Strategy** to minimize VRAM usage and model loading time:
+1. **Phase 1: Generation** — Loads each model sequentially and generates answers for *all* questions.
+2. **Phase 2: Judgment** — Loads the Judge Model *once* and evaluates all generated answers in batch.
+This approach prevents "VRAM ping-pong" (repeated loading/unloading) and is significantly faster for local execution.
+
 ---
 
 ### 4. Configuration Comparison (`config_comparison/compare_configs.py`)

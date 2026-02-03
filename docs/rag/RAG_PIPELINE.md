@@ -45,6 +45,15 @@ It extracts:
 
 Checkpoints every 20 chunks for fault tolerance.
 
+#### Performance Optimization (Batch & Reorder)
+To maximize throughput on local hardware with limited VRAM (e.g. dual-model strategy with Ollama), the Enricher uses a **Batch & Reorder** strategy:
+1. Load a sub-batch of chunks (e.g. 20).
+2. Classify all chunks in the batch by complexity (Simple vs Complex).
+3. Process all "Simple" chunks with the light model (e.g. `ministral:3b`).
+4. Switch models once and process all "Complex" chunks with the heavy model.
+5. Reorder results to original sequence and save to disk.
+This ensures **data integrity** (perfectly sequential output file) while reducing model loaded/unloading overhead by up to 20x.
+
 ### Step 3 — Embedding (`rag_pipeline/embeddings.py`)
 
 Each chunk's `get_embedding_text()` method builds a composite string prioritized as:
