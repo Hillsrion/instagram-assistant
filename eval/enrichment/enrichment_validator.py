@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from rag_pipeline.chunker import Chunk
 from rag_pipeline.config import Config, default_config
+from rag_pipeline.llm_provider import create_provider
 
 # Optional ROUGE scoring for summary validation
 try:
@@ -749,18 +750,30 @@ class EnrichmentValidator:
             report.summary = f"Invalid enrichment: {', '.join(parts)}"
 
     def validate_chunks(
-        self, chunks: List[Chunk], verbose: bool = False
+        self, 
+        chunks: List[Chunk], 
+        verbose: bool = False,
+        judge_model: str = None,
+        provider_type: str = "ollama"
     ) -> EnrichmentBenchmarkReport:
         """Validate multiple chunks and generate aggregated report."""
         report = EnrichmentBenchmarkReport(total_chunks=len(chunks))
 
         chunk_scores = {field.value: [] for field in EnrichmentFieldType}
 
-        for chunk in chunks:
-            chunk_report = self.validate_chunk(chunk)
-            report.chunk_reports.append(chunk_report)
+        for i, chunk in enumerate(chunks):
+            if verbose:
+                print(f"[{i+1}/{len(chunks)}] Validating {chunk.chunk_id}...", end="", flush=True)
 
-            # Aggregate metrics
+            if judge_model:
+                chunk_report = self.validate_chunk_with_llm(chunk, judge_model, provider_type)
+            else:
+                chunk_report = self.validate_chunk(chunk)
+            
+            report.chunk_reports.append(chunk_report)
+            
+            if verbose:
+                print(f" Score: {chunk_report.overall_score:.2f}")
             if chunk_report.overall_validity:
                 report.valid_chunks += 1
 
@@ -794,6 +807,165 @@ class EnrichmentValidator:
 
         return report
 
+    def validate_chunk_with_llm(
+        self, 
+        chunk: Chunk, 
+        judge_model: str, 
+        provider_type: str = "ollama"
+    ) -> ChunkEnrichmentValidationReport:
+        """
+        Validate enrichment quality using an LLM judge.
+        
+        This method sends the chunk content and its enrichment to an LLM
+        to evaluate the quality, accuracy, and relevance of the enriched metadata.
+        """
+        # 1. Run Heuristic Validation first (Base Layer)
+        # This catches schema errors, missing fields, invalid enums, etc.
+        heuristic_report = self.validate_chunk(chunk)
+        
+        # If heuristics completely failed (critical issues), maybe skip LLM to save cost?
+        # For now, let's proceed but weight the heuristic failure heavily.
+        
+        try:
+            provider = create_provider(self.config, judge_model, provider_type)
+        except Exception as e:
+            print(f"⚠️ Failed to create judge provider: {e}")
+            return heuristic_report
+        
+        # ... (rest of prompt construction stays similar) ...
+        
+        # Prepare the context for the judge
+        enrichment_data = {
+            "narrative_summary": chunk.narrative_summary,
+            "hypothetical_questions": chunk.hypothetical_questions,
+            "speaker_intents": chunk.speaker_intents,
+            "temporal_context": chunk.temporal_context,
+            "entities": chunk.entities,
+            "emotions": chunk.emotions,
+            "social_dynamics": {
+                "interaction_pattern": chunk.interaction_pattern,
+                "initiative": chunk.initiative,
+                "emotional_shift": chunk.emotional_shift,
+                "open_loops": chunk.open_loops
+            }
+        }
+        
+        prompt = f"""You are an expert AI judge evaluating the quality of metadata extraction from conversation chunks.
+        
+TASK:
+Evaluate how well the extracted metadata (Enrichment) reflects the original Conversation Chunk.
+
+ORIGINAL CONVERSATION CHUNK:
+---
+{chunk.content}
+---
+
+EXTRACTED ENRICHMENT METADATA:
+---
+{json.dumps(enrichment_data, indent=2, ensure_ascii=False)}
+---
+
+EVALUATION CRITERIA:
+1. Accuracy: Does the summary and metadata factually reflect the conversation?
+2. Completeness: Are all key entities, emotions, and intents captured?
+3. Relevance: Are the hypothetical questions relevant and answerable from the text?
+4. Hallucination: Are there any invented details not present in the text?
+
+OUTPUT FORMAT:
+Return a JSON object with evaluation for each major category. format:
+{{
+    "narrative_summary": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
+    "questions": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
+    "speaker_intents": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
+    "entities": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
+    "emotions": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
+    "temporal_context": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
+    "social_dynamics": {{ "score": 0.0-1.0, "reason": "concise explanation" }}
+}}
+
+Ensure strictly valid JSON output. Do not include markdown formatting ```json ... ```.
+"""
+        
+        try:
+            response = provider.generate([{"role": "user", "content": prompt}], temperature=0.1)
+            
+            # Clean response
+            cleaned_response = response.strip()
+            if cleaned_response.startswith("```json"):
+                cleaned_response = cleaned_response[7:]
+            if cleaned_response.endswith("```"):
+                cleaned_response = cleaned_response[:-3]
+            cleaned_response = cleaned_response.strip()
+
+            eval_json = json.loads(cleaned_response)
+                
+            # Update heuristic report with LLM scores
+            # We treat the LLM score as the "Quality Score" and Heuristic as "Schema Score"
+            # Final Score = (LLM Score * 0.7) + (Heuristic Score * 0.3) ? 
+            # Or simplified: Use LLM score but penalize if heuristic failed.
+            
+            def update_field(field_type, json_key):
+                if json_key not in eval_json: return
+                
+                data = eval_json[json_key]
+                llm_score = float(data.get("score", 0.0))
+                reason = data.get("reason", "")
+                
+                # Get existing heuristic result
+                if field_type.value in heuristic_report.field_results:
+                    res = heuristic_report.field_results[field_type.value]
+                    
+                    # Combine scores: LLM is dominant for quality, but heuristic penalties apply
+                    # If heuristic found critical issue (score=0), keep it low.
+                    # If heuristic was perfect (1.0), let LLM decide quality.
+                    
+                    if res.is_valid: # Heuristics passed
+                        res.score = llm_score
+                    else: # Heuristics failed (schema error)
+                        res.score = min(res.score, llm_score)
+                    
+                    res.metadata["judge_score"] = llm_score
+                    res.metadata["judge_reason"] = reason
+                    
+                    if llm_score < 0.7:
+                         res.warnings.append(f"Judge Warning: {reason}")
+                    if llm_score < 0.4:
+                         res.issues.append(f"Judge Critical: {reason}")
+
+            # Map fields
+            update_field(EnrichmentFieldType.NARRATIVE_SUMMARY, "narrative_summary")
+            update_field(EnrichmentFieldType.QUESTIONS, "questions")
+            update_field(EnrichmentFieldType.SPEAKER_INTENTS, "speaker_intents")
+            update_field(EnrichmentFieldType.ENTITIES, "entities")
+            update_field(EnrichmentFieldType.EMOTIONS, "emotions")
+            update_field(EnrichmentFieldType.TEMPORAL_CONTEXT, "temporal_context")
+            
+            # Social dynamics fields
+            social_data = eval_json.get("social_dynamics", {})
+            if social_data:
+                social_score = float(social_data.get("score", 0.0))
+                social_reason = social_data.get("reason", "")
+                
+                for field_type in [EnrichmentFieldType.INTERACTION_PATTERN, EnrichmentFieldType.INITIATIVE, EnrichmentFieldType.EMOTIONAL_SHIFT, EnrichmentFieldType.OPEN_LOOPS]:
+                    if field_type.value in heuristic_report.field_results:
+                        res = heuristic_report.field_results[field_type.value]
+                        if res.is_valid:
+                            res.score = social_score
+                        else:
+                            res.score = min(res.score, social_score)
+                        
+                        res.metadata["judge_score"] = social_score
+                        res.metadata["judge_reason"] = social_reason
+                        if social_score < 0.7: res.warnings.append(f"Judge: {social_reason}")
+
+            # Recalculate overall metrics for the report
+            self._calculate_overall_metrics(heuristic_report)
+            return heuristic_report
+
+        except Exception as e:
+            print(f"⚠️ LLM Judge failed for chunk {chunk.chunk_id}: {e}")
+            # Fallback to heuristic validation
+            return heuristic_report
 
 def print_validation_report(report: ChunkEnrichmentValidationReport):
     """Pretty print a chunk validation report."""

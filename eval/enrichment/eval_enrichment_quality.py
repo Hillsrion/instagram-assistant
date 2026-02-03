@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from rag_pipeline.config import Config, default_config
 from rag_pipeline.chunker import Chunk, ConversationChunker
 from rag_pipeline.enricher import ChunkEnricher
-from eval.enrichment.eval_enrichment import (
+from eval.enrichment.enrichment_validator import (
     EnrichmentValidator,
     EnrichmentBenchmarkReport,
     print_benchmark_report,
