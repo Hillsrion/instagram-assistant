@@ -107,8 +107,9 @@ class Config:
     # Minimum RAM for dual-load strategy (GB)
     min_ram_gb_for_dual: float = 10.0
     # Complexity thresholds (0.0-1.0)
-    complexity_simple_threshold: float = 0.35
-    complexity_complex_threshold: float = 0.65
+    # Complexity thresholds (0.0-1.0)
+    complexity_simple_threshold: float = 0.28
+    complexity_complex_threshold: float = 0.45
     # Route medium chunks to light model (3B) or strong model (8B)
     complexity_medium_uses_light: bool = True
     # Metric weights (must sum to 1.0)

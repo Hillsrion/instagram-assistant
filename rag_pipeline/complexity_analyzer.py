@@ -49,8 +49,8 @@ class ChunkComplexityAnalyzer:
         self.config = config
 
         # Thresholds for classification
-        self.simple_threshold = 0.35
-        self.complex_threshold = 0.65
+        self.simple_threshold = 0.28
+        self.complex_threshold = 0.45
 
         # Metric weights (must sum to 1.0)
         self.weights = {
@@ -64,8 +64,8 @@ class ChunkComplexityAnalyzer:
 
         # Load from config if available
         if config:
-            self.simple_threshold = getattr(config, 'complexity_simple_threshold', 0.35)
-            self.complex_threshold = getattr(config, 'complexity_complex_threshold', 0.65)
+            self.simple_threshold = getattr(config, 'complexity_simple_threshold', 0.28)
+            self.complex_threshold = getattr(config, 'complexity_complex_threshold', 0.45)
             if hasattr(config, 'complexity_weights') and config.complexity_weights:
                 self.weights = config.complexity_weights
 
@@ -153,7 +153,7 @@ class ChunkComplexityAnalyzer:
         count = len(active_participants)
         if count <= 2:
             return 0.0
-        elif count <= 4:
+        elif count <= 3:
             return 0.5
         else:
             return 1.0
@@ -164,10 +164,11 @@ class ChunkComplexityAnalyzer:
         total_tokens = self._estimate_tokens(clean_content)
         tokens_per_msg = total_tokens / msg_count
 
-        if tokens_per_msg < 50:
+        # Chat messages are short. 12 tokens (~9-10 words) is already meaningful.
+        if tokens_per_msg < 12:
             return 0.0
-        elif tokens_per_msg < 100:
-            return (tokens_per_msg - 50) / 50.0
+        elif tokens_per_msg < 40:
+            return (tokens_per_msg - 12) / 28.0
         else:
             return 1.0
 
@@ -265,4 +266,3 @@ class ChunkComplexityAnalyzer:
             return 0.0
         diversity = len(set(words)) / math.sqrt(len(words))
         return min(diversity, 1.0)
-

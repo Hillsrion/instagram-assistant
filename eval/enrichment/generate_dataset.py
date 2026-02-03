@@ -91,30 +91,54 @@ def generate_enrichment_dataset(
 
     print(f"📊 Total available: Simple: {len(buckets['simple'])}, Medium: {len(buckets['medium'])}, Complex: {len(buckets['complex'])}")
     
-    # 3. Sample
-    if simple_target is None and medium_target is None and complex_target is None:
-        # Default even distribution
-        simple_target = size // 3
-        medium_target = size // 3
-        complex_target = size - (size // 3) * 2
+    # 3. Sample with redistribution for under-represented categories
+    available = {cat: len(buckets[cat]) for cat in buckets}
     
-    targets = {
-        "simple": simple_target or 0,
-        "medium": medium_target or 0,
-        "complex": complex_target or 0
-    }
+    # Initialize targets based on size
+    if simple_target is None and medium_target is None and complex_target is None:
+        targets = {
+            "simple": size // 3,
+            "medium": size // 3,
+            "complex": size - (size // 3) * 2
+        }
+    else:
+        targets = {
+            "simple": simple_target or 0,
+            "medium": medium_target or 0,
+            "complex": complex_target or 0
+        }
+
+    # Redistribution Loop: if a category has fewer items than its target,
+    # redistribute the surplus to other categories that still have room.
+    print(f"🎯 Initial targets: {targets}")
+    for _ in range(5): # Rounds to stabilize redistribution
+        total_overflow = 0
+        cats_with_room = []
+        
+        for cat in ["simple", "medium", "complex"]:
+            if targets[cat] > available[cat]:
+                total_overflow += targets[cat] - available[cat]
+                targets[cat] = available[cat]
+            elif available[cat] > targets[cat]:
+                cats_with_room.append(cat)
+        
+        if total_overflow <= 0 or not cats_with_room:
+            break
+            
+        extra_per_cat = total_overflow // len(cats_with_room)
+        remainder = total_overflow % len(cats_with_room)
+        
+        for i, cat in enumerate(cats_with_room):
+            add = extra_per_cat + (1 if i < remainder else 0)
+            targets[cat] += add
+
+    print(f"📊 Final targets after redistribution: {targets}")
     
     dataset = []
     
-    # 3a. Simple sampling (random is fine for simple)
-    simple_target = targets["simple"]
-    simple_items = buckets["simple"]
-    if simple_items and simple_target > 0:
-        if len(simple_items) >= simple_target:
-            dataset.extend(random.sample(simple_items, simple_target))
-        else:
-            print(f"⚠️ Not enough simple chunks (requested {simple_target}, found {len(simple_items)}).")
-            dataset.extend(simple_items)
+    # 3a. Simple sampling (random)
+    if targets["simple"] > 0:
+        dataset.extend(random.sample(buckets["simple"], targets["simple"]))
 
     # 3b. Diversified sampling for medium and complex chunks
     weights = analyzer.weights
@@ -124,7 +148,6 @@ def generate_enrichment_dataset(
             return []
         
         if len(items) <= target:
-            print(f"⚠️ Taking all available {cat_name} chunks ({len(items)}).")
             return items
             
         print(f"🎯 Performing diversified sampling for {target} {cat_name} chunks...")
@@ -132,24 +155,16 @@ def generate_enrichment_dataset(
         # Sub-bucket chunks by their dominant metric
         sub_buckets = {}
         for chunk_data in items:
-            # Re-analyze to get the dominant metric
             c = Chunk(**{k: v for k, v in chunk_data.items() if k != 'metadata'})
             analysis = analyzer.analyze(c)
-            
-            # Find which weighted metric contributes most
             dominant_metric = max(weights.keys(), key=lambda m: analysis.breakdown[m] * weights[m])
             
             if dominant_metric not in sub_buckets:
                 sub_buckets[dominant_metric] = []
             sub_buckets[dominant_metric].append(chunk_data)
             
-        # Sample across sub-buckets
-        sub_bucket_names = list(sub_buckets.keys())
-        print(f"   Found {cat_name} chunks dominant in: {', '.join([f'{m}({len(sub_buckets[m])})' for m in sub_bucket_names])}")
-        
         selected = []
         while len(selected) < target and sub_buckets:
-            # Round-robin selection
             for m in list(sub_buckets.keys()):
                 if len(selected) >= target:
                     break
@@ -159,12 +174,9 @@ def generate_enrichment_dataset(
                     del sub_buckets[m]
         return selected
 
-    # Apply to Medium
     dataset.extend(get_diversified_sample(buckets["medium"], targets["medium"], "medium"))
-    
-    # Apply to Complex
     dataset.extend(get_diversified_sample(buckets["complex"], targets["complex"], "complex"))
-        
+
     # Shuffle the final dataset
     random.shuffle(dataset)
 
