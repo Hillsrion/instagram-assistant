@@ -61,9 +61,11 @@ python cli.py
 
 ## 📚 Documentation
 
+- **[Full Documentation](docs/README.md)**: The central hub for all project docs.
 - **[Installation Guide](docs/QUICKSTART.md)**: Detailed step-by-step setup.
 - **[Command Reference](docs/COMMANDS.md)**: All available CLI commands.
-- **[Architecture](docs/ARCHITECTURE.md)**: How the RAG pipeline works.
+- **[Architecture](docs/ARCHITECTURE.md)**: How the system works.
+- **[RAG Pipeline](docs/rag/README.md)**: Deep dive into the AI logic.
 - **[Development](docs/DEVELOPMENT.md)**: For contributors.
 
 ## 🛠️ Common Tasks

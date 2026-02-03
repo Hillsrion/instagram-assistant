@@ -16,7 +16,7 @@ This `GEMINI.md` provides context for the Gemini CLI agent working on the Instag
 - **[Commands](docs/COMMANDS.md):** Build, run, test, eval commands, and utility scripts.
 - **[Architecture](docs/ARCHITECTURE.md):** System modules, data flow, and tech stack.
 - **[Development](docs/DEVELOPMENT.md):** Setup, workflow, and code conventions.
-- **[RAG Pipeline](docs/RAG_PIPELINE.md):** detailed breakdown of the indexing and query steps.
+- **[RAG Pipeline](docs/rag/RAG_PIPELINE.md):** detailed breakdown of the indexing and query steps.
 - **[Agents](AGENTS.md):** Details on the specific LLM agents and prompts.
 - **[Configuration](docs/CONFIGURATION.md):** Environment variables and settings.
 
