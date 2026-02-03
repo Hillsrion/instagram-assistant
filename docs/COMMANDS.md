@@ -58,8 +58,17 @@ python setup_rag.py              # Run full pipeline
 python setup_rag.py --status     # Show indexing progress
 python setup_rag.py --reset      # Full reindex from scratch
 python setup_rag.py --only chunks  # Run a single step (chunks, embeddings, etc.)
-python instagram_to_text.py      # Convert JSON export to text
-python update_index.py           # Incremental update
+
+# Partial Indexing (Test with enriched data only)
+python setup_embeddings.py --enriched-only  # Only vectorise fully enriched chunks
+python setup_indexes.py                     # Will auto-detect partial index
+
+# Maintenance / Incremental Update (When new messages are added)
+python scripts/update_chunks.py             # Sync .txt files with chunks.json (preserves existing enrichment)
+python setup_enrich.py                      # Enrich only the new/modified chunks
+python setup_embeddings.py --enriched-only  # Update vectors (incremental cache)
+python setup_indexes.py                     # Refresh index
+
 ```
 
 ## Testing

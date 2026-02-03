@@ -59,6 +59,15 @@ Each chunk's `get_embedding_text()` method builds a composite string prioritized
 
 For the complete rationale, design decisions, and trade-offs, see [EMBEDDING_STRATEGY.md](EMBEDDING_STRATEGY.md).
 
+#### Incremental Caching & Maintenance
+To support long-term updates (e.g. adding new messages to a 5-year conversation), the pipeline uses **Content-Addressable Caching**:
+- Embeddings are cached based on the MD5 hash of their *content*.
+- `scripts/update_chunks.py` detects changed chunks by comparing fresh hashes vs existing ones.
+- **Workflow**:
+  1. `update_chunks.py` preserves enrichment for unchanged chunks, marks modified ones as new.
+  2. `setup_enrich.py` processes only the delta.
+  3. `setup_embeddings.py --enriched-only` re-uses cached vectors and computes only new ones.
+
 Encoded via **BGE-M3** (1024-dim, multilingual FR/EN), L2-normalized for cosine similarity.
 
 ### Steps 4–6 — Index Construction
