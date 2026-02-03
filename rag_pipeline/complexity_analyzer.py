@@ -49,23 +49,24 @@ class ChunkComplexityAnalyzer:
         self.config = config
 
         # Thresholds for classification
-        self.simple_threshold = 0.28
-        self.complex_threshold = 0.45
+        # Lowered to be more conservative with the light model (3B)
+        self.simple_threshold = 0.25  # Was 0.28
+        self.complex_threshold = 0.40 # Was 0.45
 
         # Metric weights (must sum to 1.0)
         self.weights = {
             "participants": 0.20,
-            "density": 0.30,      # Increased from 0.25
-            "media": 0.05,        # Decreased from 0.15
-            "size": 0.25,         # Increased from 0.15
-            "lexical_diversity": 0.15, # Decreased from 0.15 to keep sum at 1.0
-            "dialogue": 0.05,     # Decreased from 0.10
+            "density": 0.25,      # Decreased from 0.30 (length isn't everything)
+            "media": 0.05,        
+            "size": 0.20,         # Decreased from 0.25
+            "lexical_diversity": 0.15, 
+            "dialogue": 0.15,     # Increased from 0.05 (vital for intents/emotions)
         }
 
         # Load from config if available
         if config:
-            self.simple_threshold = getattr(config, 'complexity_simple_threshold', 0.28)
-            self.complex_threshold = getattr(config, 'complexity_complex_threshold', 0.45)
+            self.simple_threshold = getattr(config, 'complexity_simple_threshold', 0.25)
+            self.complex_threshold = getattr(config, 'complexity_complex_threshold', 0.40)
             if hasattr(config, 'complexity_weights') and config.complexity_weights:
                 self.weights = config.complexity_weights
 
@@ -148,13 +149,18 @@ class ChunkComplexityAnalyzer:
     def _score_participants(self, active_participants: list) -> float:
         """
         Score based on number of ACTIVE participants.
-        1-2: 0.0, 3-4: 0.5, 5+: 1.0
+        Monologue (<2): 0.0
+        Dialogue (2): 0.3   (Standard conversation baseline)
+        Small Group (3): 0.6
+        Group (4+): 1.0
         """
         count = len(active_participants)
-        if count <= 2:
+        if count < 2:
             return 0.0
-        elif count <= 3:
-            return 0.5
+        elif count == 2:
+            return 0.3  # Give baseline score to DMs so they aren't artificially "simple"
+        elif count == 3:
+            return 0.6
         else:
             return 1.0
 
