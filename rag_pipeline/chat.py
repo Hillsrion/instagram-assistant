@@ -172,6 +172,11 @@ class ChatBot:
         to_summarize = self.conversation_history[:-4]
         history_text = "\n".join([f"{m['role']}: {m['content']}" for m in to_summarize])
         
+        # Safety: Truncate history_text to avoid context overflow (~3000 chars ≈ 750-1000 tokens)
+        MAX_HISTORY_CHARS = 3000
+        if len(history_text) > MAX_HISTORY_CHARS:
+            history_text = history_text[:MAX_HISTORY_CHARS] + "\n[...tronqué...]"
+        
         prompt = f"""Fais une synthèse concise de cette conversation passée entre l'utilisateur et l'assistant.
 Ton objectif est de conserver le contexte pour la suite de la discussion.
 
@@ -188,10 +193,11 @@ Nouveaux échanges à intégrer :
 Réponds uniquement par un paragraphe de synthèse."""
 
         try:
+            # Use fast model for summarization (lighter task, faster response)
             summary = self._call_ollama_direct(
                 system_prompt="Tu es un assistant expert en synthèse de mémoire conversationnelle.",
                 user_prompt=prompt,
-                model=self.config.llm_model,
+                model=self.config.llm_model_fast,
                 max_tokens=250
             )
             self.history_summary = summary.strip()
@@ -200,6 +206,10 @@ Réponds uniquement par un paragraphe de synthèse."""
             print(f"✅ History compacted. Summary length: {len(self.history_summary)} chars")
         except Exception as e:
             print(f"⚠️ Failed to compact history: {e}")
+            # Fallback: Truncate history anyway to prevent unbounded growth
+            if len(self.conversation_history) > 12:
+                self.conversation_history = self.conversation_history[-6:]
+                print("⚠️ Fallback: History truncated to 6 messages without summary.")
 
     def _call_ollama_direct(self, system_prompt: str, user_prompt: str, model: str, max_tokens: int = 50) -> str:
         messages = [
