@@ -11,7 +11,7 @@ from typing import List, Optional
 
 
 # Root directory for all evaluation results
-EVAL_RESULTS_DIR = Path(__file__).parent / "results"
+EVAL_RESULTS_DIR = Path(__file__).parent.parent / "results"
 
 
 def ensure_dir(path: Path) -> Path:
@@ -157,5 +157,19 @@ def get_multichunk_report_path(
     Get output path for multi-chunk generation evaluation report (in run subfolder).
     """
     run_dir = _get_run_dir("eval_generation_multichunk", models, timestamp)
+    filename = "report" if format == "html" else "results"
+    return run_dir / f"{filename}.{format}"
+
+
+def get_enrichment_report_path(
+    models: List[str],
+    timestamp: Optional[datetime] = None,
+    format: str = "html"
+) -> Path:
+    """
+    Get output path for enrichment evaluation report.
+    Format: eval/results/eval_enrichment/run_.../report.html
+    """
+    run_dir = _get_run_dir("eval_enrichment", models, timestamp)
     filename = "report" if format == "html" else "results"
     return run_dir / f"{filename}.{format}"
