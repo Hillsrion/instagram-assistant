@@ -51,6 +51,9 @@ class Chunk:
     emotional_shift: Optional[str] = None  # e.g. "neutral -> happy"
     open_loops: Optional[List[str]] = None  # Unresolved topics
     
+    # Generic metadata for auxiliary info (e.g. complexity scores)
+    metadata: Optional[Dict[str, Any]] = None
+    
     def to_dict(self) -> dict:
         return asdict(self)
 

@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from rag_pipeline.config import Config
 from rag_pipeline.chunker import Chunk
 from rag_pipeline.enricher import ChunkEnricher
-from eval.core._output_paths import get_generation_report_path
+from eval.core._output_paths import get_enrichment_report_path
 
 def load_dataset_chunks(path: Path) -> List[Dict]:
     with open(path, 'r', encoding='utf-8') as f:
@@ -96,7 +96,7 @@ def run_performance_test(chunks_data: List[Dict], num_trials: int = 5):
     else:
         print(f"⚠️ Dynamic Switch was slower (overhead > gain)")
 
-def run_quality_eval(chunks_data: List[Dict], num_samples: int = 3):
+def run_quality_eval(chunks_data: List[Dict], num_samples: int = 3, models: List[str] = None):
     print("\n" + "="*60)
     print("🧠 QUALITY EVALUATION (3B vs 8B)")
     print("="*60)
@@ -118,8 +118,12 @@ def run_quality_eval(chunks_data: List[Dict], num_samples: int = 3):
     config = Config()
     
     # Define models to compare
-    model_3b = config.llm_light_model # e.g. ministral-3:3b
-    model_8b = config.llm_model # e.g. ministral-3:8b
+    if models and len(models) >= 2:
+        model_3b = models[0]
+        model_8b = models[1]
+    else:
+        model_3b = config.llm_light_model # e.g. ministral-3:3b
+        model_8b = config.llm_model # e.g. ministral-3:8b
     
     print(f"Comparing {model_3b} (Small) vs {model_8b} (Large)...")
 
@@ -204,10 +208,11 @@ def run_quality_eval(chunks_data: List[Dict], num_samples: int = 3):
         })
 
     # Generate Report
-    generate_quality_report(results)
+    generate_quality_report(results, [model_3b, model_8b])
 
-def generate_quality_report(results: List[Dict]):
-    timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def generate_quality_report(results: List[Dict], models: List[str]):
+    timestamp = datetime.now()
+    timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
     
     html = f"""
 <!DOCTYPE html>
@@ -349,7 +354,8 @@ def generate_quality_report(results: List[Dict]):
 </html>
     """
     
-    output_path = Path(__file__).parent / f"dynamic_switch_eval_{int(time.time())}.html"
+    output_path = get_enrichment_report_path(models, timestamp=timestamp, format="html")
+    
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(html)
     
@@ -368,6 +374,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate Dynamic Model Switching")
     parser.add_argument("--perf-trials", type=int, default=10, help="Number of chunks for performance test")
     parser.add_argument("--quality-samples", type=int, default=3, help="Number of samples per category for quality test")
+    parser.add_argument("--models", type=str, help="Comma-separated list of 2 models to compare (e.g. 'ministral-3:3b,ministral-3:8b')")
     parser.add_argument("--skip-perf", action="store_true")
     parser.add_argument("--skip-quality", action="store_true")
     
@@ -381,8 +388,16 @@ if __name__ == "__main__":
     chunks_data = load_dataset_chunks(path)
     print(f"Loaded {len(chunks_data)} chunks from dataset")
 
+    # Parse models if provided
+    models = None
+    if args.models:
+        models = [m.strip() for m in args.models.split(',') if m.strip()]
+        if len(models) < 2:
+            print("⚠️ Warning: Need at least 2 models for comparison. Using defaults.")
+            models = None
+
     if not args.skip_perf:
         run_performance_test(chunks_data, args.perf_trials)
         
     if not args.skip_quality:
-        run_quality_eval(chunks_data, args.quality_samples)
+        run_quality_eval(chunks_data, args.quality_samples, models)

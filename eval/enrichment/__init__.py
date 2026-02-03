@@ -3,12 +3,10 @@ Enrichment validation module.
 Validates chunk enrichment quality with ROUGE-L scoring.
 """
 
-from .eval_enrichment import (
+from .enrichment_validator import (
     EnrichmentValidator,
-    EnrichmentFieldType,
-    FieldValidationResult,
-    ChunkEnrichmentValidationReport,
     EnrichmentBenchmarkReport,
+    ChunkEnrichmentValidationReport,
 )
 
 __all__ = [

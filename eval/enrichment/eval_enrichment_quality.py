@@ -56,7 +56,11 @@ def create_chunk_from_dict(data: Dict) -> Chunk:
     if 'participants' not in data_copy:
          data_copy['participants'] = []
     
-    return Chunk.from_dict(data_copy)
+    chunk = Chunk.from_dict(data_copy)
+    # Preserve original metadata dict if it exists in the input
+    if 'metadata' in data_copy:
+        chunk.metadata = data_copy['metadata']
+    return chunk
 
 def load_chunks_from_index(config: Config, limit: int = None) -> List[Chunk]:
     """Load chunks from the pickled chunk index."""
@@ -184,6 +188,22 @@ def generate_comparative_html_report(
                 <div class="grid {grid_cols} gap-6">
         """
         
+        # Determine the winner for this chunk
+        best_score = -1.0
+        winner_model = None
+        
+        # First pass to find the winner
+        for model in models:
+            m_res = model_results.get(model)
+            if m_res:
+                score = m_res['report'].overall_score
+                if score > best_score:
+                    best_score = score
+                    winner_model = model
+                elif score == best_score:
+                    # Tie-breaker: Time (optional, or just treat first as winner/tied)
+                    pass
+
         for model in models:
             m_res = model_results.get(model)
             if not m_res:
@@ -195,12 +215,22 @@ def generate_comparative_html_report(
             time_taken = m_res['time']
             
             score = report.overall_score
-            score_color = "text-green-600" if score >= 0.8 else "text-orange-600" if score >= 0.5 else "text-red-600"
-            border_color = "border-green-100" if score >= 0.8 else "border-orange-100" if score >= 0.5 else "border-red-100"
+            is_winner = (model == winner_model)
             
+            # Border: Green only if winner, else gray
+            border_class = "border-green-500 ring-4 ring-green-50" if is_winner else "border-gray-200"
+            if is_winner:
+               score_color = "text-green-700" 
+            elif score >= 0.8: 
+               score_color = "text-gray-900" 
+            elif score >= 0.5:
+               score_color = "text-orange-600"
+            else:
+               score_color = "text-red-600"
+
             html += f"""
                     <!-- Model Column: {model} -->
-                    <div class="flex flex-col h-full bg-white border-2 {border_color} rounded-lg overflow-hidden relative transition-all hover:shadow-md">
+                    <div class="flex flex-col h-full bg-white border-2 {border_class} rounded-lg overflow-hidden relative transition-all hover:shadow-md">
                         <!-- Header -->
                         <div class="bg-gray-50/50 p-4 border-b border-gray-100">
                             <div class="flex justify-between items-start mb-2">
@@ -210,6 +240,7 @@ def generate_comparative_html_report(
                             <div class="flex items-baseline space-x-2">
                                 <span class="text-2xl font-bold {score_color}">{score:.2f}</span>
                                 <span class="text-xs text-gray-500 font-medium uppercase">Score</span>
+                                { '<span class="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold">WINNER</span>' if is_winner else '' }
                             </div>
                              {render_warnings_html(report.warnings_count, report.field_results)}
                         </div>
@@ -415,9 +446,15 @@ def main():
     for i, original_chunk in enumerate(chunks):
         print(f"\n[{i+1}/{len(chunks)}] Processing chunk {original_chunk.chunk_id}")
         
+        # Extract metadata
+        meta = getattr(original_chunk, 'metadata', {}) or {}
+        complexity_score = meta.get('complexity_score', 0.0)
+        complexity_category = meta.get('complexity_category', 'unknown')
+
         chunk_result = {
             "original_chunk": original_chunk,
-            "complexity_score": getattr(original_chunk, 'complexity_score', 0) if hasattr(original_chunk, 'complexity_score') else 0, # might come from dataset metadata
+            "complexity_score": complexity_score, 
+            "category": complexity_category,
             "model_results": {}
         }
         
