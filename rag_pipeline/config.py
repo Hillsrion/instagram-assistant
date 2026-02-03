@@ -108,18 +108,18 @@ class Config:
     min_ram_gb_for_dual: float = 10.0
     # Complexity thresholds (0.0-1.0)
     # Complexity thresholds (0.0-1.0)
-    complexity_simple_threshold: float = 0.28
-    complexity_complex_threshold: float = 0.45
+    complexity_simple_threshold: float = 0.25
+    complexity_complex_threshold: float = 0.40
     # Route medium chunks to light model (3B) or strong model (8B)
     complexity_medium_uses_light: bool = True
     # Metric weights (must sum to 1.0)
     complexity_weights: dict = field(default_factory=lambda: {
         "participants": 0.20,
         "density": 0.25,
-        "media": 0.15,
-        "size": 0.15,
+        "media": 0.05,
+        "size": 0.20,
         "lexical_diversity": 0.15,
-        "dialogue": 0.10,
+        "dialogue": 0.15,
     })
     # Force specific model (override complexity routing)
     force_model: Optional[str] = None

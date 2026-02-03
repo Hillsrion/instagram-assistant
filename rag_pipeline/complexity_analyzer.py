@@ -165,16 +165,16 @@ class ChunkComplexityAnalyzer:
             return 1.0
 
     def _score_density(self, clean_content: str, message_count: int) -> float:
-        """Score based on tokens per message in cleaned content."""
-        msg_count = max(message_count or 1, 1)
+        """Score based on TOTAL tokens in the chunk (Volume)."""
+        # User requested per-chunk density (total volume) rather than per-message
         total_tokens = self._estimate_tokens(clean_content)
-        tokens_per_msg = total_tokens / msg_count
 
-        # Chat messages are short. 12 tokens (~9-10 words) is already meaningful.
-        if tokens_per_msg < 12:
+        # < 50 tokens: Very light content (0.0)
+        # > 300 tokens: Heavy content (1.0)
+        if total_tokens < 50:
             return 0.0
-        elif tokens_per_msg < 40:
-            return (tokens_per_msg - 12) / 28.0
+        elif total_tokens < 300:
+            return (total_tokens - 50) / 250.0
         else:
             return 1.0
 
@@ -202,12 +202,16 @@ class ChunkComplexityAnalyzer:
             return 1.0
 
     def _score_lexical_diversity(self, clean_content: str) -> float:
-        """Score based on lexical diversity of cleaned content."""
-        diversity = self._compute_lexical_diversity(clean_content)
-        if diversity < 0.5:
+        """Score based on Guiraud Index (Root TTR)."""
+        # Guiraud = Unique / Sqrt(Total)
+        # Low (< 3.5): Simple, repetitive, or very short (0.0)
+        # High (> 8.0): Rich vocabulary in sufficient quantity (1.0)
+        guiraud = self._compute_lexical_diversity(clean_content)
+        
+        if guiraud < 3.5:
             return 0.0
-        elif diversity < 0.8:
-            return (diversity - 0.5) / 0.3
+        elif guiraud < 8.0:
+            return (guiraud - 3.5) / 4.5
         else:
             return 1.0
 
@@ -271,4 +275,5 @@ class ChunkComplexityAnalyzer:
         if not words or len(words) < 2:
             return 0.0
         diversity = len(set(words)) / math.sqrt(len(words))
-        return min(diversity, 1.0)
+        diversity = len(set(words)) / math.sqrt(len(words))
+        return diversity
