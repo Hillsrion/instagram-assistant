@@ -39,10 +39,9 @@ We implemented a router based on `ChunkComplexityAnalyzer` with strict threshold
 Chunks are scored (0.0 - 1.0) based on 6 weighted metrics:
 
 - **Participants (20%)**: Baseline score of **0.3** for DMs (2 people) to fix bias against private convos.
-- **Density (25%)**: Data volume (Total tokens per chunk).
+- **Information Content (40%)**: Volume of unique concepts (Unique Words). Replaces Density & Lexical Diversity.
 - **Size (20%)**: Number of messages.
 - **Dialogue (15%)**: Presence of questions, exclamations, emojis (proxy for emotional complexity).
-- **Lexical Diversity (15%)**: Vocabulary richness (Guiraud Index).
 - **Media (5%)**: Attachments and links.
 
 ### B. Routing Logic

@@ -115,10 +115,9 @@ class Config:
     # Metric weights (must sum to 1.0)
     complexity_weights: dict = field(default_factory=lambda: {
         "participants": 0.20,
-        "density": 0.25,
+        "information_content": 0.40,
         "media": 0.05,
         "size": 0.20,
-        "lexical_diversity": 0.15,
         "dialogue": 0.15,
     })
     # Force specific model (override complexity routing)

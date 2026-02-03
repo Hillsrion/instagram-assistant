@@ -15,10 +15,9 @@ from .chunker import Chunk
 class ComplexityMetrics:
     """Individual complexity metric scores."""
     participants: float
-    density: float
+    information_content: float  # Replaces density + lexical_diversity
     media: float
     size: float
-    lexical_diversity: float
     dialogue: float
 
 
@@ -33,34 +32,31 @@ class ComplexityAnalysis:
 
 class ChunkComplexityAnalyzer:
     """
-    Analyzes chunk complexity using 6 weighted metrics to determine
+    Analyzes chunk complexity using 5 weighted metrics to determine
     which LLM model should process it (3B for simple, 8B for complex).
 
     Metrics:
-    - Participants (0.20): More people = more perspectives
-    - Density (0.25): Longer messages = more content to analyze
-    - Media (0.15): Links/media = need context
-    - Size (0.15): More messages = more synthesis needed
-    - Lexical Diversity (0.15): Rich vocabulary = subtle meaning
-    - Dialogue Patterns (0.10): Emotions/questions = nuanced sentiment
+    - Information Content (0.40): Volume of unique concepts (Unique Words). Replaces Density/Lexical.
+    - Participants (0.20): More people = more perspectives.
+    - Size (0.20): Number of messages.
+    - Dialogue (0.15): Emotions/questions = nuanced sentiment.
+    - Media (0.05): Links/media = need context.
     """
 
     def __init__(self, config=None):
         self.config = config
 
         # Thresholds for classification
-        # Lowered to be more conservative with the light model (3B)
-        self.simple_threshold = 0.25  # Was 0.28
-        self.complex_threshold = 0.40 # Was 0.45
+        self.simple_threshold = 0.25
+        self.complex_threshold = 0.40
 
         # Metric weights (must sum to 1.0)
         self.weights = {
+            "information_content": 0.40,
             "participants": 0.20,
-            "density": 0.25,      # Decreased from 0.30 (length isn't everything)
-            "media": 0.05,        
-            "size": 0.20,         # Decreased from 0.25
-            "lexical_diversity": 0.15, 
-            "dialogue": 0.15,     # Increased from 0.05 (vital for intents/emotions)
+            "size": 0.20,
+            "dialogue": 0.15,
+            "media": 0.05,
         }
 
         # Load from config if available
@@ -85,12 +81,11 @@ class ChunkComplexityAnalyzer:
         category = self._classify(score)
 
         breakdown = {
+            "information_content": metrics.information_content,
             "participants": metrics.participants,
-            "density": metrics.density,
-            "media": metrics.media,
             "size": metrics.size,
-            "lexical_diversity": metrics.lexical_diversity,
             "dialogue": metrics.dialogue,
+            "media": metrics.media,
         }
 
         return ComplexityAnalysis(
@@ -101,17 +96,16 @@ class ChunkComplexityAnalyzer:
         )
 
     def _compute_metrics(self, chunk: Chunk) -> ComplexityMetrics:
-        """Compute all 6 complexity metrics."""
+        """Compute all complexity metrics."""
         # 0. Preparation: Get cleaned content and active participants
         clean_content = self._get_clean_content(chunk.content or "")
         active_participants = self._get_active_authors(chunk.content or "")
 
         return ComplexityMetrics(
             participants=self._score_participants(active_participants),
-            density=self._score_density(clean_content, chunk.message_count),
+            information_content=self._score_information_content(clean_content),
             media=self._score_media(clean_content, chunk.message_count),
             size=self._score_size(chunk.message_count),
-            lexical_diversity=self._score_lexical_diversity(clean_content),
             dialogue=self._score_dialogue(clean_content, chunk.message_count),
         )
 
@@ -164,17 +158,21 @@ class ChunkComplexityAnalyzer:
         else:
             return 1.0
 
-    def _score_density(self, clean_content: str, message_count: int) -> float:
-        """Score based on TOTAL tokens in the chunk (Volume)."""
-        # User requested per-chunk density (total volume) rather than per-message
-        total_tokens = self._estimate_tokens(clean_content)
-
-        # < 50 tokens: Very light content (0.0)
-        # > 300 tokens: Heavy content (1.0)
-        if total_tokens < 50:
+    def _score_information_content(self, clean_content: str) -> float:
+        """
+        Score based on the volume of unique concepts (Unique Words).
+        Combines the previous 'Density' and 'Lexical Diversity' metrics into one robust signal.
+        
+        < 30 unique words: Simple/Phatic (0.0)
+        > 150 unique words: Dense/Rich (1.0)
+        """
+        words = re.findall(r'\b\w+\b', clean_content.lower())
+        unique_count = len(set(words))
+        
+        if unique_count < 30:
             return 0.0
-        elif total_tokens < 300:
-            return (total_tokens - 50) / 250.0
+        elif unique_count < 150:
+            return (unique_count - 30) / 120.0
         else:
             return 1.0
 
@@ -201,20 +199,6 @@ class ChunkComplexityAnalyzer:
         else:
             return 1.0
 
-    def _score_lexical_diversity(self, clean_content: str) -> float:
-        """Score based on Guiraud Index (Root TTR)."""
-        # Guiraud = Unique / Sqrt(Total)
-        # Low (< 3.5): Simple, repetitive, or very short (0.0)
-        # High (> 8.0): Rich vocabulary in sufficient quantity (1.0)
-        guiraud = self._compute_lexical_diversity(clean_content)
-        
-        if guiraud < 3.5:
-            return 0.0
-        elif guiraud < 8.0:
-            return (guiraud - 3.5) / 4.5
-        else:
-            return 1.0
-
     def _score_dialogue(self, clean_content: str, message_count: int) -> float:
         """Score based on dialogue patterns in cleaned content."""
         msg_count = max(message_count or 1, 1)
@@ -233,12 +217,11 @@ class ChunkComplexityAnalyzer:
     def _calculate_score(self, metrics: ComplexityMetrics) -> float:
         """Calculate weighted complexity score (0.0-1.0)."""
         score = (
+            metrics.information_content * self.weights["information_content"] +
             metrics.participants * self.weights["participants"] +
-            metrics.density * self.weights["density"] +
-            metrics.media * self.weights["media"] +
             metrics.size * self.weights["size"] +
-            metrics.lexical_diversity * self.weights["lexical_diversity"] +
-            metrics.dialogue * self.weights["dialogue"]
+            metrics.dialogue * self.weights["dialogue"] +
+            metrics.media * self.weights["media"]
         )
         return max(0.0, min(1.0, score))
 
@@ -252,11 +235,6 @@ class ChunkComplexityAnalyzer:
             return "complex"
 
     @staticmethod
-    def _estimate_tokens(text: str) -> int:
-        """Rough token count estimate."""
-        return max(len(text) // 4, 1)
-
-    @staticmethod
     def _count_media_and_links(text: str) -> int:
         """Count mentions of media files and URLs strictly."""
         urls = len(re.findall(r'http[s]?://\S+|www\.\S+', text))
@@ -267,13 +245,3 @@ class ChunkComplexityAnalyzer:
         
         keywords = len(re.findall(r'\b(photo|image|vidéo|video|fichier|file|lien|link)\b', text, re.IGNORECASE))
         return urls + files + indicators + keywords
-
-    @staticmethod
-    def _compute_lexical_diversity(text: str) -> float:
-        """Compute normalized lexical diversity."""
-        words = re.findall(r'\b\w+\b', text.lower())
-        if not words or len(words) < 2:
-            return 0.0
-        diversity = len(set(words)) / math.sqrt(len(words))
-        diversity = len(set(words)) / math.sqrt(len(words))
-        return diversity
