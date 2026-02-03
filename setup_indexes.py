@@ -87,14 +87,19 @@ def run(config: Config, reset: bool = False, only: str = None) -> bool:
     Returns:
         True if success, False otherwise
     """
-    # Load chunks
-    chunker = ConversationChunker(config)
-    if not config.chunks_cache_path.exists():
+    # Load chunks (from specialized indexed path if it exists, otherwise default)
+    indexed_chunks_path = Path("rag_data/chunks_indexed.json")
+    if indexed_chunks_path.exists():
+        print(f"Loading specifically indexed chunks from {indexed_chunks_path}...")
+        chunks = chunker.load_chunks(indexed_chunks_path)
+    elif config.chunks_cache_path.exists():
+        print(f"Loading from {config.chunks_cache_path}...")
+        chunks = chunker.load_chunks()
+    else:
         print("Error: No chunks found. Run setup_chunks.py first")
         return False
 
-    chunks = chunker.load_chunks()
-    print(f"{len(chunks)} chunks loaded")
+    print(f"{len(chunks)} chunks loaded for indexing")
 
     # Load embeddings if necessary
     embeddings = None

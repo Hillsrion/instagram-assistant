@@ -437,7 +437,7 @@ class ConversationChunker:
     def chunk_all_conversations(self, progress_callback=None, limit: int = None) -> List[Chunk]:
         """Splits all conversations in the directory."""
         all_chunks = []
-        files = list(self.config.conversations_dir.glob('*.txt'))
+        files = sorted(list(self.config.conversations_dir.glob('*.txt')))
         
         if limit:
             files = files[:limit]
