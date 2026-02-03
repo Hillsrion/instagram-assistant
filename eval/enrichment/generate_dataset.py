@@ -22,7 +22,13 @@ from rag_pipeline.config import Config
 from rag_pipeline.chunker import ConversationChunker, Chunk
 from rag_pipeline.complexity_analyzer import ChunkComplexityAnalyzer
 
-def generate_enrichment_dataset(size: int = 50, output_file: str = "eval/enrichment/enrichment_eval_dataset.json"):
+def generate_enrichment_dataset(
+    size: int = 100, 
+    output_file: str = "eval/enrichment/enrichment_eval_dataset.json",
+    simple_target: int = None,
+    medium_target: int = None,
+    complex_target: int = None
+):
     """
     Generates a dataset of chunks for enrichment evaluation.
     Tries to balance between Simple, Medium, and Complex chunks.
@@ -51,9 +57,10 @@ def generate_enrichment_dataset(size: int = 50, output_file: str = "eval/enrichm
     print("Start categorizing chunks...")
     
     for chunk in all_chunks:
-        # Calculate scores if not present (though they should be if using the main pipeline)
-        # We re-calculate to be sure we have the latest logic
-        # Calculate scores if not present (though they should be if using the main pipeline)
+        # Filter: at least 3 messages for meaningful enrichment evaluation
+        if (chunk.message_count or 0) < 3:
+            continue
+            
         # We re-calculate to be sure we have the latest logic
         analysis = analyzer.analyze(chunk)
         category = analysis.category
@@ -82,32 +89,92 @@ def generate_enrichment_dataset(size: int = 50, output_file: str = "eval/enrichm
         
         buckets[category].append(chunk_data)
 
-    print(f"📊 Distribution: Simple: {len(buckets['simple'])}, Medium: {len(buckets['medium'])}, Complex: {len(buckets['complex'])}")
+    print(f"📊 Total available: Simple: {len(buckets['simple'])}, Medium: {len(buckets['medium'])}, Complex: {len(buckets['complex'])}")
     
     # 3. Sample
-    target_per_bucket = size // 3
+    if simple_target is None and medium_target is None and complex_target is None:
+        # Default even distribution
+        simple_target = size // 3
+        medium_target = size // 3
+        complex_target = size - (size // 3) * 2
+    
+    targets = {
+        "simple": simple_target or 0,
+        "medium": medium_target or 0,
+        "complex": complex_target or 0
+    }
+    
     dataset = []
     
-    for category, items in buckets.items():
-        if len(items) > target_per_bucket:
-            selected = random.sample(items, target_per_bucket)
+    # 3a. Simple sampling (random is fine for simple)
+    simple_target = targets["simple"]
+    simple_items = buckets["simple"]
+    if simple_items and simple_target > 0:
+        if len(simple_items) >= simple_target:
+            dataset.extend(random.sample(simple_items, simple_target))
         else:
-            selected = items # Take all if not enough
-        dataset.extend(selected)
-        
-    # Fill remainder if buckets were unbalanced
-    if len(dataset) < size:
-        remaining = size - len(dataset)
-        # Flatten unselected items
-        all_remaining = []
-        for cat, items in buckets.items():
-            used_ids = {x['chunk_id'] for x in dataset}
-            all_remaining.extend([x for x in items if x['chunk_id'] not in used_ids])
-            
-        if all_remaining:
-            dataset.extend(random.sample(all_remaining, min(len(all_remaining), remaining)))
+            print(f"⚠️ Not enough simple chunks (requested {simple_target}, found {len(simple_items)}).")
+            dataset.extend(simple_items)
 
-    print(f"✅ Selected {len(dataset)} chunks for evaluation.")
+    # 3b. Diversified sampling for medium and complex chunks
+    weights = analyzer.weights
+    
+    def get_diversified_sample(items: List[dict], target: int, cat_name: str) -> List[dict]:
+        if not items or target <= 0:
+            return []
+        
+        if len(items) <= target:
+            print(f"⚠️ Taking all available {cat_name} chunks ({len(items)}).")
+            return items
+            
+        print(f"🎯 Performing diversified sampling for {target} {cat_name} chunks...")
+        
+        # Sub-bucket chunks by their dominant metric
+        sub_buckets = {}
+        for chunk_data in items:
+            # Re-analyze to get the dominant metric
+            c = Chunk(**{k: v for k, v in chunk_data.items() if k != 'metadata'})
+            analysis = analyzer.analyze(c)
+            
+            # Find which weighted metric contributes most
+            dominant_metric = max(weights.keys(), key=lambda m: analysis.breakdown[m] * weights[m])
+            
+            if dominant_metric not in sub_buckets:
+                sub_buckets[dominant_metric] = []
+            sub_buckets[dominant_metric].append(chunk_data)
+            
+        # Sample across sub-buckets
+        sub_bucket_names = list(sub_buckets.keys())
+        print(f"   Found {cat_name} chunks dominant in: {', '.join([f'{m}({len(sub_buckets[m])})' for m in sub_bucket_names])}")
+        
+        selected = []
+        while len(selected) < target and sub_buckets:
+            # Round-robin selection
+            for m in list(sub_buckets.keys()):
+                if len(selected) >= target:
+                    break
+                idx = random.randrange(len(sub_buckets[m]))
+                selected.append(sub_buckets[m].pop(idx))
+                if not sub_buckets[m]:
+                    del sub_buckets[m]
+        return selected
+
+    # Apply to Medium
+    dataset.extend(get_diversified_sample(buckets["medium"], targets["medium"], "medium"))
+    
+    # Apply to Complex
+    dataset.extend(get_diversified_sample(buckets["complex"], targets["complex"], "complex"))
+        
+    # Shuffle the final dataset
+    random.shuffle(dataset)
+
+    print(f"✅ Selected {len(dataset)} chunks total for evaluation.")
+    
+    # Print final category counts
+    final_counts = {"simple": 0, "medium": 0, "complex": 0}
+    for item in dataset:
+        final_counts[item['metadata']['complexity_category']] += 1
+    print(f"📊 Final Sample Distribution: {final_counts}")
 
     # 4. Save
     output_path = Path(output_file)
@@ -120,8 +187,24 @@ def generate_enrichment_dataset(size: int = 50, output_file: str = "eval/enrichm
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate dataset for enrichment evaluation")
-    parser.add_argument("size", type=int, nargs="?", default=50, help="Number of chunks to generate")
+    parser.add_argument("size", type=int, nargs="?", default=100, help="Total number of chunks to generate")
+    parser.add_argument("--simple", type=int, help="Target number of simple chunks")
+    parser.add_argument("--medium", type=int, help="Target number of medium chunks")
+    parser.add_argument("--complex", type=int, help="Target number of complex chunks")
     parser.add_argument("--output", type=str, default="eval/enrichment/enrichment_eval_dataset.json", help="Output JSON file path")
     
     args = parser.parse_args()
-    generate_enrichment_dataset(args.size, args.output)
+    
+    # If specific targets are provided, size should be the sum of targets if not explicitly set high enough
+    if args.simple or args.medium or args.complex:
+        total_target = (args.simple or 0) + (args.medium or 0) + (args.complex or 0)
+        if total_target > args.size:
+            args.size = total_target
+
+    generate_enrichment_dataset(
+        args.size, 
+        args.output,
+        simple_target=args.simple,
+        medium_target=args.medium,
+        complex_target=args.complex
+    )

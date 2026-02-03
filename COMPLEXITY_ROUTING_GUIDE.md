@@ -50,12 +50,12 @@ Only proceed if Phase 0 recommends GO. Phases 1-4 involve:
 Based on 6 weighted metrics:
 
 ```
+Density (0.30)             - Longer messages = more content (Increased)
+Size (0.25)                - More messages = more synthesis (Increased)
 Participants (0.20)        - More people = more complex
-Density (0.25)             - Longer messages = more content
-Media (0.15)               - Links/media = need context
-Chunk Size (0.15)          - More messages = more synthesis
 Lexical Diversity (0.15)   - Rich vocab = subtle meaning
-Dialogue Patterns (0.10)   - Questions/emotions = nuanced
+Media (0.05)               - Links/media = need context (Reduced)
+Dialogue Patterns (0.05)   - Questions/emotions = nuanced (Reduced)
 ```
 
 ### Classification
@@ -271,9 +271,9 @@ Document findings and explore alternatives:
 | `scripts/benchmark_models.py` | Run benchmarks | ✅ Ready |
 | `scripts/analyze_benchmark.py` | Analyze results | ✅ Ready |
 | `docs/PHASE_0_VALIDATION.md` | Detailed guide | ✅ Ready |
-| `rag_pipeline/complexity_analyzer.py` | Complexity scoring | ⏳ Phase 1 |
-| `rag_pipeline/enrichment_log.py` | Logging system | ⏳ Phase 2 |
-| Tests | Unit tests | ⏳ Phase 3 |
+| `rag_pipeline/complexity_analyzer.py` | Complexity scoring | ✅ Implemented |
+| `rag_pipeline/enrichment_log.py` | Logging system | ✅ Implemented |
+| Tests | Unit tests | ✅ Implemented |
 
 ## Quick FAQ
 
@@ -303,4 +303,4 @@ A: No, but GPU recommended for speed. CPU inference takes 2-3x longer.
 
 ---
 
-**Status:** Phase 0 scripts ready. Awaiting execution and decision.
+**Status:** Complexity routing (Phase 1-4) is implemented and ready for production use.

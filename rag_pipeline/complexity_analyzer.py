@@ -55,11 +55,11 @@ class ChunkComplexityAnalyzer:
         # Metric weights (must sum to 1.0)
         self.weights = {
             "participants": 0.20,
-            "density": 0.25,
-            "media": 0.15,
-            "size": 0.15,
-            "lexical_diversity": 0.15,
-            "dialogue": 0.10,
+            "density": 0.30,      # Increased from 0.25
+            "media": 0.05,        # Decreased from 0.15
+            "size": 0.25,         # Increased from 0.15
+            "lexical_diversity": 0.15, # Decreased from 0.15 to keep sum at 1.0
+            "dialogue": 0.05,     # Decreased from 0.10
         }
 
         # Load from config if available

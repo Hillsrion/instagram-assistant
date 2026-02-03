@@ -115,7 +115,9 @@ python -m eval.summaries.evaluate_summaries --html                   # Generate 
 # Configuration comparison
 python -m eval.config_comparison.compare_configs                     # Compare RAG configs
 
-# Enrichment validation
+# Enrichment validation & dataset generation
+python -m eval.enrichment.generate_dataset 100                        # Generate 100 chunks (balanced)
+python -m eval.enrichment.generate_dataset 100 --medium 50 --complex 35 --simple 15 # Custom distribution
 python -m eval.enrichment.validate_enrichment --sample --size 20     # Validate enrichment quality
 python -m eval.enrichment.validate_enrichment --enrich --model mistral-8b  # Enrich & validate
 
