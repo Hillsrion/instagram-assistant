@@ -379,6 +379,67 @@ class ChunkEnricher:
         response.raise_for_status()
         return response.json()["message"]["content"]
 
+    def _enrich_chunk_with_model_internal(self, chunk: Chunk, model: str) -> Tuple:
+        """Internal method to enrich a chunk with a specific model (skips routing logic)."""
+        prompt = ENRICH_PROMPT.format(
+            content=chunk.get_compact_content(),
+            max_questions=self.config.max_questions
+        )
+        
+        if self.provider == "mlx":
+            result = self._call_mlx(prompt)
+        else:
+            result = self._call_ollama(prompt, model=model)
+
+        # Common parsing logic (reused from enrich_chunk)
+        cleaned_result = result.strip()
+        if cleaned_result.startswith("```json"):
+            cleaned_result = cleaned_result[7:]
+        if cleaned_result.startswith("```"):
+            cleaned_result = cleaned_result[3:]
+        if cleaned_result.endswith("```"):
+            cleaned_result = cleaned_result[:-3]
+        cleaned_result = cleaned_result.strip()
+
+        if not cleaned_result:
+            return "", [], {}, "", {}, {}, None, None, None, None
+
+        data = json.loads(cleaned_result)
+        
+        # Helper to ensure string lists
+        def ensure_str_list(lst):
+            if isinstance(lst, list):
+                return [str(x) if not isinstance(x, str) else x for x in lst]
+            return []
+
+        # Helper to ensure string dict values
+        def ensure_str_dict(dct):
+            if isinstance(dct, dict):
+                 return {str(k): (", ".join(v) if isinstance(v, list) else str(v)) for k, v in dct.items()}
+            return {}
+
+        summary = data.get("narrative_summary", "")
+        questions = ensure_str_list(data.get("questions", []))
+        speaker_intents = ensure_str_dict(data.get("speaker_intents", {}))
+        
+        temporal_context = data.get("temporal_context", "")
+        if isinstance(temporal_context, list): temporal_context = ", ".join(temporal_context)
+        else: temporal_context = str(temporal_context)
+        
+        entities = data.get("entities", {})
+        if isinstance(entities, dict):
+            for key, val in entities.items():
+                if isinstance(val, list):
+                     entities[key] = ensure_str_list(val)
+
+        emotions = data.get("emotions", {})
+        interaction_pattern = data.get("interaction_pattern")
+        initiative = data.get("initiative")
+        emotional_shift = data.get("emotional_shift")
+        open_loops = ensure_str_list(data.get("open_loops"))
+
+        return summary, questions, speaker_intents, temporal_context, entities, emotions, interaction_pattern, initiative, emotional_shift, open_loops
+
     def enrich_batch(
         self,
         chunks: List[Chunk],
@@ -387,63 +448,169 @@ class ChunkEnricher:
         save_interval: int = 20
     ) -> List[Chunk]:
         """
-        Enriches a list of chunks with error recovery.
-
-        Args:
-            chunks: List of chunks to process
-            progress_callback: Function(current, total) called at each step
-            save_callback: Function() called periodically to save
-            save_interval: Save every X chunks
+        Enriches a list of chunks with error recovery and OPTIMIZED routing.
+        
+        Uses a "Batch & Reorder" strategy:
+        1. Takes a sub-batch of size `save_interval` (e.g., 20).
+        2. Classifies all chunks in the sub-batch.
+        3. Processes all 'simple' chunks with the light model.
+        4. Processes all 'complex' chunks with the heavy model.
+        5. Saves the whole sub-batch sequentially.
         """
         print(f"🔄 Starting batch enrichment (Saving every {save_interval} items)")
         if self.enable_routing:
             print(f"   📊 Complexity routing enabled ({self.loading_strategy} strategy)")
+            print(f"   🚀 Optimization: Grouping by model within batches of {save_interval}")
 
-        for i, chunk in enumerate(chunks):
-            # If already enriched (resume), skip
-            # Note: If we add new fields (like entities), ideally force re-indexing
-            # or check if field is missing. Here we assume user runs --reset if they want new fields.
-            if chunk.narrative_summary and chunk.hypothetical_questions and chunk.entities:
+        total = len(chunks)
+        
+        # Process in sub-batches of size `save_interval`
+        for i in range(0, total, save_interval):
+            batch_slice = chunks[i : i + save_interval]
+            
+            # Filter chunks that need processing
+            to_process_indices = []
+            for local_idx, chunk in enumerate(batch_slice):
+                # Skip if already fully enriched
+                if chunk.narrative_summary and chunk.hypothetical_questions and chunk.entities:
+                    continue
+                to_process_indices.append(local_idx)
+            
+            if not to_process_indices:
+                # Nothing to do in this batch, just report progress
                 if progress_callback:
-                    progress_callback(i + 1, len(chunks))
+                    progress_callback(min(i + save_interval, total), total)
                 continue
 
-            summary, questions, speaker_intents, temporal_context, entities, emotions, interaction_pattern, initiative, emotional_shift, open_loops = self.enrich_chunk(chunk)
-            chunk.narrative_summary = summary
-            chunk.hypothetical_questions = questions
-            chunk.speaker_intents = speaker_intents
-            chunk.temporal_context = temporal_context
-            chunk.entities = entities
-            chunk.emotions = emotions
+            # --- OPTIMIZED PROCESSING ---
+            if self.enable_routing and self.provider == "ollama":
+                # 1. Classification Phase
+                simple_indices = []
+                complex_indices = []
+                analyses = {} # Store analysis to avoid re-computing
 
-            chunk.interaction_pattern = interaction_pattern
-            chunk.initiative = initiative
-            chunk.emotional_shift = emotional_shift
-            chunk.open_loops = open_loops
+                for local_idx in to_process_indices:
+                    chunk = batch_slice[local_idx]
+                    try:
+                        analysis = self.complexity_analyzer.analyze(chunk)
+                        analyses[local_idx] = analysis
+                        
+                        # Decide category
+                        category = analysis.category
+                        use_light = True
+                        if category == "complex":
+                            use_light = False
+                        elif category == "medium":
+                            # Check config for medium routing
+                            use_light = getattr(self.config, 'complexity_medium_uses_light', True)
+                        
+                        if use_light:
+                            simple_indices.append(local_idx)
+                        else:
+                            complex_indices.append(local_idx)
+                            
+                    except Exception as e:
+                        print(f"⚠️ Analysis failed for batch item {local_idx}: {e}")
+                        analyses[local_idx] = None
+                        complex_indices.append(local_idx) # Fallback to strong model
+                
+                # 2. Execution Phase - Group by Model
+                # Strategy: Execute the group that matches current model first to minimize swaps
+                groups = [
+                    (simple_indices, self.light_model, "simple"),
+                    (complex_indices, self.model, "complex or medium")
+                ]
+                
+                # If strong model is currently loaded, do complex first
+                if self.current_loaded_model == self.model:
+                     groups.reverse()
+                
+                for indices, model_name, label in groups:
+                    if not indices:
+                        continue
+                        
+                    # Load model once for the group
+                    self._ensure_model_loaded(model_name)
+                    
+                    for local_idx in indices:
+                        chunk = batch_slice[local_idx]
+                        analysis = analyses.get(local_idx)
+                        
+                        start_time = time.time()
+                        try:
+                            # Use internal method to skip redundant routing logic
+                            res = self._enrich_chunk_with_model_internal(chunk, model_name)
+                            
+                            # Update chunk references
+                            (chunk.narrative_summary, chunk.hypothetical_questions, 
+                             chunk.speaker_intents, chunk.temporal_context, 
+                             chunk.entities, chunk.emotions, 
+                             chunk.interaction_pattern, chunk.initiative, 
+                             chunk.emotional_shift, chunk.open_loops) = res
+                            
+                            # Logging
+                            enrichment_time_ms = (time.time() - start_time) * 1000
+                            
+                            # Update stats
+                            if label == "simple": self.routing_stats["simple"] += 1
+                            elif label == "complex": self.routing_stats["complex"] += 1
+                            else: self.routing_stats["medium"] += 1 # Approximation
+                            
+                            if self.enrichment_logger:
+                                self.enrichment_logger.log_decision(
+                                    chunk_id=chunk.chunk_id,
+                                    complexity_score=analysis.score if analysis else 0.0,
+                                    complexity_category=analysis.category if analysis else "unknown",
+                                    selected_model=model_name,
+                                    enrichment_time_ms=enrichment_time_ms,
+                                    message_count=chunk.message_count or 0,
+                                    participant_count=len(chunk.participants) if chunk.participants else 0,
+                                    metrics_breakdown=analysis.breakdown if analysis else None
+                                )
+                                
+                        except Exception as e:
+                            print(f"⚠️ Error enriching chunk {chunk.chunk_id}: {e}")
+                            # Log failure ...
 
-            # Progress callback
+            else:
+                # Standard linear processing (No routing or MLX)
+                for local_idx in to_process_indices:
+                    chunk = batch_slice[local_idx]
+                    # Logic reuse from enrich_chunk call...
+                    # For simplicity, we just call the existing enrich_chunk which handles everything
+                    # ensuring we manually assign fields back if not done in place (enrich_chunk usually returns tuple)
+                    try:
+                        res = self.enrich_chunk(chunk)
+                        (chunk.narrative_summary, chunk.hypothetical_questions, 
+                         chunk.speaker_intents, chunk.temporal_context, 
+                         chunk.entities, chunk.emotions, 
+                         chunk.interaction_pattern, chunk.initiative, 
+                         chunk.emotional_shift, chunk.open_loops) = res
+                    except Exception as e:
+                        print(f"⚠️ Error in standard enrichment: {e}")
+
+            # Update progress
             if progress_callback:
-                progress_callback(i + 1, len(chunks))
+                progress_callback(min(i + save_interval, total), total)
 
-            # Periodic save
-            if save_callback and (i + 1) % save_interval == 0:
-                print("   💾 Intermediate save...")
-                save_callback()
-                # Save enrichment logs too
-                if self.enrichment_logger:
-                    self.enrichment_logger.save()
+            # SAVE (The integrity checkpoint)
+            if save_callback:
+                try:
+                    # We save the WHOLE list, but only the current batch has changed
+                    # This relies on the fact that `chunks` are updated in-place
+                    save_callback()
+                    print(f"   💾 Saved batch {i // save_interval + 1} (up to item {min(i + save_interval, total)})")
+                    if self.enrichment_logger:
+                        self.enrichment_logger.save()
+                except Exception as e:
+                    print(f"⚠️ Save failed: {e}")
 
-        # Final save
-        if save_callback:
-            save_callback()
-
-        # Save and export enrichment logs
+        # Final stats
         if self.enrichment_logger:
             self.enrichment_logger.save()
             self.enrichment_logger.export_csv()
             self.enrichment_logger.print_summary()
 
-        # Print routing statistics if enabled
         if self.enable_routing and sum(self.routing_stats.values()) > 0:
             self._print_routing_stats()
 
