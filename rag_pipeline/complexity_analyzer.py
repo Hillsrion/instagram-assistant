@@ -115,7 +115,7 @@ class ChunkComplexityAnalyzer:
         )
 
     def _get_clean_content(self, content: str) -> str:
-        """Remove structural noise like reaction lines."""
+        """Remove structural noise like reaction lines and normalize URLs."""
         lines = []
         for line in content.split('\n'):
             # Remove reaction lines
@@ -126,10 +126,17 @@ class ChunkComplexityAnalyzer:
             # Format: [2024-...] Author: Message
             header_match = re.search(r'\] .*?: (.*)', line)
             if header_match:
-                lines.append(header_match.group(1))
+                msg = header_match.group(1)
             else:
-                lines.append(line)
+                msg = line
+            
+            # Normalize URLs: replace long links with a short token
+            # This prevents URLs from inflating density and lexical diversity scores
+            msg = re.sub(r'http[s]?://\S+', '[URL]', msg)
+            lines.append(msg)
+            
         return "\n".join(lines)
+
 
     def _get_active_authors(self, content: str) -> list:
         """Extract unique authors who actually sent messages in this chunk."""
