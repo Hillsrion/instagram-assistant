@@ -172,18 +172,24 @@ class ChatBot:
         to_summarize = self.conversation_history[:-4]
         history_text = "\n".join([f"{m['role']}: {m['content']}" for m in to_summarize])
         
-        prompt = f"""Summarize very concisely the key points of this past conversation between a user and an assistant. 
-Include important facts discovered about Instagram conversations.
-{f"Previous summary : {self.history_summary}" if self.history_summary else ""}
+        prompt = f"""Fais une synthèse concise de cette conversation passée entre l'utilisateur et l'assistant.
+Ton objectif est de conserver le contexte pour la suite de la discussion.
 
-Conversation to summarize:
+RÈGLES IMPORTANTES :
+1. Garde IMPÉRATIVEMENT les entités nommées (Noms, Dates, Lieux) et les faits précis mentionnés.
+2. Synthétise la dynamique de la discussion.
+3. Rédige le résumé en FRANÇAIS.
+
+{f"Résumé précédent à mettre à jour : {self.history_summary}" if self.history_summary else ""}
+
+Nouveaux échanges à intégrer :
 {history_text}
 
-Answer with a one-paragraph summary maximum."""
+Réponds uniquement par un paragraphe de synthèse."""
 
         try:
             summary = self._call_ollama_direct(
-                system_prompt="You are an assistant who synthesizes conversation memories.",
+                system_prompt="Tu es un assistant expert en synthèse de mémoire conversationnelle.",
                 user_prompt=prompt,
                 model=self.config.llm_model,
                 max_tokens=250
