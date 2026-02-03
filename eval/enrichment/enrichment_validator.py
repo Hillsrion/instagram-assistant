@@ -596,8 +596,8 @@ class EnrichmentValidator:
         )
 
         if not pattern or len(str(pattern).strip()) == 0:
-            result.warnings.append("No interaction pattern identified (null is acceptable)")
-            result.score = 0.6
+            # Optional field, no warning
+            result.metadata = {"pattern": None}
             return result
 
         valid_patterns = {
@@ -610,10 +610,9 @@ class EnrichmentValidator:
         pattern_lower = str(pattern).lower()
         if pattern_lower not in valid_patterns:
             result.warnings.append(
-                f"Pattern '{pattern}' not in expected list. "
-                f"Expected one of: {sorted(valid_patterns)}"
+                f"Pattern '{pattern}' not in expected list."
             )
-            result.score = 0.7
+            result.score = 0.8
 
         result.metadata = {"pattern": pattern}
         return result
@@ -630,8 +629,7 @@ class EnrichmentValidator:
         )
 
         if not initiative or len(str(initiative).strip()) == 0:
-            result.warnings.append("No initiative identified")
-            result.score = 0.5
+            # Optional field, no warning
             return result
 
         # Should reference participants or use "Balanced"
@@ -664,8 +662,7 @@ class EnrichmentValidator:
         )
 
         if not shift or len(str(shift).strip()) == 0:
-            result.warnings.append("No emotional shift identified (Stable is acceptable)")
-            result.score = 0.6
+            # Optional field
             return result
 
         # Should describe a transition or "Stable"
@@ -694,8 +691,7 @@ class EnrichmentValidator:
         )
 
         if not loops:
-            result.warnings.append("No open loops identified (empty list is acceptable)")
-            result.score = 0.7
+            # Optional field, no warning
             return result
 
         if not isinstance(loops, list):
@@ -943,10 +939,20 @@ Ensure strictly valid JSON output. Do not include markdown formatting ```json ..
                     res.metadata["judge_score"] = llm_score
                     res.metadata["judge_reason"] = reason
                     
+                    # PRIORITY: If judge has feedback, assume it supersedes heuristic warnings
+                    # Clear previous warnings if judge is relatively happy (>0.8) 
+                    # OR if they conflict. For simplicity, if Judge gives a reason, we append it
+                    # but we might want to clear "empty field" warnings if judge says it's bad.
+                    # Actually, we want to KEEP warnings if they are about schema, 
+                    # but maybe clear "content" warnings if Judge provides better ones.
+                    
                     if llm_score < 0.7:
                          res.warnings.append(f"Judge Warning: {reason}")
                     if llm_score < 0.4:
                          res.issues.append(f"Judge Critical: {reason}")
+                         
+                    # Remove duplicate warnings if any
+                    res.warnings = list(set(res.warnings))
 
             # Map fields
             update_field(EnrichmentFieldType.NARRATIVE_SUMMARY, "narrative_summary")
@@ -962,6 +968,7 @@ Ensure strictly valid JSON output. Do not include markdown formatting ```json ..
                 social_score = float(social_data.get("score", 0.0))
                 social_reason = social_data.get("reason", "")
                 
+                # Apply social score to all sub-fields
                 for field_type in [EnrichmentFieldType.INTERACTION_PATTERN, EnrichmentFieldType.INITIATIVE, EnrichmentFieldType.EMOTIONAL_SHIFT, EnrichmentFieldType.OPEN_LOOPS]:
                     if field_type.value in heuristic_report.field_results:
                         res = heuristic_report.field_results[field_type.value]
@@ -972,7 +979,16 @@ Ensure strictly valid JSON output. Do not include markdown formatting ```json ..
                         
                         res.metadata["judge_score"] = social_score
                         res.metadata["judge_reason"] = social_reason
-                        if social_score < 0.7: res.warnings.append(f"Judge: {social_reason}")
+                        
+                        # Only add judge warning ONCE per field, avoiding duplication across the 4 fields if possible?
+                        # Actually, adding it to all is fine so the UI shows it for each relevant field.
+                        # But we should clear "Optional field" warnings if we had them (we removed them above).
+                        
+                        if social_score < 0.7: 
+                            res.warnings.append(f"Judge: {social_reason}")
+                        
+                        # Dedup
+                        res.warnings = list(set(res.warnings))
 
             # Recalculate overall metrics for the report
             self._calculate_overall_metrics(heuristic_report)

@@ -99,6 +99,39 @@ def calculate_stats(results: List[Dict], models: List[str]) -> Dict:
             
             for f in stats['fields']:
                  stats['models'][m]['field_scores'][f] /= n
+    
+    # Per-Complexity Stats
+    stats['complexity'] = {}
+    for cat in ['simple', 'medium', 'complex']:
+        cat_chunks = [r for r in results if r.get('category') == cat]
+        count = len(cat_chunks)
+        
+        cat_stats = {
+            "count": count,
+            "models": {m: {"avg_score": 0.0, "win_rate": 0.0, "avg_time": 0.0} for m in models}
+        }
+        
+        if count > 0:
+            for m in models:
+                total_score = 0
+                total_time = 0
+                wins = 0
+                for res in cat_chunks:
+                    m_res = res['model_results'].get(m)
+                    if not m_res: continue
+                    total_score += m_res['report'].overall_score
+                    total_time += m_res['time']
+                    
+                    # Recalculate winner for this chunk (could optimize by storing winner in result)
+                    scores = {mod: res['model_results'][mod]['report'].overall_score for mod in models if mod in res['model_results']}
+                    if scores and max(scores.values()) == scores[m] and list(scores.values()).count(max(scores.values())) == 1:
+                         wins += 1
+                    
+                cat_stats['models'][m]['avg_score'] = total_score / count
+                cat_stats['models'][m]['avg_time'] = total_time / count
+                cat_stats['models'][m]['win_rate'] = (wins / count) * 100
+        
+        stats['complexity'][cat] = cat_stats
                  
     return stats
 
@@ -106,7 +139,7 @@ def get_judge_summary(stats: Dict, judge_model: str, provider: str, config: Conf
     """Generate a global summary using the judge LLM."""
     try:
         print(f"👨‍⚖️ Generating global verdict with {judge_model}...")
-        llm = create_provider(provider_type=provider, config=config)
+        llm = create_provider(config=config, model=judge_model, provider_type=provider)
         
         prompt = "You are an expert evaluator comparing AI models for RAG enrichment tasks.\n"
         prompt += "Analyze the following performance statistics and provide a definitive comparison.\n\n"
@@ -128,11 +161,12 @@ def get_judge_summary(stats: Dict, judge_model: str, provider: str, config: Conf
         prompt += "3. Comment on the trade-off between speed and quality if relevant.\n"
         prompt += "4. Keep it concise (under 150 words)."
         
-        response = llm.generate(prompt, model=judge_model)
+        messages = [{"role": "user", "content": prompt}]
+        response = llm.generate(messages, temperature=0.3)
         return response
     except Exception as e:
         print(f"⚠️ Could not generate judge summary: {e}")
-        return "global judge summary currently unavailable due to an error."
+        return "Global judge summary currently unavailable due to an error."
 
 def load_dataset_chunks(path: Path) -> List[Dict]:
     """Load chunks from a JSON dataset."""
@@ -263,7 +297,7 @@ def generate_comparative_html_report(
     <!-- Dashboard -->
     <div class="mb-16 grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
-            <h3 class="font-bold text-gray-500 text-xs uppercase mb-4 text-center">Win Rate (%)</h3>
+            <h3 class="font-bold text-gray-500 text-xs uppercase mb-4 text-center">Global Win Rate (%)</h3>
             <div class="h-64"><canvas id="winRateChart"></canvas></div>
         </div>
         <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
@@ -274,6 +308,31 @@ def generate_comparative_html_report(
             <h3 class="font-bold text-gray-500 text-xs uppercase mb-4 text-center">Quality Breakdown (0-1)</h3>
             <div class="h-64"><canvas id="metricsChart"></canvas></div>
         </div>
+    </div>
+    
+    <!-- Complexity Breakdown -->
+    <div class="mb-16">
+        <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            🧩 Performance by Complexity
+        </h3>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+             <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
+                <h3 class="font-bold text-gray-500 text-xs uppercase mb-4 text-center">Win Rate by Complexity</h3>
+                <div class="h-64"><canvas id="compWinChart"></canvas></div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
+                <h3 class="font-bold text-gray-500 text-xs uppercase mb-4 text-center">Quality Score by Complexity</h3>
+                <div class="h-64"><canvas id="compScoreChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="sticky top-4 z-50 mb-8 flex justify-center space-x-2 bg-white/80 backdrop-blur p-2 rounded-full shadow-lg border border-gray-200 w-fit mx-auto">
+        <button onclick="filterChunks('all')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-gray-900 text-white transition-colors" data-filter="all">All</button>
+        <button onclick="filterChunks('simple')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-800 transition-colors" data-filter="simple">Simple</button>
+        <button onclick="filterChunks('medium')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-800 transition-colors" data-filter="medium">Medium</button>
+        <button onclick="filterChunks('complex')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-800 transition-colors" data-filter="complex">Complex</button>
     </div>
     
     <script>
@@ -338,6 +397,66 @@ def generate_comparative_html_report(
                 }}
             }}
         }});
+        
+        // COMPLEXITY CHARTS
+        const categories = ['simple', 'medium', 'complex'];
+        
+        // Win Rate by Complexity
+        new Chart(document.getElementById('compWinChart'), {{
+            type: 'bar',
+            data: {{
+                labels: categories,
+                datasets: models.map((m, i) => ({{
+                    label: m,
+                    data: categories.map(c => stats.complexity[c]?.models[m]?.win_rate || 0),
+                    backgroundColor: ['#4ade80', '#60a5fa', '#f87171'][i % 3],
+                }}))
+            }},
+            options: {{
+                responsive: true, maintainAspectRatio: false,
+                scales: {{ y: {{ beginAtZero: true, max: 100, title: {{display: true, text: 'Win Rate %'}} }} }}
+            }}
+        }});
+        
+        // Quality Score by Complexity
+         new Chart(document.getElementById('compScoreChart'), {{
+            type: 'bar',
+            data: {{
+                labels: categories,
+                datasets: models.map((m, i) => ({{
+                    label: m,
+                    data: categories.map(c => stats.complexity[c]?.models[m]?.avg_score || 0),
+                    backgroundColor: ['#16a34a', '#2563eb', '#dc2626'][i % 3],
+                }}))
+            }},
+             options: {{
+                responsive: true, maintainAspectRatio: false,
+                scales: {{ y: {{ beginAtZero: true, max: 1.0, title: {{display: true, text: 'Avg Score (0-1)'}} }} }}
+            }}
+        }});
+
+        // Filtering Logic
+        function filterChunks(category) {{
+            const chunks = document.querySelectorAll('.chunk-card');
+            chunks.forEach(card => {{
+                if (category === 'all' || card.dataset.complexity === category) {{
+                    card.style.display = 'block';
+                }} else {{
+                    card.style.display = 'none';
+                }}
+            }});
+            
+            // Update buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {{
+                if (btn.dataset.filter === category) {{
+                    btn.classList.add('bg-gray-900', 'text-white');
+                    btn.classList.remove('bg-gray-100', 'text-gray-600');
+                }} else {{
+                    btn.classList.remove('bg-gray-900', 'text-white');
+                    btn.classList.add('bg-gray-100', 'text-gray-600');
+                }}
+            }});
+        }}
     </script>
 
     <div class="space-y-16">
@@ -349,16 +468,17 @@ def generate_comparative_html_report(
         
         # Color badge for score
         complexity_html = ""
+        category = res.get('category', 'unknown')
         if 'complexity_score' in res:
              complexity_html = f"""
              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200 ml-2">
-                Complexity: {res.get('category', 'unknown')} ({res['complexity_score']:.2f})
+                Complexity: {category} ({res['complexity_score']:.2f})
              </span>
              """
 
         html += f"""
         <!-- Chunk Block -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div class="chunk-card bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" data-complexity="{category}">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0 z-10">
                 <div>
                     <span class="font-mono text-sm font-bold text-gray-700">ID: {chunk_rec.chunk_id}</span>
