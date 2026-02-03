@@ -100,6 +100,13 @@ eval/__pycache__/
 eval/*.json
 !eval/eval_dataset.sample.json
 eval/*.html
+eval/core/
+eval/generation/
+
+# Enrichment logs
+enrichment_logs/
+enrichment_log.csv
+enrichment_log.jsonl
 
 # Phase 0 validation (generated benchmark datasets)
 validation_dataset.json
