@@ -1012,17 +1012,128 @@ Examples:
     # Use a single timestamp for all reports in this run
     run_timestamp = datetime.now()
 
-    # Run evaluation
+    # Phase 1: Generation
+    print("\n" + "="*60)
+    print("🚀 PHASE 1: GENERATION (Batch per model)")
+    print("="*60)
+
+    # Initialize structure
     all_results = {m: [] for m in models}
+    
+    # Pre-structure results with empty placeholders to maintain order
+    for model in models:
+        all_results[model] = [None] * len(qa_pairs)
+
+    for model in models:
+        print(f"\n🤖 Running Generation for model: {model}")
+        provider_instance = providers[model]
+        
+        for i, qa in enumerate(qa_pairs):
+            print(f"  Question [{i+1}/{len(qa_pairs)}]...", end="", flush=True)
+            
+            # 1. Retrieve chunks
+            chunks = [chunks_map[cid] for cid in qa.source_chunk_ids if cid in chunks_map]
+            
+            # 2. Format context
+            context = format_multichunk_context(chunks, qa.intent)
+            
+            start = time.time()
+            try:
+                # 3. Generate answer
+                prompt = get_eval_prompt(qa.question, context)
+                answer = provider_instance.generate(
+                    [{"role": "user", "content": prompt}],
+                    timeout=180
+                )
+                duration = time.time() - start
+                word_count = len(answer.split())
+                wps = word_count / duration if duration > 0 else 0
+                
+                # Store intermediate result with generation stats (metrics will be 0 for now)
+                all_results[model][i] = MultiChunkEvalResult(
+                    question=qa.question,
+                    expected_answer=qa.expected_answer,
+                    generated_answer=answer,
+                    source_chunk_ids=qa.source_chunk_ids,
+                    intent=qa.intent,
+                    faithfulness={"score": 0.0, "explanation": "Pending"},
+                    relevance={"score": 0.0, "explanation": "Pending"},
+                    chunk_attribution_score=0.0, 
+                    chunk_attribution_explanation="Pending",
+                    cross_chunk_coherence=0.0, 
+                    cross_chunk_explanation="Pending",
+                    num_chunks_provided=len(chunks),
+                    num_chunks_used=len(chunks), 
+                    generation_time=duration,
+                    words_per_sec=wps
+                )
+                print(f" Done ({duration:.2f}s)")
+
+            except Exception as e:
+                print(f" Failed ({e})")
+                all_results[model][i] = MultiChunkEvalResult(
+                    question=qa.question,
+                    expected_answer=qa.expected_answer,
+                    generated_answer=f"Error: {e}",
+                    source_chunk_ids=qa.source_chunk_ids,
+                    intent=qa.intent,
+                    faithfulness={"score": 0.0, "explanation": f"Error: {e}"},
+                    relevance={"score": 0.0, "explanation": f"Error: {e}"},
+                    chunk_attribution_score=0.0, chunk_attribution_explanation="Error",
+                    cross_chunk_coherence=0.0, cross_chunk_explanation="Error",
+                    num_chunks_provided=len(chunks), num_chunks_used=0,
+                    generation_time=0.0, words_per_sec=0.0
+                )
+
+    # Phase 2: Judging
+    print("\n" + "="*60)
+    print("⚖️  PHASE 2: JUDGING (Batch)")
+    print("="*60)
 
     for i, qa in enumerate(qa_pairs):
-        print(f"\n[{i+1}/{len(qa_pairs)}] Question : {qa.question}")
+        print(f"\n[{i+1}/{len(qa_pairs)}] Judging Question: {qa.question[:60]}...")
         
+        # 1. Retrieve chunks
+        chunks = [chunks_map[cid] for cid in qa.source_chunk_ids if cid in chunks_map]
+        context = format_multichunk_context(chunks, qa.intent)
+
         for model in models:
-            print(f"  🤖 {model}...", end="", flush=True)
-            res = evaluator.evaluate_single_qa(model, qa, chunks_map, providers[model])
-            all_results[model].append(res)
-            print(f" Done ({res.words_per_sec:.1f} words/s)")
+            res = all_results[model][i]
+            if not res or res.generated_answer.startswith("Error"):
+                continue
+
+            print(f"  👨‍⚖️  Judging {model}...", end="", flush=True)
+            
+            try:
+                # 4. Compute metrics using evaluator (which holds the RAGASMetrics instance)
+                faith_data = evaluator.metrics.compute_faithfulness_with_explanation(
+                    qa.question, res.generated_answer, context
+                )
+                relev_data = evaluator.metrics.compute_relevance_with_explanation(
+                    qa.question, qa.expected_answer, res.generated_answer
+                )
+                attr_score, attr_expl = evaluator.metrics.compute_chunk_attribution(
+                    qa.question, res.generated_answer, qa.expected_chunk_attribution or qa.source_chunk_ids[:3], chunks
+                )
+                coh_score, coh_expl = evaluator.metrics.compute_cross_chunk_coherence(
+                    qa.question, res.generated_answer, len(chunks)
+                )
+
+                # Update the result object in place
+                # (Can't directly set attributes of dataclass if frozen, but MultiChunkEvalResult isn't frozen)
+                res.faithfulness = faith_data
+                res.relevance = relev_data
+                res.chunk_attribution_score = attr_score
+                res.chunk_attribution_explanation = attr_expl
+                res.cross_chunk_coherence = coh_score
+                res.cross_chunk_explanation = coh_expl
+                
+                print(f" Faith: {faith_data['score']:.2f} | Relev: {relev_data['score']:.2f}")
+
+            except Exception as e:
+                print(f" Failed ({e})")
+                res.faithfulness = {"score": 0.0, "explanation": f"Judge error: {e}"}
+                res.relevance = {"score": 0.0, "explanation": f"Judge error: {e}"}
 
     # Final Synthesis in French
     print("\n✍️ Génération de la synthèse finale...")

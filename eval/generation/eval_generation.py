@@ -755,52 +755,94 @@ Examples:
     providers = {m: create_provider(config, m, args.provider) for m in models}
     judge_provider = create_provider(config, judge_model, judge_provider_type)
 
-    for i, qa in enumerate(qa_pairs):
-        print(f"\n[{i+1}/{len(qa_pairs)}] Question : {qa['question']}")
+    # Phase 1: Generation
+    print("\n" + "="*60)
+    print("🚀 PHASE 1: GENERATION (Batch per model)")
+    print("="*60)
 
+    # Initialize result structure
+    for model in models:
+        for _ in range(len(qa_pairs)):
+            results[model]["trials"].append({
+                "answer": "",
+                "time": 0,
+                "words_per_sec": 0,
+                "faith": {},
+                "relev": {}
+            })
 
-        # Find the chunk (support both source_chunk_ids and legacy source_chunk_id)
-        chunk_ids = qa.get('source_chunk_ids', [qa['source_chunk_id']] if 'source_chunk_id' in qa else [])
-        chunk = next((chunks_map[cid] for cid in chunk_ids if cid in chunks_map), None)
-        content = chunk.content if chunk else ""
-
-        for model in models:
-            print(f"  🤖 {model}...", end="", flush=True)
-
+    for model in models:
+        print(f"\n🤖 Running Generation for model: {model}")
+        provider_instance = providers[model]
+        
+        for i, qa in enumerate(qa_pairs):
+            print(f"  Question [{i+1}/{len(qa_pairs)}]...", end="", flush=True)
+            
+            # Find the chunk
+            chunk_ids = qa.get('source_chunk_ids', [qa['source_chunk_id']] if 'source_chunk_id' in qa else [])
+            chunk = next((chunks_map[cid] for cid in chunk_ids if cid in chunks_map), None)
+            content = chunk.content if chunk else ""
+            
             start = time.time()
             try:
                 prompt = get_eval_prompt(qa['question'], content)
-                answer = providers[model].generate(
+                answer = provider_instance.generate(
                     [{"role": "user", "content": prompt}],
                     timeout=180
                 )
+                duration = time.time() - start
+                word_count = len(answer.split())
+                wps = word_count / duration if duration > 0 else 0
+                
+                results[model]["trials"][i].update({
+                    "answer": answer,
+                    "time": duration,
+                    "words_per_sec": wps
+                })
+                print(f" Done ({duration:.2f}s)")
+                
             except Exception as e:
                 print(f" Failed ({e})")
-                results[model]["trials"].append({
+                results[model]["trials"][i].update({
                     "answer": f"Error: {e}",
                     "time": 0,
-                    "words_per_sec": 0,
-                    "faith": {"score": 0, "explanation": "Request failed"},
-                    "relev": {"score": 0, "explanation": "Request failed"}
+                    "words_per_sec": 0
                 })
+
+    # Phase 2: Judging
+    print("\n" + "="*60)
+    print("⚖️  PHASE 2: JUDGING (Batch)")
+    print("="*60)
+
+    for i, qa in enumerate(qa_pairs):
+        print(f"\n[{i+1}/{len(qa_pairs)}] Judging Question: {qa['question']}")
+        
+        # Find the chunk
+        chunk_ids = qa.get('source_chunk_ids', [qa['source_chunk_id']] if 'source_chunk_id' in qa else [])
+        chunk = next((chunks_map[cid] for cid in chunk_ids if cid in chunks_map), None)
+        content = chunk.content if chunk else ""
+        
+        for model in models:
+            res_entry = results[model]["trials"][i]
+            answer = res_entry["answer"]
+            
+            if answer.startswith("Error:"):
+                # Skip judging errors
+                res_entry["faith"] = {"score": 0, "explanation": "Generation failed"}
+                res_entry["relev"] = {"score": 0, "explanation": "Generation failed"}
                 continue
-
-            duration = time.time() - start
-
-            word_count = len(answer.split())
-            wps = word_count / duration if duration > 0 else 0
-
-            # Judge with source chunk
-            j_res = judge_response(judge_metrics, qa['question'], qa['expected_answer'], answer, content, chunk)
-
-            results[model]["trials"].append({
-                "answer": answer,
-                "time": duration,
-                "words_per_sec": wps,
-                "faith": j_res["faithfulness"],
-                "relev": j_res["relevance"]
-            })
-            print(f" Done ({wps:.1f} words/s)")
+                
+            print(f"  👨‍⚖️  Judging {model}...", end="", flush=True)
+            
+            try:
+                j_res = judge_response(judge_metrics, qa['question'], qa['expected_answer'], answer, content, chunk)
+                res_entry["faith"] = j_res["faithfulness"]
+                res_entry["relev"] = j_res["relevance"]
+                print(f" Faith: {j_res['faithfulness']['score']:.2f} | Relev: {j_res['relevance']['score']:.2f}")
+            except Exception as e:
+                print(f" Failed ({e})")
+                res_entry["faith"] = {"score": 0, "explanation": f"Judge error: {e}"}
+                res_entry["relev"] = {"score": 0, "explanation": f"Judge error: {e}"}
 
     # Final Synthesis in French
     print("\n✍️ Génération de la synthèse finale...")
