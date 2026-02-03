@@ -142,7 +142,9 @@ def generate_comparative_html_report(
         <div class="mt-4 inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
             {timestamp_str}
         </div>
+        </div>
         <p class="mt-2 text-sm text-gray-500">{len(results)} chunks evaluated</p>
+        <p class="mt-1 text-xs text-gray-400 italic">Validation Method: {'LLM Judge' if any(r['model_results'][models[0]]['report'].field_results['narrative_summary'].metadata.get('judge_reason') for r in results) else 'Heuristic'}</p>
     </div>
 
     <div class="space-y-16">
@@ -359,6 +361,9 @@ def main():
     parser.add_argument("--models", type=str, help="Comma-separated list of models to evaluate (e.g., 'ministral-3:3b,ministral-3:8b')")
     parser.add_argument("--size", "--samples", type=int, default=10, dest="size", help="Number of chunks to evaluate")
     parser.add_argument("--html", action="store_true", help="Generate HTML report")
+    parser.add_argument("--judge", type=str, default="ministral-3:14b", help="LLM model to use as judge (default: 'ministral-3:14b')")
+    parser.add_argument("--provider", type=str, default="ollama", choices=["ollama", "mlx"], help="LLM provider for the judge")
+    parser.add_argument("--fast", "--heuristic", action="store_true", dest="fast", help="Use fast heuristic validation instead of LLM judge")
     
     args = parser.parse_args()
     
@@ -398,6 +403,10 @@ def main():
         print(f"ℹ️  No models specified, using default: {models[0]}")
 
     print(f"🚀 Evaluating models: {', '.join(models)}")
+    if not args.fast:
+        print(f"👨‍⚖️  Judge: {args.judge} ({args.provider})")
+    else:
+        print("⚡️ Validation Mode: Fast (Heuristic)")
     
     # 3. Evaluation Loop
     validator = EnrichmentValidator(config)
@@ -427,7 +436,10 @@ def main():
             time_taken = enrich_chunk_with_model(test_chunk, model, config)
             
             # Validate
-            report = validator.validate_chunk(test_chunk)
+            if not args.fast:
+                report = validator.validate_chunk_with_llm(test_chunk, args.judge, args.provider)
+            else:
+                report = validator.validate_chunk(test_chunk)
             
             chunk_result["model_results"][model] = {
                 "data": test_chunk,
