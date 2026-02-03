@@ -7,6 +7,7 @@ This directory contains detailed specific documentation for the Retrieval-Augmen
 
 ## Indexing & Embedding Strategies
 - **[EMBEDDING_STRATEGY.md](EMBEDDING_STRATEGY.md)**: Explains the logic behind embedding generation, including how we handle different types of content and metadata weighting.
+- **[ENRICHMENT_STRATEGY.md](ENRICHMENT_STRATEGY.md)**: Details the model selection strategy (3B vs 8B) and complexity routing logic for chunk enrichment.
 - **[COMPACT_STRATEGY.md](COMPACT_STRATEGY.md)**: Details the strategy for creating "compact" chunks to optimize context window usage while preserving semantic meaning.
 
 ## Distributed Enrichment (Performance)
