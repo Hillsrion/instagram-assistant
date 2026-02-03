@@ -862,54 +862,66 @@ class EnrichmentValidator:
             }
         }
         
-        prompt = f"""You are an expert AI judge evaluating the quality of metadata extraction from conversation chunks.
+        prompt = f"""Tu es un expert en évaluation IA chargé de mesurer la qualité de l'extraction de métadonnées de conversations.
         
-TASK:
-Evaluate how well the extracted metadata (Enrichment) reflects the original Conversation Chunk.
+TÂCHE:
+Évalue dans quelle mesure les métadonnées extraites (Enrichment) reflètent fidèlement le Segment de Conversation original.
+Rédige tes explications (reason) EXCLUSIVEMENT en FRANÇAIS.
 
-ORIGINAL CONVERSATION CHUNK:
+CONVERSATION ORIGINALE:
 ---
 {chunk.content}
 ---
 
-EXTRACTED ENRICHMENT METADATA:
+MÉTADONNÉES EXTRAITES (ENRICHMENT):
 ---
 {json.dumps(enrichment_data, indent=2, ensure_ascii=False)}
 ---
 
-EVALUATION CRITERIA:
-1. Accuracy: Does the summary and metadata factually reflect the conversation?
-2. Completeness: Are all key entities, emotions, and intents captured?
-3. Relevance: Are the hypothetical questions relevant and answerable from the text?
-4. Hallucination: Are there any invented details not present in the text?
+CRITÈRES D'ÉVALUATION:
+1. Exactitude: Le résumé et les métadonnées sont-ils factuellement fidèles à la conversation ?
+2. Complétude: Les entités, émotions et intentions clés sont-elles capturées ?
+3. Pertinence: Les questions hypothétiques sont-elles pertinentes et peuvent-elles être répondues via le texte ?
+4. Hallucination: Y a-t-il des détails inventés non présents dans le texte ?
 
-OUTPUT FORMAT:
-Return a JSON object with evaluation for each major category. format:
+FORMAT DE SORTIE:
+Retourne un objet JSON avec l'évaluation de chaque catégorie. Format:
 {{
-    "narrative_summary": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
-    "questions": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
-    "speaker_intents": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
-    "entities": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
-    "emotions": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
-    "temporal_context": {{ "score": 0.0-1.0, "reason": "concise explanation" }},
-    "social_dynamics": {{ "score": 0.0-1.0, "reason": "concise explanation" }}
+    "narrative_summary": {{ "score": 0.0-1.0, "reason": "explication concise en français" }},
+    "questions": {{ "score": 0.0-1.0, "reason": "explication concise en français" }},
+    "speaker_intents": {{ "score": 0.0-1.0, "reason": "explication concise en français" }},
+    "entities": {{ "score": 0.0-1.0, "reason": "explication concise en français" }},
+    "emotions": {{ "score": 0.0-1.0, "reason": "explication concise en français" }},
+    "temporal_context": {{ "score": 0.0-1.0, "reason": "explication concise en français" }},
+    "social_dynamics": {{ "score": 0.0-1.0, "reason": "explication concise en français" }}
 }}
 
-Ensure strictly valid JSON output. Do not include markdown formatting ```json ... ```.
+Assure-toi que la sortie est un JSON valide. N'inclus pas de balises markdown ```json ... ```.
 """
         
         try:
             response = provider.generate([{"role": "user", "content": prompt}], temperature=0.1)
             
-            # Clean response
-            cleaned_response = response.strip()
-            if cleaned_response.startswith("```json"):
-                cleaned_response = cleaned_response[7:]
-            if cleaned_response.endswith("```"):
-                cleaned_response = cleaned_response[:-3]
-            cleaned_response = cleaned_response.strip()
-
-            eval_json = json.loads(cleaned_response)
+            # Clean response aggressively
+            text = response.strip()
+            
+            # 1. Remove markdown code blocks if present
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0].strip()
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0].strip()
+                
+            # 2. Extract content between first { and last } to ignore preamble/postamble
+            start = text.find('{')
+            end = text.rfind('}')
+            if start != -1 and end != -1:
+                text = text[start:end+1]
+            
+            # 3. CRITICAL: Replace internal control characters that break JSON parsing
+            # (new lines, tabs inside the string content)
+            text = text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+            
+            eval_json = json.loads(text)
                 
             # Update heuristic report with LLM scores
             # We treat the LLM score as the "Quality Score" and Heuristic as "Schema Score"

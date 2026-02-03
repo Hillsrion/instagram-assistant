@@ -141,25 +141,26 @@ def get_judge_summary(stats: Dict, judge_model: str, provider: str, config: Conf
         print(f"👨‍⚖️ Generating global verdict with {judge_model}...")
         llm = create_provider(config=config, model=judge_model, provider_type=provider)
         
-        prompt = "You are an expert evaluator comparing AI models for RAG enrichment tasks.\n"
-        prompt += "Analyze the following performance statistics and provide a definitive comparison.\n\n"
+        prompt = "Tu es un expert en évaluation comparant des modèles d'IA pour des tâches d'enrichissement RAG.\n"
+        prompt += "Analyse les statistiques de performance suivantes et fournis une comparaison définitive en FRANÇAIS.\n\n"
         
         for m, data in stats['models'].items():
-            prompt += f"## Model: {m}\n"
-            prompt += f"- Average Quality Score: {data['avg_score']:.2f}/1.0\n"
-            prompt += f"- Win Rate: {data['wins']}/{stats['total_chunks']} chunks ({data['win_rate']:.1f}%)\n"
-            prompt += f"- Average Time: {data['avg_time']:.2f}s\n"
-            prompt += "- Metric Breakdown:\n"
+            prompt += f"## Modèle: {m}\n"
+            prompt += f"- Score de Qualité Moyen: {data['avg_score']:.2f}/1.0\n"
+            prompt += f"- Taux de Victoire: {data['wins']}/{stats['total_chunks']} segments ({data['win_rate']:.1f}%)\n"
+            prompt += f"- Temps Moyen: {data['avg_time']:.2f}s\n"
+            prompt += "- Détail par métrique:\n"
             for f, s in data['field_scores'].items():
                 prompt += f"  * {f}: {s:.2f}\n"
             prompt += "\n"
         
-        prompt += "QUESTION: Which model is better overall? Why?\n"
-        prompt += "INSTRUCTIONS:\n"
-        prompt += "1. Start with a clear winner declaration.\n"
-        prompt += "2. Compare their strengths and weaknesses based on the metrics.\n"
-        prompt += "3. Comment on the trade-off between speed and quality if relevant.\n"
-        prompt += "4. Keep it concise (under 150 words)."
+        prompt += "QUESTION: Quel modèle est le meilleur globalement ? Pourquoi ?\n"
+        prompt += "CONSIGNES:\n"
+        prompt += "1. Rédige ton verdict exclusivement en FRANÇAIS.\n"
+        prompt += "2. Commence par déclarer clairement le vainqueur.\n"
+        prompt += "3. Compare leurs forces et faiblesses en te basant sur les chiffres.\n"
+        prompt += "4. Commenter le trade-off vitesse/qualité si pertinent.\n"
+        prompt += "5. Sois concis (moins de 150 mots)."
         
         messages = [{"role": "user", "content": prompt}]
         response = llm.generate(messages, temperature=0.3)
@@ -265,13 +266,17 @@ def generate_comparative_html_report(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enrichment Comparison Report</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         body {{ font-family: 'Inter', sans-serif; }}
         pre {{ font-family: 'JetBrains Mono', monospace; }}
+        .prose {{ max-width: none; }}
+        /* Ensure markdown content looks good in small cards */
+        .reason-prose {{ font-size: 0.8rem; line-height: 1.4; }}
+        .reason-prose p {{ margin-bottom: 0.5rem; }}
     </style>
 </head>
 <body class="p-8 max-w-[95%] mx-auto">
@@ -289,7 +294,7 @@ def generate_comparative_html_report(
         <h2 class="text-xl font-bold text-gray-900 flex items-center mb-4">
             👨‍⚖️ Global Judge Verdict
         </h2>
-        <div class="prose max-w-none text-gray-700 bg-indigo-50/50 p-6 rounded-lg border border-indigo-50 leading-relaxed italic whitespace-pre-wrap">
+        <div id="global-verdict" class="prose prose-indigo max-w-none text-gray-700 bg-indigo-50/50 p-6 rounded-lg border border-indigo-50 leading-relaxed italic whitespace-pre-wrap" data-markdown="{judge_verdict.replace('"', '&quot;')}">
             {judge_verdict}
         </div>
     </div>
@@ -452,11 +457,27 @@ def generate_comparative_html_report(
                     btn.classList.add('bg-gray-900', 'text-white');
                     btn.classList.remove('bg-gray-100', 'text-gray-600');
                 }} else {{
-                    btn.classList.remove('bg-gray-900', 'text-white');
                     btn.classList.add('bg-gray-100', 'text-gray-600');
                 }}
             }});
         }}
+
+        // Markdown Rendering
+        window.addEventListener('DOMContentLoaded', () => {{
+            // Render global verdict
+            const verdictEl = document.getElementById('global-verdict');
+            if (verdictEl && verdictEl.dataset.markdown) {{
+                verdictEl.innerHTML = marked.parse(verdictEl.dataset.markdown);
+                verdictEl.classList.remove('whitespace-pre-wrap');
+            }}
+
+            // Render all reasons
+            document.querySelectorAll('.reason-markdown').forEach(el => {{
+                if (el.dataset.markdown) {{
+                    el.innerHTML = marked.parse(el.dataset.markdown);
+                }}
+            }});
+        }});
     </script>
 
     <div class="space-y-16">
@@ -581,6 +602,47 @@ def generate_comparative_html_report(
         
     return output_path
 
+def generate_comparative_json_report(
+    results: List[Dict], 
+    models: List[str],
+    stats: Dict,
+    judge_verdict: str
+) -> Path:
+    """Generate a comparative JSON report."""
+    timestamp = datetime.now()
+    
+    # Prepare serializable results
+    serializable_results = []
+    for res in results:
+        res_copy = res.copy()
+        # Convert Chunk objects to dicts
+        res_copy['original_chunk'] = res['original_chunk'].to_dict()
+        
+        # Convert model results reports to dicts
+        res_copy['model_results'] = {}
+        for m, m_data in res['model_results'].items():
+            res_copy['model_results'][m] = {
+                "data": m_data['data'].to_dict(),
+                "report": m_data['report'].to_dict(),
+                "time": m_data['time']
+            }
+        serializable_results.append(res_copy)
+
+    report_data = {
+        "timestamp": timestamp.isoformat(),
+        "models": models,
+        "stats": stats,
+        "results": serializable_results,
+        "judge_verdict": judge_verdict
+    }
+
+    output_path = get_enrichment_report_path(models, timestamp=timestamp, format="json")
+    
+    with open(output_path, 'w', encoding='utf-8') as f:
+        json.dump(report_data, f, indent=2, ensure_ascii=False)
+        
+    return output_path
+
 def render_warnings_html(count, field_results):
     if count == 0:
         return ""
@@ -612,7 +674,10 @@ def render_enrichment_data_html(chunk, report):
     # Narrative Summary
     html += f"""
     <div class="{get_bg('narrative_summary')} p-3 rounded border">
-        <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">Narrative Summary</h4>
+        <div class="flex items-center space-x-2 mb-1">
+            <h4 class="text-xs font-bold text-gray-500 uppercase">Narrative Summary</h4>
+            {render_field_feedback(report.field_results.get('narrative_summary'))}
+        </div>
         <p class="text-gray-800 leading-relaxed">{chunk.narrative_summary or '<span class="text-gray-400 italic">Empty</span>'}</p>
     </div>
     """
@@ -620,7 +685,10 @@ def render_enrichment_data_html(chunk, report):
     # Intents
     html += f"""
     <div>
-        <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Intentions</h4>
+        <div class="flex items-center space-x-2 mb-2">
+            <h4 class="text-xs font-bold text-gray-500 uppercase">Intentions</h4>
+            {render_field_feedback(report.field_results.get('speaker_intents'))}
+        </div>
         {render_dict_list_html(chunk.speaker_intents)}
     </div>
     """
@@ -628,7 +696,10 @@ def render_enrichment_data_html(chunk, report):
     # Entities
     html += f"""
     <div>
-        <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Entities</h4>
+        <div class="flex items-center space-x-2 mb-2">
+            <h4 class="text-xs font-bold text-gray-500 uppercase">Entities</h4>
+            {render_field_feedback(report.field_results.get('entities'))}
+        </div>
         {render_entities_html(chunk.entities)}
     </div>
     """
@@ -636,7 +707,10 @@ def render_enrichment_data_html(chunk, report):
     # Emotions
     html += f"""
     <div>
-        <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Emotions</h4>
+        <div class="flex items-center space-x-2 mb-2">
+            <h4 class="text-xs font-bold text-gray-500 uppercase">Emotions</h4>
+            {render_field_feedback(report.field_results.get('emotions'))}
+        </div>
         {render_dict_list_html(chunk.emotions)}
     </div>
     """
@@ -645,15 +719,58 @@ def render_enrichment_data_html(chunk, report):
     html += f"""
     <div class="grid grid-cols-1 gap-4">
         <div>
-            <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">Temporal Context</h4>
+            <div class="flex items-center space-x-2 mb-1">
+                <h4 class="text-xs font-bold text-gray-500 uppercase">Temporal Context</h4>
+                {render_field_feedback(report.field_results.get('temporal_context'))}
+            </div>
             <p class="text-gray-700">{chunk.temporal_context or '-'}</p>
         </div>
         <div>
-            <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Hypothetical Questions</h4>
+            <div class="flex items-center space-x-2 mb-2">
+                <h4 class="text-xs font-bold text-gray-500 uppercase">Hypothetical Questions</h4>
+                {render_field_feedback(report.field_results.get('questions'))}
+            </div>
             <ul class="list-disc list-inside text-gray-700 space-y-1">
                 {''.join(f'<li>{q}</li>' for q in (chunk.hypothetical_questions or []))}
             </ul>
              { '<p class="text-gray-400 italic">None</p>' if not chunk.hypothetical_questions else ''}
+        </div>
+    </div>
+    """
+
+    # Social Dynamics
+    html += f"""
+    <div class="border-t border-gray-100 pt-4 mt-2">
+        <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 tracking-widest text-center">Social Dynamics</h4>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                <div class="flex items-center space-x-2 mb-1">
+                    <span class="text-gray-400 uppercase font-semibold">Pattern</span>
+                    {render_field_feedback(report.field_results.get('interaction_pattern'))}
+                </div>
+                <div class="font-medium text-gray-700">{chunk.interaction_pattern or 'None'}</div>
+            </div>
+            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                <div class="flex items-center space-x-2 mb-1">
+                    <span class="text-gray-400 uppercase font-semibold">Initiative</span>
+                    {render_field_feedback(report.field_results.get('initiative'))}
+                </div>
+                <div class="font-medium text-gray-700">{chunk.initiative or 'None'}</div>
+            </div>
+            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                <div class="flex items-center space-x-2 mb-1">
+                    <span class="text-gray-400 uppercase font-semibold">Shift</span>
+                    {render_field_feedback(report.field_results.get('emotional_shift'))}
+                </div>
+                <div class="font-medium text-gray-700">{chunk.emotional_shift or 'None'}</div>
+            </div>
+            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                <div class="flex items-center space-x-2 mb-1">
+                    <span class="text-gray-400 uppercase font-semibold">Loops</span>
+                    {render_field_feedback(report.field_results.get('open_loops'))}
+                </div>
+                <div class="font-medium text-gray-700">{", ".join(chunk.open_loops) if chunk.open_loops else "None"}</div>
+            </div>
         </div>
     </div>
     """
@@ -666,6 +783,34 @@ def render_dict_list_html(d):
     return '<ul class="list-disc list-inside text-gray-700 space-y-1">' + \
            ''.join(f'<li><span class="font-semibold text-gray-600">{k}:</span> {v}</li>' for k, v in d.items()) + \
            '</ul>'
+
+def render_field_feedback(field_res):
+    if not field_res:
+        return ""
+    
+    # Always show the badge, but only show reasoning if available
+    has_reason = 'judge_reason' in field_res.metadata
+    reason = field_res.metadata.get('judge_reason', "Aucune observation détaillée (mode heuristique).")
+    score = field_res.metadata.get('judge_score', field_res.score)
+    
+    score_color = "bg-green-100 text-green-800" if score >= 0.8 else "bg-orange-100 text-orange-800" if score >= 0.5 else "bg-red-100 text-red-800"
+    
+    return f"""
+    <div class="group relative flex items-center">
+        <span class="cursor-help px-1.5 py-0.5 {score_color} rounded text-[10px] font-bold border border-current opacity-70 hover:opacity-100 transition-opacity">
+            {score:.2f}
+        </span>
+        <div class="pointer-events-none absolute bottom-full left-0 mb-2 w-64 bg-slate-800 text-white text-xs p-3 rounded-lg shadow-xl opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 transition-all z-50 ring-1 ring-white/10">
+            <div class="font-bold mb-1 border-b border-white/10 pb-1 flex justify-between">
+                <span>{'Juge LLM' if has_reason else 'Heuristique'}</span>
+                <span class="text-indigo-300">{score:.2f}</span>
+            </div>
+            <div class="reason-markdown prose prose-invert reason-prose" data-markdown="{reason.replace('"', '&quot;')}">
+                {reason}
+            </div>
+        </div>
+    </div>
+    """
 
 def render_entities_html(entities):
     if not entities:
@@ -701,6 +846,7 @@ def main():
     parser.add_argument("--models", type=str, help="Comma-separated list of models to evaluate (e.g., 'ministral-3:3b,ministral-3:8b')")
     parser.add_argument("--size", "--samples", type=int, default=10, dest="size", help="Number of chunks to evaluate")
     parser.add_argument("--html", action="store_true", help="Generate HTML report")
+    parser.add_argument("--json", action="store_true", help="Generate JSON report")
     parser.add_argument("--judge", type=str, default="ministral-3:14b", help="LLM model to use as judge (default: 'ministral-3:14b')")
     parser.add_argument("--provider", type=str, default="ollama", choices=["ollama", "mlx"], help="LLM provider for the judge")
     parser.add_argument("--fast", "--heuristic", action="store_true", dest="fast", help="Use fast heuristic validation instead of LLM judge")
@@ -820,6 +966,17 @@ def main():
         report_path = generate_comparative_html_report(results, models, stats, judge_verdict)
         print(f"\n✅ HTML Report generated: {report_path}")
         print(f"👉 Open it: open {report_path}")
+
+    if args.json:
+        # Re-calculate judge verdict if not already done for HTML
+        if not args.html:
+             if not args.fast:
+                judge_verdict = get_judge_summary(stats, args.judge, args.provider, config)
+             else:
+                judge_verdict = "Heuristic mode: no LLM verdict."
+
+        report_path = generate_comparative_json_report(results, models, stats, judge_verdict)
+        print(f"\n✅ JSON Report generated: {report_path}")
 
 if __name__ == "__main__":
     main()
