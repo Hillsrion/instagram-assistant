@@ -219,6 +219,7 @@ def enrich_chunk_with_model(chunk: Chunk, model: str, config: Config) -> float:
     # crucial: disable routing to force specific model
     run_config.enable_complexity_routing = False 
     run_config.force_model = model
+    run_config.llm_model = model  # <--- CRITICAL FIX: Ensure default model is also updated
     
     enricher = ChunkEnricher(config=run_config)
     
