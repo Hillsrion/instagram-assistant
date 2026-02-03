@@ -34,6 +34,105 @@ from eval.enrichment.enrichment_validator import (
     ChunkEnrichmentValidationReport
 )
 from eval.core._output_paths import get_enrichment_report_path
+from rag_pipeline.llm_provider import create_provider
+
+def calculate_stats(results: List[Dict], models: List[str]) -> Dict:
+    """Calculate aggregate statistics for models."""
+    stats = {
+        "models": {m: {"total_score": 0, "total_time": 0, "wins": 0, "field_scores": {}} for m in models},
+        "fields": [],
+        "total_chunks": len(results)
+    }
+    
+    if not results:
+        return stats
+        
+    # Initialize fields from first result
+    first_model_res = results[0]['model_results'].get(models[0])
+    if first_model_res:
+         stats['fields'] = list(first_model_res['report'].field_results.keys())
+    
+    for m in models:
+        for f in stats['fields']:
+            stats['models'][m]['field_scores'][f] = 0.0
+
+    for res in results:
+        best_score = -1.0
+        winner = None
+        
+        # Determine winner
+        for m in models:
+            m_res = res['model_results'].get(m)
+            if not m_res: continue
+            
+            score = m_res['report'].overall_score
+            if score > best_score:
+                best_score = score
+                winner = m
+            elif score == best_score:
+                # Tie: treat as shared win or ignore? For simplicity, first one takes it or ignore.
+                pass
+        
+        if winner:
+            stats['models'][winner]['wins'] += 1
+            
+        # Accumulate values
+        for m in models:
+            m_res = res['model_results'].get(m)
+            if not m_res: continue
+            
+            report = m_res['report']
+            stats['models'][m]['total_score'] += report.overall_score
+            stats['models'][m]['total_time'] += m_res['time']
+            
+            for f, f_res in report.field_results.items():
+                if f in stats['models'][m]['field_scores']:
+                    stats['models'][m]['field_scores'][f] += f_res.score
+
+    # Compute averages
+    n = len(results)
+    if n > 0:
+        for m in models:
+            stats['models'][m]['avg_score'] = stats['models'][m]['total_score'] / n
+            stats['models'][m]['avg_time'] = stats['models'][m]['total_time'] / n
+            stats['models'][m]['win_rate'] = (stats['models'][m]['wins'] / n) * 100
+            
+            for f in stats['fields']:
+                 stats['models'][m]['field_scores'][f] /= n
+                 
+    return stats
+
+def get_judge_summary(stats: Dict, judge_model: str, provider: str, config: Config) -> str:
+    """Generate a global summary using the judge LLM."""
+    try:
+        print(f"👨‍⚖️ Generating global verdict with {judge_model}...")
+        llm = create_provider(provider_type=provider, config=config)
+        
+        prompt = "You are an expert evaluator comparing AI models for RAG enrichment tasks.\n"
+        prompt += "Analyze the following performance statistics and provide a definitive comparison.\n\n"
+        
+        for m, data in stats['models'].items():
+            prompt += f"## Model: {m}\n"
+            prompt += f"- Average Quality Score: {data['avg_score']:.2f}/1.0\n"
+            prompt += f"- Win Rate: {data['wins']}/{stats['total_chunks']} chunks ({data['win_rate']:.1f}%)\n"
+            prompt += f"- Average Time: {data['avg_time']:.2f}s\n"
+            prompt += "- Metric Breakdown:\n"
+            for f, s in data['field_scores'].items():
+                prompt += f"  * {f}: {s:.2f}\n"
+            prompt += "\n"
+        
+        prompt += "QUESTION: Which model is better overall? Why?\n"
+        prompt += "INSTRUCTIONS:\n"
+        prompt += "1. Start with a clear winner declaration.\n"
+        prompt += "2. Compare their strengths and weaknesses based on the metrics.\n"
+        prompt += "3. Comment on the trade-off between speed and quality if relevant.\n"
+        prompt += "4. Keep it concise (under 150 words)."
+        
+        response = llm.generate(prompt, model=judge_model)
+        return response
+    except Exception as e:
+        print(f"⚠️ Could not generate judge summary: {e}")
+        return "global judge summary currently unavailable due to an error."
 
 def load_dataset_chunks(path: Path) -> List[Dict]:
     """Load chunks from a JSON dataset."""
@@ -112,18 +211,19 @@ def enrich_chunk_with_model(chunk: Chunk, model: str, config: Config) -> float:
 
 def generate_comparative_html_report(
     results: List[Dict], 
-    models: List[str]
+    models: List[str],
+    stats: Dict,
+    judge_verdict: str
 ) -> Path:
-    """Generate a side-by-side HTML comparison report."""
+    """Generate a side-by-side HTML comparison report with charts."""
     
     timestamp = datetime.now()
     timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
     
-    # Calculate grid columns based on number of models
-    # If 1 model: max-w-3xl mx-auto
-    # If 2 models: grid-cols-2
-    # If 3+ models: grid-cols-X (might get squashed, but okay)
     grid_cols = f"grid-cols-1 lg:grid-cols-{len(models)}" if len(models) > 1 else "max-w-4xl mx-auto"
+    
+    # Serialize stats for JS
+    stats_json = json.dumps(stats, default=str)
     
     html = f"""
 <!DOCTYPE html>
@@ -133,6 +233,7 @@ def generate_comparative_html_report(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enrichment Comparison Report</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         body {{ font-family: 'Inter', sans-serif; }}
@@ -146,10 +247,98 @@ def generate_comparative_html_report(
         <div class="mt-4 inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
             {timestamp_str}
         </div>
-        </div>
         <p class="mt-2 text-sm text-gray-500">{len(results)} chunks evaluated</p>
-        <p class="mt-1 text-xs text-gray-400 italic">Validation Method: {'LLM Judge' if any(r['model_results'][models[0]]['report'].field_results['narrative_summary'].metadata.get('judge_reason') for r in results) else 'Heuristic'}</p>
     </div>
+
+    <!-- Judge Verdict -->
+    <div class="mb-12 bg-white rounded-xl shadow-lg border border-indigo-100 p-8">
+        <h2 class="text-xl font-bold text-gray-900 flex items-center mb-4">
+            👨‍⚖️ Global Judge Verdict
+        </h2>
+        <div class="prose max-w-none text-gray-700 bg-indigo-50/50 p-6 rounded-lg border border-indigo-50 leading-relaxed italic whitespace-pre-wrap">
+            {judge_verdict}
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="mb-16 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
+            <h3 class="font-bold text-gray-500 text-xs uppercase mb-4 text-center">Win Rate (%)</h3>
+            <div class="h-64"><canvas id="winRateChart"></canvas></div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
+            <h3 class="font-bold text-gray-500 text-xs uppercase mb-4 text-center">Avg Speed (s)</h3>
+            <div class="h-64"><canvas id="speedChart"></canvas></div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
+            <h3 class="font-bold text-gray-500 text-xs uppercase mb-4 text-center">Quality Breakdown (0-1)</h3>
+            <div class="h-64"><canvas id="metricsChart"></canvas></div>
+        </div>
+    </div>
+    
+    <script>
+        const stats = {stats_json};
+        const models = Object.keys(stats.models);
+        
+        // Win Rate Pie
+        new Chart(document.getElementById('winRateChart'), {{
+            type: 'doughnut',
+            data: {{
+                labels: models,
+                datasets: [{{
+                    data: models.map(m => stats.models[m].win_rate),
+                    backgroundColor: ['#4ade80', '#60a5fa', '#f87171', '#fbbf24'],
+                }}]
+            }},
+            options: {{ responsive: true, maintainAspectRatio: false }}
+        }});
+
+        // Speed Bar
+        new Chart(document.getElementById('speedChart'), {{
+            type: 'bar',
+            data: {{
+                labels: models,
+                datasets: [{{
+                    label: 'Seconds per Chunk',
+                    data: models.map(m => stats.models[m].avg_time),
+                    backgroundColor: '#e5e7eb',
+                    borderColor: '#9ca3af',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }}]
+            }},
+            options: {{ 
+                indexAxis: 'y',
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {{ legend: {{ display: false }} }}
+            }}
+        }});
+        
+        // Metrics Radar
+        const fields = stats.fields;
+        const metricsDatasets = models.map((m, i) => ({{
+            label: m,
+            data: fields.map(f => stats.models[m].field_scores[f]),
+            borderColor: ['#16a34a', '#2563eb', '#dc2626'][i % 3],
+            backgroundColor: ['rgba(22, 163, 74, 0.2)', 'rgba(37, 99, 235, 0.2)', 'rgba(220, 38, 38, 0.2)'][i % 3],
+        }}));
+        
+        new Chart(document.getElementById('metricsChart'), {{
+            type: 'radar',
+            data: {{
+                labels: fields.map(f => f.replace('_', ' ').replace('narrative', '').trim().substring(0, 10)),
+                datasets: metricsDatasets
+            }},
+            options: {{ 
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: {{
+                    r: {{ min: 0, max: 1 }}
+                }}
+            }}
+        }});
+    </script>
 
     <div class="space-y-16">
 """
@@ -493,13 +682,22 @@ def main():
     print("📊 SUMMARY")
     print("="*60)
     
+    # Calculate stats
+    stats = calculate_stats(results, models)
+    
     for model in models:
-        avg_score = sum(r['model_results'][model]['report'].overall_score for r in results) / len(results)
-        avg_time = sum(r['model_results'][model]['time'] for r in results) / len(results)
-        print(f"Model: {model:<20} | Avg Score: {avg_score:.2f} | Avg Time: {avg_time:.2f}s")
+        m_stats = stats['models'][model]
+        print(f"Model: {model:<20} | Avg Score: {m_stats['avg_score']:.2f} | Avg Time: {m_stats['avg_time']:.2f}s | Win Rate: {m_stats['win_rate']:.1f}%")
         
     if args.html:
-        report_path = generate_comparative_html_report(results, models)
+        judge_verdict = ""
+        if not args.fast:
+             # Just use the config that was loaded
+            judge_verdict = get_judge_summary(stats, args.judge, args.provider, config)
+        else:
+            judge_verdict = "Global verdict not available in heuristic mode. Use LLM judge for detailed analysis."
+            
+        report_path = generate_comparative_html_report(results, models, stats, judge_verdict)
         print(f"\n✅ HTML Report generated: {report_path}")
         print(f"👉 Open it: open {report_path}")
 
