@@ -894,54 +894,53 @@ def main():
     else:
         print("⚡️ Validation Mode: Fast (Heuristic)")
     
-    # 3. Evaluation Loop
+    # Phase 1: Generation (One model at a time for all chunks)
     validator = EnrichmentValidator(config)
     results = []
-    
-    for i, original_chunk in enumerate(chunks):
-        print(f"\n[{i+1}/{len(chunks)}] Processing chunk {original_chunk.chunk_id}")
-        
-        # Extract metadata
+    # Initialize results structure
+    for original_chunk in chunks:
         meta = getattr(original_chunk, 'metadata', {}) or {}
-        complexity_score = meta.get('complexity_score', 0.0)
-        complexity_category = meta.get('complexity_category', 'unknown')
-
-        chunk_result = {
+        results.append({
             "original_chunk": original_chunk,
-            "complexity_score": complexity_score, 
-            "category": complexity_category,
+            "complexity_score": meta.get('complexity_score', 0.0), 
+            "category": meta.get('complexity_category', 'unknown'),
             "model_results": {}
-        }
-        
-        # Determine metadata if available (from dataset)
-        # Note: Chunk object created from dictionary doesn't strictly preserve 'metadata' dict in attributes unless we hack it
-        # But we can try to infer simple/medium/complex from length if missing
-        
-        for model in models:
-            print(f"  🤖 Run {model}...", end="", flush=True)
+        })
+
+    for model in models:
+        print(f"\n🚀 Running Generation for model: {model}")
+        for chunk_res in results:
+            original_chunk = chunk_res["original_chunk"]
+            print(f"  🤖 Processing {original_chunk.chunk_id}...", end="", flush=True)
             
-            # Create a fresh copy to avoid polluting other model runs
-            # We must manually copy because dataclass copy might not deep copy everything
             test_chunk = create_chunk_from_dict(original_chunk.to_dict())
-            
-            # Enrich
             time_taken = enrich_chunk_with_model(test_chunk, model, config)
             
-            # Validate
-            if not args.fast:
-                report = validator.validate_chunk_with_llm(test_chunk, args.judge, args.provider)
-            else:
-                report = validator.validate_chunk(test_chunk)
-            
-            chunk_result["model_results"][model] = {
+            chunk_res["model_results"][model] = {
                 "data": test_chunk,
-                "report": report,
                 "time": time_taken
             }
+            print(f" Done ({time_taken:.2f}s)")
+
+    # Phase 2: Validation (Run judge once generation is complete)
+    print("\n" + "="*60)
+    print("⚖️  PHASE: VALIDATION & JUDGING")
+    print("="*60)
+    
+    for i, chunk_res in enumerate(results):
+        print(f"\n[{i+1}/{len(results)}] Judging chunk {chunk_res['original_chunk'].chunk_id}")
+        for model in models:
+            m_res = chunk_res["model_results"].get(model)
+            if not m_res: continue
             
-            print(f" Done ({time_taken:.2f}s) | Score: {report.overall_score:.2f}")
+            print(f"  👨‍⚖️  Judging {model}...", end="", flush=True)
+            if not args.fast:
+                report = validator.validate_chunk_with_llm(m_res["data"], args.judge, args.provider)
+            else:
+                report = validator.validate_chunk(m_res["data"])
             
-        results.append(chunk_result)
+            m_res["report"] = report
+            print(f" Score: {report.overall_score:.2f}")
 
     # 4. Report
     print("\n" + "="*60)
