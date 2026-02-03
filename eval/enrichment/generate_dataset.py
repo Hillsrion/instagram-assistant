@@ -96,11 +96,24 @@ def generate_enrichment_dataset(
     
     # Initialize targets based on size
     if simple_target is None and medium_target is None and complex_target is None:
-        targets = {
-            "simple": size // 3,
-            "medium": size // 3,
-            "complex": size - (size // 3) * 2
-        }
+        # Calculate proportional targets based on available distribution
+        total_available = sum(available.values())
+        if total_available == 0:
+            print("❌ No chunks available to sample from.")
+            sys.exit(1)
+            
+        targets = {}
+        remaining_size = size
+        
+        # Calculate targets for first two categories
+        for cat in ["simple", "medium"]:
+            proportion = available[cat] / total_available
+            target = int(size * proportion)
+            targets[cat] = target
+            remaining_size -= target
+            
+        # Assign remainder to complex to ensure sum equals size
+        targets["complex"] = remaining_size
     else:
         targets = {
             "simple": simple_target or 0,
