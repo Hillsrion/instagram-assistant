@@ -101,45 +101,61 @@ class ChunkComplexityAnalyzer:
 
     def _compute_metrics(self, chunk: Chunk) -> ComplexityMetrics:
         """Compute all 6 complexity metrics."""
+        # 0. Preparation: Get cleaned content and active participants
+        clean_content = self._get_clean_content(chunk.content or "")
+        active_participants = self._get_active_authors(chunk.content or "")
+
         return ComplexityMetrics(
-            participants=self._score_participants(chunk),
-            density=self._score_density(chunk),
-            media=self._score_media(chunk),
-            size=self._score_size(chunk),
-            lexical_diversity=self._score_lexical_diversity(chunk),
-            dialogue=self._score_dialogue(chunk),
+            participants=self._score_participants(active_participants),
+            density=self._score_density(clean_content, chunk.message_count),
+            media=self._score_media(clean_content, chunk.message_count),
+            size=self._score_size(chunk.message_count),
+            lexical_diversity=self._score_lexical_diversity(clean_content),
+            dialogue=self._score_dialogue(clean_content, chunk.message_count),
         )
 
-    def _score_participants(self, chunk: Chunk) -> float:
-        """
-        Score based on number of participants.
+    def _get_clean_content(self, content: str) -> str:
+        """Remove structural noise like reaction lines."""
+        lines = []
+        for line in content.split('\n'):
+            # Remove reaction lines
+            if "💬 Réactions:" in line or "❤️ Réactions:" in line:
+                continue
+            
+            # Extract actual message content to ignore headers/timestamps in density
+            # Format: [2024-...] Author: Message
+            header_match = re.search(r'\] .*?: (.*)', line)
+            if header_match:
+                lines.append(header_match.group(1))
+            else:
+                lines.append(line)
+        return "\n".join(lines)
 
-        1-2: 0.0 (simple dyadic)
-        3-4: 0.5 (small group)
-        5+: 1.0 (complex group dynamic)
-        """
-        participant_count = len(chunk.participants) if chunk.participants else 0
+    def _get_active_authors(self, content: str) -> list:
+        """Extract unique authors who actually sent messages in this chunk."""
+        # Regex to find authors between timestamp bracket and colon
+        # Format: [2024-01-01 12:00] Author Name: Message
+        authors = re.findall(r'\] (.*?):', content)
+        return list(set(authors))
 
-        if participant_count <= 2:
+    def _score_participants(self, active_participants: list) -> float:
+        """
+        Score based on number of ACTIVE participants.
+        1-2: 0.0, 3-4: 0.5, 5+: 1.0
+        """
+        count = len(active_participants)
+        if count <= 2:
             return 0.0
-        elif participant_count <= 4:
+        elif count <= 4:
             return 0.5
         else:
             return 1.0
 
-    def _score_density(self, chunk: Chunk) -> float:
-        """
-        Score based on information density (tokens per message).
-
-        <50: 0.0 (sparse)
-        50-100: 0.5 (moderate)
-        >100: 1.0 (dense)
-        """
-        content = chunk.content or ""
-        message_count = chunk.message_count or 1
-
-        total_tokens = self._estimate_tokens(content)
-        tokens_per_msg = total_tokens / max(message_count, 1)
+    def _score_density(self, clean_content: str, message_count: int) -> float:
+        """Score based on tokens per message in cleaned content."""
+        msg_count = max(message_count or 1, 1)
+        total_tokens = self._estimate_tokens(clean_content)
+        tokens_per_msg = total_tokens / msg_count
 
         if tokens_per_msg < 50:
             return 0.0
@@ -148,19 +164,11 @@ class ChunkComplexityAnalyzer:
         else:
             return 1.0
 
-    def _score_media(self, chunk: Chunk) -> float:
-        """
-        Score based on media/link ratio.
-
-        0-10%: 0.0
-        10-30%: 0.5
-        >30%: 1.0
-        """
-        content = chunk.content or ""
-        message_count = max(chunk.message_count or 1, 1)
-
-        media_count = self._count_media_and_links(content)
-        media_ratio = media_count / message_count if message_count > 0 else 0
+    def _score_media(self, clean_content: str, message_count: int) -> float:
+        """Score based on media/link ratio."""
+        msg_count = max(message_count or 1, 1)
+        media_count = self._count_media_and_links(clean_content)
+        media_ratio = media_count / msg_count
 
         if media_ratio < 0.10:
             return 0.0
@@ -169,37 +177,19 @@ class ChunkComplexityAnalyzer:
         else:
             return 1.0
 
-    def _score_size(self, chunk: Chunk) -> float:
-        """
-        Score based on chunk size (message count).
-
-        <15: 0.0
-        15-35: 0.5
-        >35: 1.0
-        """
-        message_count = chunk.message_count or 0
-
-        if message_count < 15:
+    def _score_size(self, message_count: int) -> float:
+        """Score based on message count."""
+        count = message_count or 0
+        if count < 15:
             return 0.0
-        elif message_count < 35:
-            return (message_count - 15) / 20.0
+        elif count < 35:
+            return (count - 15) / 20.0
         else:
             return 1.0
 
-    def _score_lexical_diversity(self, chunk: Chunk) -> float:
-        """
-        Score based on lexical diversity (normalized by text length).
-
-        Uses formula: unique_words / sqrt(total_words)
-        This avoids bias towards short texts.
-
-        <0.5: 0.0 (repetitive)
-        0.5-0.8: 0.5 (moderate)
-        >0.8: 1.0 (rich vocabulary)
-        """
-        content = chunk.content or ""
-        diversity = self._compute_lexical_diversity(content)
-
+    def _score_lexical_diversity(self, clean_content: str) -> float:
+        """Score based on lexical diversity of cleaned content."""
+        diversity = self._compute_lexical_diversity(clean_content)
         if diversity < 0.5:
             return 0.0
         elif diversity < 0.8:
@@ -207,27 +197,14 @@ class ChunkComplexityAnalyzer:
         else:
             return 1.0
 
-    def _score_dialogue(self, chunk: Chunk) -> float:
-        """
-        Score based on dialogue patterns (questions, exclamations, emojis).
+    def _score_dialogue(self, clean_content: str, message_count: int) -> float:
+        """Score based on dialogue patterns in cleaned content."""
+        msg_count = max(message_count or 1, 1)
+        questions = len(re.findall(r'\?', clean_content))
+        exclamations = len(re.findall(r'!', clean_content))
+        emojis = len(re.findall(r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF]', clean_content))
 
-        Ratio per message:
-        <0.2: 0.0
-        0.2-0.5: 0.5
-        >0.5: 1.0
-        """
-        content = chunk.content or ""
-        message_count = max(chunk.message_count or 1, 1)
-
-        # Count dialogue markers
-        questions = len(re.findall(r'\?', content))
-        exclamations = len(re.findall(r'!', content))
-        # Simple emoji detection
-        emojis = len(re.findall(r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF]', content))
-
-        dialogue_count = questions + exclamations + emojis
-        ratio = dialogue_count / message_count if message_count > 0 else 0
-
+        ratio = (questions + exclamations + emojis) / msg_count
         if ratio < 0.2:
             return 0.0
         elif ratio < 0.5:
@@ -245,8 +222,6 @@ class ChunkComplexityAnalyzer:
             metrics.lexical_diversity * self.weights["lexical_diversity"] +
             metrics.dialogue * self.weights["dialogue"]
         )
-
-        # Clamp to [0.0, 1.0]
         return max(0.0, min(1.0, score))
 
     def _classify(self, score: float) -> str:
@@ -260,42 +235,27 @@ class ChunkComplexityAnalyzer:
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
-        """Rough token count estimate (1 token ≈ 4 characters)."""
+        """Rough token count estimate."""
         return max(len(text) // 4, 1)
 
     @staticmethod
     def _count_media_and_links(text: str) -> int:
-        """Count mentions of media files and URLs/links."""
-        # Count URL patterns
+        """Count mentions of media files and URLs strictly."""
         urls = len(re.findall(r'http[s]?://\S+|www\.\S+', text))
-        # Count file patterns (.jpg, .mp4, .pdf, etc.)
-        files = len(re.findall(r'\.\w{2,4}\b', text))
-        # Count media keywords
-        media_keywords = re.findall(
-            r'\b(photo|image|vidéo|video|fichier|file|lien|link|mp4|jpg|png|pdf|document)\b',
-            text,
-            re.IGNORECASE
-        )
-        return urls + files + len(media_keywords)
+        # Stricter file pattern to avoid usernames with dots
+        files = len(re.findall(r'(?:^|\s)[\w\-]+\.(?:jpg|jpeg|png|gif|mp4|mov|pdf|heic)\b', text, re.IGNORECASE))
+        # Indicators added by chunker
+        indicators = len(re.findall(r'\[(Photo|Vidéo|Audio)\]', text))
+        
+        keywords = len(re.findall(r'\b(photo|image|vidéo|video|fichier|file|lien|link)\b', text, re.IGNORECASE))
+        return urls + files + indicators + keywords
 
     @staticmethod
     def _compute_lexical_diversity(text: str) -> float:
-        """
-        Compute normalized lexical diversity.
-
-        Formula: unique_words / sqrt(total_words)
-        This avoids bias where short texts have artificially high ratios.
-        """
+        """Compute normalized lexical diversity."""
         words = re.findall(r'\b\w+\b', text.lower())
-        if not words:
+        if not words or len(words) < 2:
             return 0.0
+        diversity = len(set(words)) / math.sqrt(len(words))
+        return min(diversity, 1.0)
 
-        total_words = len(words)
-        unique_words = len(set(words))
-
-        if total_words < 2:
-            return 0.0
-
-        # Normalized metric
-        diversity = unique_words / math.sqrt(total_words)
-        return min(diversity, 1.0)  # Cap at 1.0
