@@ -373,7 +373,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    path = Path(__file__).parent / "complexity_eval_dataset.json"
+    path = Path(__file__).parent.parent / "generation" / "complexity_eval_dataset.json"
     if not path.exists():
         print(f"Error: Dataset not found at {path}")
         sys.exit(1)
