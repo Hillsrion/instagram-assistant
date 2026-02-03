@@ -101,6 +101,11 @@ eval/*.json
 !eval/eval_dataset.sample.json
 eval/*.html
 
+# Phase 0 validation (generated benchmark datasets)
+validation_dataset.json
+benchmark_report.json
+benchmark_report_*.json
+
 # Evaluation results (organized output)
 eval/results/
 

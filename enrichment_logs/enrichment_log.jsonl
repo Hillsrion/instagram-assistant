@@ -1,0 +1,1 @@
+{"timestamp": "2026-02-03T02:14:42.832606", "chunk_id": "test_chunk", "complexity_score": 0.25, "complexity_category": "simple", "selected_model": "ministral-3:3b", "enrichment_time_ms": 1200, "message_count": 10, "participant_count": 2, "reason": "Test entry", "metrics_breakdown": null}

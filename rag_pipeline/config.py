@@ -4,7 +4,7 @@ Centralized RAG Pipeline Configuration.
 import os
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 from dotenv import load_dotenv
 
 # Load environment variables from .env
@@ -98,6 +98,32 @@ class Config:
     max_tokens: int = 1024
     # Ollama context window size (RAG + History)
     num_ctx: int = field(default_factory=lambda: int(os.getenv('LLM_NUM_CTX', '32768')))
+
+    # === Complexity-Based Model Routing ===
+    # Light model for simple chunks (faster)
+    llm_light_model: str = field(default_factory=lambda: os.getenv('LLM_LIGHT_MODEL', 'ministral-3:3b'))
+    # Loading strategy: "dual" (preload both), "on-demand" (load/unload), "batch" (group by complexity)
+    model_loading_strategy: str = field(default_factory=lambda: os.getenv('MODEL_LOADING_STRATEGY', 'dual'))
+    # Minimum RAM for dual-load strategy (GB)
+    min_ram_gb_for_dual: float = 10.0
+    # Complexity thresholds (0.0-1.0)
+    complexity_simple_threshold: float = 0.35
+    complexity_complex_threshold: float = 0.65
+    # Route medium chunks to light model (3B) or strong model (8B)
+    complexity_medium_uses_light: bool = True
+    # Metric weights (must sum to 1.0)
+    complexity_weights: dict = field(default_factory=lambda: {
+        "participants": 0.20,
+        "density": 0.25,
+        "media": 0.15,
+        "size": 0.15,
+        "lexical_diversity": 0.15,
+        "dialogue": 0.10,
+    })
+    # Force specific model (override complexity routing)
+    force_model: Optional[str] = None
+    # Enable/disable complexity routing
+    enable_complexity_routing: bool = True
 
     # === User ===
     user_name: str = field(default_factory=lambda: os.getenv('USER_NAME', 'Ismaël'))
