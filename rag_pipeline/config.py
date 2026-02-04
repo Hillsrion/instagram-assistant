@@ -85,7 +85,7 @@ class Config:
     llm_model_strong: str = field(default_factory=lambda: os.getenv('LLM_MODEL_STRONG', 'ministral-3:14b'))
     # MLX models by performance tier (configurable via env)
     llm_model_mlx: str = field(default_factory=lambda: os.getenv('LLM_MODEL_MLX', 'mlx-community/granite-4.0-h-Tiny-4bit-DWQ'))
-    llm_model_mlx_strong: str = field(default_factory=lambda: os.getenv('LLM_MODEL_MXL_STRONG', 'ministral-3:14b'))
+    llm_model_mlx_strong: str = field(default_factory=lambda: os.getenv('LLM_MODEL_MLX_STRONG', 'ministral-3:14b'))
     # Main LLM model (default = regular tier)
     llm_model: str = field(default_factory=lambda: os.getenv('LLM_MODEL', 'ministral-3:8b'))
     # Ollama server URL
