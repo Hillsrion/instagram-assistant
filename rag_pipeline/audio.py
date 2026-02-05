@@ -81,7 +81,7 @@ class AudioTranscriber:
                         ]
                     }
                 ],
-                "max_tokens": 256
+                "max_tokens": 1024
             }
             
             # Note: "image_url" is often hijacked for "audio_url" or "inputs" in generic VLLM multimodal 
