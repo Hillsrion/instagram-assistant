@@ -45,6 +45,14 @@ class Config:
     # Use GPU if available
     use_gpu: bool = field(default_factory=lambda: os.getenv('USE_GPU', 'true').lower() == 'true')
 
+    # === Audio Transcription ===
+    # Enable audio transcription for exports
+    enable_audio_transcription: bool = field(default_factory=lambda: os.getenv('ENABLE_AUDIO_TRANSCRIPTION', 'false').lower() == 'true')
+    # VLLM Audio Endpoint
+    vllm_audio_url: str = field(default_factory=lambda: os.getenv('VLLM_AUDIO_URL', 'http://localhost:8001/v1'))
+    # Audio Model Name (must match served model)
+    vllm_audio_model_name: str = field(default_factory=lambda: os.getenv('VLLM_AUDIO_MODEL_NAME', 'mistralai/Voxtral-Mini-4B-Realtime-2602'))
+
     # === Retrieval ===
     # Number of chunks to retrieve
     top_k: int = field(default_factory=lambda: int(os.getenv('TOP_K', '12')))
@@ -155,6 +163,9 @@ class Config:
             self.chunks_cache_path = self.index_dir / "chunks.json"
         elif isinstance(self.chunks_cache_path, str):
             self.chunks_cache_path = Path(self.chunks_cache_path)
+
+        if not hasattr(self, 'audio_cache_path') or self.audio_cache_path is None:
+             self.audio_cache_path = self.index_dir / "audio_cache.json"
 
         # Create necessary directories
         self.index_dir.mkdir(exist_ok=True)
