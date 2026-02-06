@@ -97,15 +97,13 @@ tmp/
 
 # Evaluation data (ignore results and datasets, keep scripts)
 eval/__pycache__/
-eval/results/
 eval/**/results/
 eval/**/*.json
 eval/**/*.html
-!eval/eval_dataset.sample.json
-!eval/core/
-!eval/generation/
-!eval/**/*.py
 *_eval_dataset.json
+
+# Exceptions
+!eval/eval_dataset.sample.json
 
 
 # macOS
