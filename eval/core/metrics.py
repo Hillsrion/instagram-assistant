@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from rag_pipeline.config import Config, default_config
 from rag_pipeline.advanced_retriever import AdvancedSearchResult
 from rag_pipeline.chunker import Chunk
+from rag_pipeline.json_utils import repair_and_load_json
 
 
 @dataclass
@@ -427,53 +428,6 @@ class RAGASMetrics:
 
         return self._llm_judge(prompt)
 
-    def _extract_score_from_response(self, content: str) -> tuple:
-        """
-        Extract score and explanation from LLM response robustly.
-        Handles malformed JSON with unescaped newlines or truncation.
-
-        Returns:
-            (score: float, explanation: str)
-        """
-        import re
-
-        # Try to extract score with regex first (most reliable)
-        score_match = re.search(r'"score"\s*:\s*([\d.]+)', content, re.IGNORECASE)
-        if not score_match:
-            # Fallback: look for just a number after "score" or similar
-            score_match = re.search(r'score.*?([\d.]+)', content, re.IGNORECASE | re.DOTALL)
-
-        score = 0.5  # Default
-        if score_match:
-            try:
-                score = float(score_match.group(1))
-                score = max(0.0, min(1.0, score))
-            except (ValueError, IndexError):
-                pass
-
-        # Extract explanation: robustly handle truncated JSON
-        # Look for "explanation": " then capture everything until end of string or a potential closing quote + brace
-        explanation = ""
-        expl_match = re.search(r'"explanation"\s*:\s*"(.*?)(?:"\s*[}]|$)', content, re.IGNORECASE | re.DOTALL)
-        if expl_match:
-            explanation = expl_match.group(1).strip()
-            # Clean up escape characters if they exist
-            explanation = explanation.replace('\\n', '\n').replace('\\"', '"').replace('\\t', '\t')
-        else:
-            # Fallback: if we didn't find the pattern, just try to take everything after the score
-            if score_match:
-                after_score = content[score_match.end():].strip()
-                # Try to find a string-like block
-                msg_match = re.search(r'"(.*?)"', after_score, re.DOTALL)
-                if msg_match:
-                    explanation = msg_match.group(1).strip()
-
-        if not explanation:
-            explanation = "Explication non disponible (erreur de formatage)"
-
-        return score, explanation
-
-
     def _llm_judge(self, prompt: str, return_explanation: bool = False) -> Union[float, Dict[str, Any]]:
         """
         Call LLM and extract score from response.
@@ -499,46 +453,13 @@ class RAGASMetrics:
                 timeout=120
             ).strip()
 
-            # Parse JSON - try direct parse first
-            try:
-                data = json.loads(content)
-                score = float(data.get('score', 0.5))
-                score = max(0.0, min(1.0, score))
-                if return_explanation:
-                    return {"score": score, "explanation": data.get('explanation', '')}
-                return score
-            except json.JSONDecodeError:
-                pass  # Try other parsing methods
-
-            # Parse JSON - extract from code blocks
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0].strip()
-
-            # Try to parse again after code block extraction
-            try:
-                data = json.loads(content)
-                score = float(data.get('score', 0.5))
-                score = max(0.0, min(1.0, score))
-                if return_explanation:
-                    return {"score": score, "explanation": data.get('explanation', '')}
-                return score
-            except json.JSONDecodeError:
-                pass  # Try regex method
-
-            # Last resort: extract score/explanation with regex (handles malformed JSON)
-            try:
-                score, explanation = self._extract_score_from_response(content)
-                if return_explanation:
-                    return {"score": score, "explanation": explanation}
-                return score
-            except Exception as je:
-                print(f"[JUDGE LOG] Failed to extract score: {je}")
-                print(f"[JUDGE LOG] Raw response content:\n{content}")
-                if return_explanation:
-                    return {"score": 0.5, "explanation": "Could not parse judge response"}
-                return 0.5
+            data = repair_and_load_json(content)
+            score = float(data.get('score', 0.5))
+            score = max(0.0, min(1.0, score))
+            
+            if return_explanation:
+                return {"score": score, "explanation": data.get('explanation', '')}
+            return score
 
         except Exception as e:
             print(f"[JUDGE LOG] LLM judge error: {e}")
