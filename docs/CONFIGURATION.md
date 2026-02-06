@@ -22,6 +22,21 @@ cp .env.example .env
 nano .env  # or vim, code, etc.
 ```
 
+## Hardware & Memory Optimization
+
+### Apple Silicon (M1/M2/M3)
+If you are running on a Mac with unified memory (e.g., M1 Pro with 16GB RAM), the `BAAI/bge-m3` model can trigger **MPS out-of-memory** errors due to its large context and the way PyTorch manages the shared memory pool.
+
+**Recommended settings for 16GB RAM:**
+- **Batch Size:** Use `--batch-size 10` (or lower) for `setup_embeddings.py`.
+- **Force CPU:** If crashes persist even with small batches, use the `--cpu` flag. CPU embedding is slower but more stable on limited RAM as it can use system swap.
+- **Memory Watermark:** If you want to push MPS limits, you can try setting `PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0` in your environment, but this may cause system instability.
+
+Example command for stable embedding on M1 Pro 16GB:
+```bash
+.venv/bin/python3 setup_embeddings.py --enriched-only --batch-size 10
+```
+
 ## Environment Variables
 
 ### Essential Paths
