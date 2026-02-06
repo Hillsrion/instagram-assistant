@@ -26,12 +26,9 @@ ENRICHMENT_FIELDS = [
 
 
 def is_chunk_enriched(chunk: dict) -> bool:
-    """Returns True if chunk has ANY enrichment data."""
-    for field in ENRICHMENT_FIELDS:
-        value = chunk.get(field)
-        if value is not None and value != "" and value != [] and value != {}:
-            return True
-    return False
+    """Returns True if chunk has MAIN enrichment data (summary & questions)."""
+    # Strict definition to match setup_enrich.py logic
+    return bool(chunk.get("narrative_summary")) and bool(chunk.get("hypothetical_questions"))
 
 
 def get_enrichment_score(chunk: dict) -> int:

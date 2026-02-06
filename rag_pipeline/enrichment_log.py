@@ -103,8 +103,12 @@ class EnrichmentLogger:
             with open(self.log_file, 'r') as f:
                 for line in f:
                     if line.strip():
-                        data = json.loads(line)
-                        all_entries.append(data)
+                        try:
+                            data = json.loads(line)
+                            all_entries.append(data)
+                        except json.JSONDecodeError:
+                            print(f"⚠️ Skipping malformed log entry in {self.log_file}")
+                            continue
 
         if not all_entries:
             print(f"⚠️ No entries to export to {self.csv_file}")
@@ -152,7 +156,10 @@ class EnrichmentLogger:
         with open(self.log_file, 'r') as f:
             for line in f:
                 if line.strip():
-                    entries.append(json.loads(line))
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
 
         if not entries:
             return {"total": 0}

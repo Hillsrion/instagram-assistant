@@ -9,6 +9,7 @@ import json
 import time
 import requests
 import psutil
+import re
 from typing import List, Optional, Tuple, Dict
 from .config import Config, default_config
 from .chunker import Chunk
@@ -189,6 +190,105 @@ class ChunkEnricher:
             print(f"⚠️ Complexity analysis failed for {chunk.chunk_id}: {e}. Using default model.")
             return self.model
 
+    def _clean_json(self, json_str: str) -> str:
+        """Cleans JSON string from common LLM artifacts and fixes unescaped quotes."""
+        cleaned = json_str.strip()
+        # Remove markdown code blocks
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        elif cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        
+        if "```" in cleaned:
+            cleaned = cleaned.split("```")[0]
+            
+        cleaned = cleaned.strip()
+        
+        # If it doesn't start with {, try to find it
+        if not cleaned.startswith("{") and "{" in cleaned:
+            cleaned = cleaned[cleaned.find("{"):]
+            
+        # Fix trailing commas before closing symbols
+        cleaned = re.sub(r",\s*([\]}])", r"\1", cleaned)
+        
+        # Robust fix for unescaped quotes inside string values
+        lines = cleaned.split('\n')
+        fixed_lines = []
+        
+        for line in lines:
+            stripped_line = line.strip()
+            
+            # Case 1: "key": "value"
+            if ':' in line and '"' in line:
+                parts = line.split(':', 1)
+                if len(parts) == 2:
+                    key_part = parts[0]
+                    val_part = parts[1].strip()
+                    if val_part.startswith('"') and (val_part.endswith(',') or val_part.endswith('"')):
+                        has_comma = val_part.endswith(',')
+                        content = val_part[1:-2] if has_comma else val_part[1:-1]
+                        if '"' in content:
+                            content = content.replace('"', '\\"')
+                            val_part = f'"{content}"'
+                            if has_comma: val_part += ','
+                            line = f"{key_part}: {val_part}"
+            
+            # Case 2: List item: "value" or "value",
+            elif stripped_line.startswith('"') and (stripped_line.endswith('"') or stripped_line.endswith('",')):
+                has_comma = stripped_line.endswith(',')
+                content_part = stripped_line[1:-2] if has_comma else stripped_line[1:-1]
+                if '"' in content_part:
+                    fixed_content = content_part.replace('"', '\\"')
+                    indent = line[:line.find('"')]
+                    line = f'{indent}"{fixed_content}"'
+                    if has_comma: line += ","
+            
+            fixed_lines.append(line)
+        
+        # Second pass: Fix missing commas between fields
+        final_lines = []
+        for i, line in enumerate(fixed_lines):
+            line = line.rstrip()
+            next_line = None
+            for j in range(i + 1, len(fixed_lines)):
+                if fixed_lines[j].strip():
+                    next_line = fixed_lines[j].strip()
+                    break
+            if next_line:
+                stripped = line.strip()
+                if stripped.endswith('"') or stripped.endswith(']') or stripped.endswith('}'):
+                    if next_line.startswith('"') or next_line.startswith('{') or next_line.startswith('['):
+                         line += ","
+            final_lines.append(line)
+            
+        return '\n'.join(final_lines)
+
+    def _parse_enrichment_response(self, result: str) -> Tuple:
+        """Parses the LLM response into enrichment fields."""
+        if not result:
+            raise ValueError("Empty response from LLM")
+            
+        cleaned_result = self._clean_json(result)
+        
+        try:
+            data = json.loads(cleaned_result)
+            return self._parse_enrichment_data(data)
+
+        except json.JSONDecodeError as e:
+            # Fallback: if it's truncated, try to close the JSON manually
+            if "{" in cleaned_result and not cleaned_result.endswith("}"):
+                try:
+                    # Very simple recovery for partial objects
+                    recovered = cleaned_result
+                    if recovered.count("{") > recovered.count("}"):
+                         recovered += "}" * (recovered.count("{") - recovered.count("}") )
+                    data = json.loads(recovered)
+                    return self._parse_enrichment_data(data)
+                except:
+                    raise e
+            else:
+                raise e
+
     def enrich_chunk(self, chunk: Chunk) -> Tuple[str, List[str], Dict[str, str], str, Dict[str, List[str]], Dict[str, str], Optional[str], Optional[str], Optional[str], Optional[List[str]]]:
         """
         Generates narrative summary, questions, intents, temporal context, entities, emotions and social dynamics for a chunk.
@@ -209,18 +309,15 @@ class ChunkEnricher:
 
         # Track enrichment timing
         start_time = time.time()
+        
+        selected_model = self.model
+        complexity_score = 0.0
+        complexity_category = "unknown"
+        metrics_breakdown = None
 
         try:
-            result = ""
-            selected_model = self.model
-            complexity_score = 0.0
-            complexity_category = "unknown"
-            metrics_breakdown = None
-
-            if self.provider == "mlx":
-                result = self._call_mlx(prompt)
-            else:
-                # Select model based on complexity routing
+            # Select model (outside retry loop to avoid re-analysis)
+            if self.provider != "mlx":
                 if self.enable_routing:
                     analysis = self.complexity_analyzer.analyze(chunk)
                     complexity_score = analysis.score
@@ -230,30 +327,60 @@ class ChunkEnricher:
                     self._ensure_model_loaded(selected_model)
                 else:
                     selected_model = self.model
+            
+            # Retry loop
+            max_retries = 2
+            last_error = None
+            
+            for attempt in range(max_retries):
+                try:
+                    if self.provider == "mlx":
+                        result = self._call_mlx(prompt)
+                    else:
+                        result = self._call_ollama(prompt, model=selected_model)
 
-                result = self._call_ollama(prompt, model=selected_model)
+                    # Parse response
+                    parsed_data = self._parse_enrichment_response(result)
+                    
+                    # Log success
+                    enrichment_time_ms = (time.time() - start_time) * 1000
+                    if self.enrichment_logger and self.enable_routing:
+                        self.enrichment_logger.log_decision(
+                            chunk_id=chunk.chunk_id,
+                            complexity_score=complexity_score,
+                            complexity_category=complexity_category,
+                            selected_model=selected_model,
+                            enrichment_time_ms=enrichment_time_ms,
+                            message_count=chunk.message_count or 0,
+                            participant_count=len(chunk.participants) if chunk.participants else 0,
+                            metrics_breakdown=metrics_breakdown
+                        )
+                    
+                    return parsed_data
 
-            # Clean response (in case LLM adds markdown code blocks)
-            cleaned_result = result.strip()
-            if cleaned_result.startswith("```json"):
-                cleaned_result = cleaned_result[7:]
-            if cleaned_result.startswith("```"):
-                cleaned_result = cleaned_result[3:]
-            if cleaned_result.endswith("```"):
-                cleaned_result = cleaned_result[:-3]
-            cleaned_result = cleaned_result.strip()
+                except (json.JSONDecodeError, ValueError) as e:
+                    last_error = e
+                    # Log the malformed content for debugging
+                    try:
+                        with open("malformed_json_debug.log", "a", encoding="utf-8") as debug_f:
+                            debug_f.write(f"--- Chunk {chunk.chunk_id} (Attempt {attempt+1}) ---\n")
+                            debug_f.write(f"Error: {e}\n")
+                            debug_f.write(f"Content:\n{result}\n")
+                            debug_f.write("-" * 50 + "\n")
+                    except Exception:
+                        pass
+                        
+                    if attempt < max_retries - 1:
+                        print(f"⚠️ JSON error for chunk {chunk.chunk_id} (Attempt {attempt+1}/{max_retries}): {e}. Retrying...")
+                        time.sleep(0.5)
+                    else:
+                        raise e
 
-            # Parse response JSON
-            if not cleaned_result:
-                print(f"[ENRICH LOG] Empty response for chunk {chunk.chunk_id}")
-                return "", [], {}, "", {}, {}, None, None, None, None
-
-            data = json.loads(cleaned_result)
-            (summary, questions, speaker_intents, temporal_context, entities, 
-             emotions, interaction_pattern, initiative, emotional_shift, open_loops) = self._parse_enrichment_data(data)
-
-            # Log the decision
+        except Exception as e:
             enrichment_time_ms = (time.time() - start_time) * 1000
+            print(f"⚠️ Enrichment failed for chunk {chunk.chunk_id} after retries: {e}")
+            
+            # Log failure
             if self.enrichment_logger and self.enable_routing:
                 self.enrichment_logger.log_decision(
                     chunk_id=chunk.chunk_id,
@@ -263,53 +390,9 @@ class ChunkEnricher:
                     enrichment_time_ms=enrichment_time_ms,
                     message_count=chunk.message_count or 0,
                     participant_count=len(chunk.participants) if chunk.participants else 0,
-                    metrics_breakdown=metrics_breakdown
+                    reason=f"Failed: {str(e)[:50]}"
                 )
-
-            return summary, questions, speaker_intents, temporal_context, entities, emotions, interaction_pattern, initiative, emotional_shift, open_loops
-
-        except json.JSONDecodeError as e:
-            enrichment_time_ms = (time.time() - start_time) * 1000
-            print(f"⚠️ JSON decoding error for chunk {chunk.chunk_id}: {e}")
-            print(f"[ENRICH LOG] Failed to parse JSON: {e}")
-            if 'cleaned_result' in locals():
-                print(f"[ENRICH LOG] Cleaned result:\n{cleaned_result[:500]}...")
-            elif 'result' in locals():
-                 print(f"[ENRICH LOG] Raw result:\n{result[:500]}...")
-
-            # Log the failed decision
-            if self.enrichment_logger and self.enable_routing:
-                self.enrichment_logger.log_decision(
-                    chunk_id=chunk.chunk_id,
-                    complexity_score=complexity_score if 'complexity_score' in locals() else 0.0,
-                    complexity_category=complexity_category if 'complexity_category' in locals() else "unknown",
-                    selected_model=selected_model if 'selected_model' in locals() else self.model,
-                    enrichment_time_ms=enrichment_time_ms,
-                    message_count=chunk.message_count or 0,
-                    participant_count=len(chunk.participants) if chunk.participants else 0,
-                    reason="JSON decode error"
-                )
-            return "", [], {}, "", {}, {}, None, None, None, None
-        except Exception as e:
-            enrichment_time_ms = (time.time() - start_time) * 1000
-            # In case of error, return empty values (fallback to statistical summary)
-            print(f"⚠️ Enrichment error chunk {chunk.chunk_id}: {e}")
-            print(f"[ENRICH LOG] Error: {e}")
-            if 'result' in locals():
-                print(f"[ENRICH LOG] Raw result:\n{result[:500]}...")
-
-            # Log the failed decision
-            if self.enrichment_logger and self.enable_routing:
-                self.enrichment_logger.log_decision(
-                    chunk_id=chunk.chunk_id,
-                    complexity_score=complexity_score if 'complexity_score' in locals() else 0.0,
-                    complexity_category=complexity_category if 'complexity_category' in locals() else "unknown",
-                    selected_model=selected_model if 'selected_model' in locals() else self.model,
-                    enrichment_time_ms=enrichment_time_ms,
-                    message_count=chunk.message_count or 0,
-                    participant_count=len(chunk.participants) if chunk.participants else 0,
-                    reason=f"Exception: {str(e)[:50]}"
-                )
+            
             return "", [], {}, "", {}, {}, None, None, None, None
 
     def _parse_enrichment_data(self, data: dict) -> Tuple:
@@ -412,7 +495,7 @@ class ChunkEnricher:
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
-            "format": "json",  # Request JSON from Ollama
+            # "format": "json",  # REMOVED: prevents premature truncation by some models
             "options": {
                 "temperature": 0.1,
                 "num_predict": 2048,  # Increased to accommodate emotions, entities, and long explanations
@@ -434,26 +517,36 @@ class ChunkEnricher:
             max_questions=self.config.max_questions
         )
         
-        if self.provider == "mlx":
-            result = self._call_mlx(prompt)
-        else:
-            result = self._call_ollama(prompt, model=model)
+        max_retries = 2
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                if self.provider == "mlx":
+                    result = self._call_mlx(prompt)
+                else:
+                    result = self._call_ollama(prompt, model=model)
 
-        # Common parsing logic (reused from enrich_chunk)
-        cleaned_result = result.strip()
-        if cleaned_result.startswith("```json"):
-            cleaned_result = cleaned_result[7:]
-        if cleaned_result.startswith("```"):
-            cleaned_result = cleaned_result[3:]
-        if cleaned_result.endswith("```"):
-            cleaned_result = cleaned_result[:-3]
-        cleaned_result = cleaned_result.strip()
+                return self._parse_enrichment_response(result)
+            
+            except (json.JSONDecodeError, ValueError) as e:
+                last_error = e
+                # Log the malformed content for debugging
+                try:
+                    with open("malformed_json_debug.log", "a", encoding="utf-8") as debug_f:
+                        debug_f.write(f"--- Chunk {chunk.chunk_id} (Attempt {attempt+1}) [Internal] ---\n")
+                        debug_f.write(f"Error: {e}\n")
+                        debug_f.write(f"Content:\n{result}\n")
+                        debug_f.write("-" * 50 + "\n")
+                except Exception:
+                    pass
 
-        if not cleaned_result:
-            return "", [], {}, "", {}, {}, None, None, None, None
-
-        data = json.loads(cleaned_result)
-        return self._parse_enrichment_data(data)
+                if attempt < max_retries - 1:
+                    print(f"⚠️ JSON error (internal) for chunk {chunk.chunk_id} (Attempt {attempt+1}/{max_retries}): {e}. Retrying...")
+                    time.sleep(0.5)
+                else:
+                    # Reraise so the caller (batch loop) knows it failed
+                    raise e
 
     def enrich_batch(
         self,

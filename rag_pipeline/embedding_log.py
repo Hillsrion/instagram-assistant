@@ -81,8 +81,7 @@ class EmbeddingLogger:
         with open(self.log_file, 'a') as f:
             for entry in self.entries:
                 json.dump(asdict(entry), f)
-                f.write('
-')
+                f.write('\n')
         self.entries.clear()
 
     def export_csv(self):
