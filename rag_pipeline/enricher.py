@@ -249,40 +249,8 @@ class ChunkEnricher:
                 return "", [], {}, "", {}, {}, None, None, None, None
 
             data = json.loads(cleaned_result)
-            summary = data.get("narrative_summary", "")
-            
-            questions = data.get("questions", [])
-            if isinstance(questions, list):
-                questions = [str(q) if not isinstance(q, str) else q for q in questions]
-            
-            speaker_intents = data.get("speaker_intents", {})
-            if isinstance(speaker_intents, dict):
-                # Ensure all values are strings (some LLMs return lists)
-                speaker_intents = {
-                    str(k): (", ".join(v) if isinstance(v, list) else str(v))
-                    for k, v in speaker_intents.items()
-                }
-            
-            temporal_context = data.get("temporal_context", "")
-            if isinstance(temporal_context, list):
-                temporal_context = ", ".join(temporal_context)
-            else:
-                temporal_context = str(temporal_context)
-            
-            entities = data.get("entities", {})
-            if isinstance(entities, dict):
-                for key, val in entities.items():
-                    if isinstance(val, list):
-                         entities[key] = [str(v) if not isinstance(v, str) else v for v in val]
-
-            emotions = data.get("emotions", {})
-            
-            interaction_pattern = data.get("interaction_pattern")
-            initiative = data.get("initiative")
-            emotional_shift = data.get("emotional_shift")
-            open_loops = data.get("open_loops")
-            if isinstance(open_loops, list):
-                open_loops = [str(l) if not isinstance(l, str) else l for l in open_loops]
+            (summary, questions, speaker_intents, temporal_context, entities, 
+             emotions, interaction_pattern, initiative, emotional_shift, open_loops) = self._parse_enrichment_data(data)
 
             # Log the decision
             enrichment_time_ms = (time.time() - start_time) * 1000
@@ -343,6 +311,86 @@ class ChunkEnricher:
                     reason=f"Exception: {str(e)[:50]}"
                 )
             return "", [], {}, "", {}, {}, None, None, None, None
+
+    def _parse_enrichment_data(self, data: dict) -> Tuple:
+        """Robustly parse the JSON data returned by the LLM."""
+        
+        # Helper to ensure string lists
+        def ensure_str_list(lst):
+            if isinstance(lst, list):
+                return [str(x) if not isinstance(x, str) else x for x in lst]
+            if isinstance(lst, str) and lst.strip():
+                return [lst.strip()]
+            return []
+
+        # Helper to ensure string dict values
+        def ensure_str_dict(dct):
+            if isinstance(dct, dict):
+                 return {str(k): (", ".join(v) if isinstance(v, list) else str(v)) for k, v in dct.items()}
+            return {}
+
+        summary = data.get("narrative_summary", "")
+        if isinstance(summary, list):
+            summary = " ".join(ensure_str_list(summary))
+        summary = str(summary)
+
+        questions = ensure_str_list(data.get("questions", []))
+        speaker_intents = ensure_str_dict(data.get("speaker_intents", {}))
+        
+        temporal_context = data.get("temporal_context", "")
+        if isinstance(temporal_context, list):
+            temporal_context = ", ".join(ensure_str_list(temporal_context))
+        else:
+            temporal_context = str(temporal_context)
+        
+        entities = data.get("entities", {})
+        cleaned_entities = {}
+        if isinstance(entities, dict):
+            for key, val in entities.items():
+                # Some LLMs nest emotions or other fields inside entities
+                if key in ["emotions", "interaction_pattern", "initiative", "emotional_shift", "open_loops", "speaker_intents"]:
+                    continue
+                
+                if isinstance(val, list):
+                    cleaned_entities[key] = ensure_str_list(val)
+                elif isinstance(val, dict):
+                    # Flatten nested dicts or just take keys as strings
+                    items = []
+                    for k2, v2 in val.items():
+                        if isinstance(v2, list):
+                            items.extend([f"{k2}: {i}" for i in ensure_str_list(v2)])
+                        else:
+                            items.append(f"{k2}: {v2}")
+                    cleaned_entities[key] = items
+                else:
+                    cleaned_entities[key] = [str(val)]
+        
+        # If emotions was nested in entities
+        emotions = data.get("emotions")
+        if not emotions and isinstance(entities, dict) and "emotions" in entities:
+            emotions = entities["emotions"]
+        if not isinstance(emotions, dict):
+            emotions = {}
+
+        interaction_pattern = data.get("interaction_pattern")
+        if not interaction_pattern and isinstance(entities, dict) and "interaction_pattern" in entities:
+            interaction_pattern = entities["interaction_pattern"]
+            
+        initiative = data.get("initiative")
+        if not initiative and isinstance(entities, dict) and "initiative" in entities:
+            initiative = entities["initiative"]
+
+        emotional_shift = data.get("emotional_shift")
+        if not emotional_shift and isinstance(entities, dict) and "emotional_shift" in entities:
+            emotional_shift = entities["emotional_shift"]
+
+        open_loops = data.get("open_loops")
+        if not open_loops and isinstance(entities, dict) and "open_loops" in entities:
+            open_loops = entities["open_loops"]
+        open_loops = ensure_str_list(open_loops)
+
+        return (summary, questions, speaker_intents, temporal_context, cleaned_entities, 
+                emotions, interaction_pattern, initiative, emotional_shift, open_loops)
 
     def _call_mlx(self, prompt: str) -> str:
         """Calls the MLX provider."""
@@ -405,40 +453,7 @@ class ChunkEnricher:
             return "", [], {}, "", {}, {}, None, None, None, None
 
         data = json.loads(cleaned_result)
-        
-        # Helper to ensure string lists
-        def ensure_str_list(lst):
-            if isinstance(lst, list):
-                return [str(x) if not isinstance(x, str) else x for x in lst]
-            return []
-
-        # Helper to ensure string dict values
-        def ensure_str_dict(dct):
-            if isinstance(dct, dict):
-                 return {str(k): (", ".join(v) if isinstance(v, list) else str(v)) for k, v in dct.items()}
-            return {}
-
-        summary = data.get("narrative_summary", "")
-        questions = ensure_str_list(data.get("questions", []))
-        speaker_intents = ensure_str_dict(data.get("speaker_intents", {}))
-        
-        temporal_context = data.get("temporal_context", "")
-        if isinstance(temporal_context, list): temporal_context = ", ".join(temporal_context)
-        else: temporal_context = str(temporal_context)
-        
-        entities = data.get("entities", {})
-        if isinstance(entities, dict):
-            for key, val in entities.items():
-                if isinstance(val, list):
-                     entities[key] = ensure_str_list(val)
-
-        emotions = data.get("emotions", {})
-        interaction_pattern = data.get("interaction_pattern")
-        initiative = data.get("initiative")
-        emotional_shift = data.get("emotional_shift")
-        open_loops = ensure_str_list(data.get("open_loops"))
-
-        return summary, questions, speaker_intents, temporal_context, entities, emotions, interaction_pattern, initiative, emotional_shift, open_loops
+        return self._parse_enrichment_data(data)
 
     def enrich_batch(
         self,

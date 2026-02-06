@@ -175,13 +175,22 @@ class Chunk:
             parts.append(f"[SUMMARY] {self.narrative_summary}")
 
         # 3. Entités — ancres factuelles (x1, BM25 couvre les termes exacts via le contenu brut)
-        if self.entities:
+        if self.entities and isinstance(self.entities, dict):
             for category, items in self.entities.items():
-                if items:
+                if isinstance(items, list):
                     for item in items:
-                       
                         if item:
                             parts.append(f"[ENTITY:{category}] {item}")
+                elif isinstance(items, dict):
+                    # Handle nested dicts (sometimes LLM groups by subcategory)
+                    for subcat, subitems in items.items():
+                        if isinstance(subitems, list):
+                            for item in subitems:
+                                parts.append(f"[ENTITY:{category}:{subcat}] {item}")
+                        elif isinstance(subitems, str):
+                            parts.append(f"[ENTITY:{category}:{subcat}] {subitems}")
+                elif isinstance(items, str):
+                    parts.append(f"[ENTITY:{category}] {items}")
 
         # 4. Contexte temporel — temps relationnel ("pendant les vacances")
         if self.temporal_context:
