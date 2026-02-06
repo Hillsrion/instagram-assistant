@@ -7,6 +7,7 @@
         to evaluate the quality, accuracy, and relevance of the enriched metadata.
         """
         from rag_pipeline.llm_provider import create_provider
+        from rag_pipeline.json_utils import repair_and_load_json
         
         provider = create_provider(self.config, judge_model, provider_type)
         
@@ -62,13 +63,7 @@
         
         try:
             response = provider.generate([{"role": "user", "content": prompt}], temperature=0.1)
-            # Find JSON in response
-            start = response.find('{')
-            end = response.rfind('}') + 1
-            if start != -1 and end != -1:
-                eval_json = json.loads(response[start:end])
-            else:
-                eval_json = json.loads(response) # Try direct parse
+            eval_json = repair_and_load_json(response)
                 
             # Create report based on LLM feedback
             report = ChunkEnrichmentValidationReport(

@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from rag_pipeline.config import Config, default_config
 from rag_pipeline.chunker import Chunk
+from rag_pipeline.json_utils import repair_and_load_json
 
 
 class QuestionType(str, Enum):
@@ -317,14 +318,7 @@ class SyntheticDataGenerator:
 
             content = response.json()["message"]["content"].strip()
 
-            # Parse JSON from response
-            # Handle potential markdown code blocks
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0]
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0]
-
-            qa_data = json.loads(content)
+            qa_data = repair_and_load_json(content)
 
             qa_pairs = []
             for item in qa_data:
@@ -586,13 +580,7 @@ class SyntheticDataGenerator:
 
                     content = response.json()["message"]["content"].strip()
 
-                    # Parse JSON
-                    if "```json" in content:
-                        content = content.split("```json")[1].split("```")[0]
-                    elif "```" in content:
-                        content = content.split("```")[1].split("```")[0]
-
-                    qa_data = json.loads(content)
+                    qa_data = repair_and_load_json(content)
 
                     # Create MultiChunkQAPair
                     qa_pair = MultiChunkQAPair(

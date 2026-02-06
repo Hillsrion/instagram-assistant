@@ -11,41 +11,7 @@ from datetime import datetime
 from .config import Config, default_config
 from .chunker import Chunk
 from .summary_models import ConversationSummary, PeriodSummary
-
-
-CONVERSATION_SUMMARY_PROMPT = """Tu résumes des conversations Instagram (BASÉ UNIQUEMENT SUR LE TEXTE).
-
-Résumés des échanges avec {participants} :
-
-{narrative_summaries}
-
-GÉNÈRE JSON (strict, sans hallucinations):
-- "summary": 2-3 phrases UNIQUEMENT sur ce qui est présent
-- "main_topics": 3-5 sujets récurrents mentionnés
-- "relationship_dynamic": Type de relation (amis, collègues, famille, etc.)
-- "notable_events": Jusqu'à 5 événements EXPLICITEMENT mentionnés
-
-RÈGLES:
-- JSON VALIDE UNIQUEMENT, ZÉRO texte supplémentaire
-- ZÉRO inférences, ZÉRO détails non présents
-- Basé UNIQUEMENT sur les résumés fournis"""
-
-
-PERIOD_SUMMARY_PROMPT = """Tu résumes des conversations Instagram pour une période (STRICT).
-
-Échanges avec {participants} pendant {period} :
-
-{narrative_summaries}
-
-GÉNÈRE JSON (concis, basé sur les faits):
-- "summary": 1-2 phrases sur cette période
-- "topics": 2-3 sujets abordés (basé sur le texte)
-- "mood": Ambiance générale (léger, sérieux, tendu, joyeux, etc.)
-
-RÈGLES STRICTES:
-- JSON VALIDE UNIQUEMENT
-- ZÉRO texte supplémentaire
-- Uniquement ce qui est dans les résumés fournis"""
+from .prompts import CONVERSATION_SUMMARY_PROMPT, PERIOD_SUMMARY_PROMPT
 
 
 class SummaryGenerator:

@@ -6,26 +6,7 @@ import requests
 import json
 from typing import List, Dict, Optional
 from .config import Config
-
-REWRITE_PROMPT = """Tu es un expert en reformulation de requêtes pour un moteur de recherche.
-
-TÂCHE: Réécrire la question pour qu'elle soit:
-1. Autonome (compréhensible seule, sans historique)
-2. Précise (mots réels, pas de pronoms vagues)
-3. Optimisée pour la recherche (mots-clés pertinents)
-
-HISTORIQUE:
-{history}
-
-QUESTION:
-{query}
-
-RÈGLES STRICTES:
-- RÉPONSE UNIQUEMENT: la question réécrite
-- ZÉRO commentaires, ZÉRO guillemets
-- Si déjà claire → renvoie telle quelle
-- Sois bref et direct
-"""
+from .prompts import REWRITE_PROMPT
 
 class QueryRewriter:
     """Rewrites user queries to improve retrieval."""

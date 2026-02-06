@@ -15,58 +15,8 @@ from .config import Config, default_config
 from .chunker import Chunk
 from .complexity_analyzer import ChunkComplexityAnalyzer
 from .enrichment_log import EnrichmentLogger
-
-# Prompt kept in French as it processes French data
-ENRICH_PROMPT = """Tu es un analyseur de conversations (STRICT, basé sur le texte uniquement).
-
-ANALYSE CETTE CONVERSATION ET GÉNÈRE JSON :
-
-1. **RÉSUMÉ** : 1 phrase max, l'action/intention/résultat
-2. **QUESTIONS** : 1 à {max_questions} questions précises que cet extrait répond (inclure des questions sur la dynamique sociale si pertinent : qui mène, changement d'humeur, etc.)
-3. **INTENTIONS** : Pour chaque participant → son objectif principal (une phrase max)
-4. **CONTEXTE TEMPOREL** : Moment/période (ex: "avant X", "durant vacances")
-5. **ENTITÉS** : Éléments EXPLICITEMENT mentionnés dans le texte :
-   - locations : villes, lieux, restaurants cités dans les messages
-   - people : personnes mentionnées (hors participants directs)
-   - media : films, séries, jeux, musiques cités
-   - events : événements, fêtes, réunions cités
-   - Si une catégorie n'a AUCUNE mention dans le texte → liste vide []
-   - N'invente RIEN. Ne remplis PAS un champ juste pour le remplir.
-6. **ÉMOTIONS** : Ambiance générale de l'échange:
-   - dominant: émotion principale (basée sur le texte)
-   - tone: ton général (léger, sérieux, playful, etc)
-   - tension_level: low/medium/high
-7. **DYNAMIQUE SOCIALE** :
-   - interaction_pattern: Type d'échange dominant (ex: "Planification", "Récit", "Débat", "Soutien", "Conflit", "Catch-up"). Si aucun pattern clair n'est identifiable ou si l'échange est trop fragmenté, mets null.
-   - initiative: Qui mène ? (ex: "Nom_A", "Équilibré", "Nom_B pose les questions")
-   - emotional_shift: Trajectoire (ex: "Neutre -> Joyeux", "Tendu -> Apaisé", "Stable")
-   - open_loops: Sujets lancés mais non résolus (liste de strings, vide si aucun)
-
-CONVERSATION:
-{content}
-
-RÈGLES STRICTES:
-- Format JSON obligatoire, ZÉRO texte avant ou après
-- ZÉRO détails non présents dans le texte
-- Si un champ entités n'a pas de correspondance dans le texte → [] (liste vide)
-- Ne recopie JAMAIS les exemples ci-dessous, ils illustrent uniquement le format
-
-FORMAT JSON (les valeurs sont des exemples de format, PAS des données à recopier):
-{{
-  "narrative_summary": "<1 phrase décrivant l'échange>",
-  "questions": ["<question 1>", "<éventuelle question 2>", "..."],
-  "speaker_intents": {{
-    "<participant>": "<son intention>"
-  }},
-  "temporal_context": "<moment ou période>",
-  "entities": {{ "locations": [], "people": [], "media": [], "events": [] }},
-  "emotions": {{ "dominant": "<émotion>", "tone": "<ton>", "tension_level": "low|medium|high" }},
-  "interaction_pattern": "<type d'échange>",
-  "initiative": "<qui mène>",
-  "emotional_shift": "<trajectoire>",
-  "open_loops": []
-}}
-"""
+from .json_utils import repair_and_load_json, parse_enrichment_data
+from .prompts import ENRICH_PROMPT
 
 class ChunkEnricher:
     """Uses an LLM (via Ollama or MLX) to enrich chunk metadata.
@@ -190,105 +140,6 @@ class ChunkEnricher:
             print(f"⚠️ Complexity analysis failed for {chunk.chunk_id}: {e}. Using default model.")
             return self.model
 
-    def _clean_json(self, json_str: str) -> str:
-        """Cleans JSON string from common LLM artifacts and fixes unescaped quotes."""
-        cleaned = json_str.strip()
-        # Remove markdown code blocks
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        elif cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        
-        if "```" in cleaned:
-            cleaned = cleaned.split("```")[0]
-            
-        cleaned = cleaned.strip()
-        
-        # If it doesn't start with {, try to find it
-        if not cleaned.startswith("{") and "{" in cleaned:
-            cleaned = cleaned[cleaned.find("{"):]
-            
-        # Fix trailing commas before closing symbols
-        cleaned = re.sub(r",\s*([\]}])", r"\1", cleaned)
-        
-        # Robust fix for unescaped quotes inside string values
-        lines = cleaned.split('\n')
-        fixed_lines = []
-        
-        for line in lines:
-            stripped_line = line.strip()
-            
-            # Case 1: "key": "value"
-            if ':' in line and '"' in line:
-                parts = line.split(':', 1)
-                if len(parts) == 2:
-                    key_part = parts[0]
-                    val_part = parts[1].strip()
-                    if val_part.startswith('"') and (val_part.endswith(',') or val_part.endswith('"')):
-                        has_comma = val_part.endswith(',')
-                        content = val_part[1:-2] if has_comma else val_part[1:-1]
-                        if '"' in content:
-                            content = content.replace('"', '\\"')
-                            val_part = f'"{content}"'
-                            if has_comma: val_part += ','
-                            line = f"{key_part}: {val_part}"
-            
-            # Case 2: List item: "value" or "value",
-            elif stripped_line.startswith('"') and (stripped_line.endswith('"') or stripped_line.endswith('",')):
-                has_comma = stripped_line.endswith(',')
-                content_part = stripped_line[1:-2] if has_comma else stripped_line[1:-1]
-                if '"' in content_part:
-                    fixed_content = content_part.replace('"', '\\"')
-                    indent = line[:line.find('"')]
-                    line = f'{indent}"{fixed_content}"'
-                    if has_comma: line += ","
-            
-            fixed_lines.append(line)
-        
-        # Second pass: Fix missing commas between fields
-        final_lines = []
-        for i, line in enumerate(fixed_lines):
-            line = line.rstrip()
-            next_line = None
-            for j in range(i + 1, len(fixed_lines)):
-                if fixed_lines[j].strip():
-                    next_line = fixed_lines[j].strip()
-                    break
-            if next_line:
-                stripped = line.strip()
-                if stripped.endswith('"') or stripped.endswith(']') or stripped.endswith('}'):
-                    if next_line.startswith('"') or next_line.startswith('{') or next_line.startswith('['):
-                         line += ","
-            final_lines.append(line)
-            
-        return '\n'.join(final_lines)
-
-    def _parse_enrichment_response(self, result: str) -> Tuple:
-        """Parses the LLM response into enrichment fields."""
-        if not result:
-            raise ValueError("Empty response from LLM")
-            
-        cleaned_result = self._clean_json(result)
-        
-        try:
-            data = json.loads(cleaned_result)
-            return self._parse_enrichment_data(data)
-
-        except json.JSONDecodeError as e:
-            # Fallback: if it's truncated, try to close the JSON manually
-            if "{" in cleaned_result and not cleaned_result.endswith("}"):
-                try:
-                    # Very simple recovery for partial objects
-                    recovered = cleaned_result
-                    if recovered.count("{") > recovered.count("}"):
-                         recovered += "}" * (recovered.count("{") - recovered.count("}") )
-                    data = json.loads(recovered)
-                    return self._parse_enrichment_data(data)
-                except:
-                    raise e
-            else:
-                raise e
-
     def enrich_chunk(self, chunk: Chunk) -> Tuple[str, List[str], Dict[str, str], str, Dict[str, List[str]], Dict[str, str], Optional[str], Optional[str], Optional[str], Optional[List[str]]]:
         """
         Generates narrative summary, questions, intents, temporal context, entities, emotions and social dynamics for a chunk.
@@ -340,7 +191,8 @@ class ChunkEnricher:
                         result = self._call_ollama(prompt, model=selected_model)
 
                     # Parse response
-                    parsed_data = self._parse_enrichment_response(result)
+                    data = repair_and_load_json(result)
+                    parsed_data = parse_enrichment_data(data)
                     
                     # Log success
                     enrichment_time_ms = (time.time() - start_time) * 1000
@@ -395,121 +247,6 @@ class ChunkEnricher:
             
             return "", [], {}, "", {}, {}, None, None, None, None
 
-    def _parse_enrichment_data(self, data: dict) -> Tuple:
-        """Robustly parse the JSON data returned by the LLM."""
-        
-        # Helper to ensure string lists
-        def ensure_str_list(lst):
-            if isinstance(lst, list):
-                return [str(x) if not isinstance(x, str) else x for x in lst]
-            if isinstance(lst, str) and lst.strip():
-                return [lst.strip()]
-            return []
-
-        # Helper to ensure string dict values
-        def ensure_str_dict(dct):
-            if isinstance(dct, dict):
-                 return {str(k): (", ".join(v) if isinstance(v, list) else str(v)) for k, v in dct.items()}
-            return {}
-
-        summary = data.get("narrative_summary", "")
-        if isinstance(summary, list):
-            summary = " ".join(ensure_str_list(summary))
-        summary = str(summary)
-
-        questions = ensure_str_list(data.get("questions", []))
-        speaker_intents = ensure_str_dict(data.get("speaker_intents", {}))
-        
-        temporal_context = data.get("temporal_context", "")
-        if isinstance(temporal_context, list):
-            temporal_context = ", ".join(ensure_str_list(temporal_context))
-        else:
-            temporal_context = str(temporal_context)
-        
-        entities = data.get("entities", {})
-        cleaned_entities = {}
-        if isinstance(entities, dict):
-            for key, val in entities.items():
-                # Some LLMs nest emotions or other fields inside entities
-                if key in ["emotions", "interaction_pattern", "initiative", "emotional_shift", "open_loops", "speaker_intents"]:
-                    continue
-                
-                if isinstance(val, list):
-                    cleaned_entities[key] = ensure_str_list(val)
-                elif isinstance(val, dict):
-                    # Flatten nested dicts or just take keys as strings
-                    items = []
-                    for k2, v2 in val.items():
-                        if isinstance(v2, list):
-                            items.extend([f"{k2}: {i}" for i in ensure_str_list(v2)])
-                        else:
-                            items.append(f"{k2}: {v2}")
-                    cleaned_entities[key] = items
-                else:
-                    cleaned_entities[key] = [str(val)]
-        
-        # If emotions was nested in entities
-        emotions = data.get("emotions")
-        if not emotions and isinstance(entities, dict) and "emotions" in entities:
-            emotions = entities["emotions"]
-        if not isinstance(emotions, dict):
-            emotions = {}
-
-        interaction_pattern = data.get("interaction_pattern")
-        if not interaction_pattern and isinstance(entities, dict) and "interaction_pattern" in entities:
-            interaction_pattern = entities["interaction_pattern"]
-            
-        initiative = data.get("initiative")
-        if not initiative and isinstance(entities, dict) and "initiative" in entities:
-            initiative = entities["initiative"]
-
-        emotional_shift = data.get("emotional_shift")
-        if not emotional_shift and isinstance(entities, dict) and "emotional_shift" in entities:
-            emotional_shift = entities["emotional_shift"]
-
-        open_loops = data.get("open_loops")
-        if not open_loops and isinstance(entities, dict) and "open_loops" in entities:
-            open_loops = entities["open_loops"]
-        open_loops = ensure_str_list(open_loops)
-
-        return (summary, questions, speaker_intents, temporal_context, cleaned_entities, 
-                emotions, interaction_pattern, initiative, emotional_shift, open_loops)
-
-    def _call_mlx(self, prompt: str) -> str:
-        """Calls the MLX provider."""
-        if not self.mlx_provider:
-             raise ValueError("MLX Provider not initialized")
-        
-        messages = [{"role": "user", "content": prompt}]
-        return self.mlx_provider.generate_chat(messages, max_tokens=2048, temperature=0.1)
-
-    def _call_ollama(self, prompt: str, model: str = None) -> str:
-        """Calls the Ollama API.
-
-        Args:
-            prompt: The prompt to send
-            model: Which model to use (defaults to self.model)
-        """
-        model = model or self.model
-        payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            # "format": "json",  # REMOVED: prevents premature truncation by some models
-            "options": {
-                "temperature": 0.1,
-                "num_predict": 2048,  # Increased to accommodate emotions, entities, and long explanations
-            }
-        }
-
-        response = requests.post(
-            f"{self.config.ollama_url}/api/chat",
-            json=payload,
-            timeout=300
-        )
-        response.raise_for_status()
-        return response.json()["message"]["content"]
-
     def _enrich_chunk_with_model_internal(self, chunk: Chunk, model: str) -> Tuple:
         """Internal method to enrich a chunk with a specific model (skips routing logic)."""
         prompt = ENRICH_PROMPT.format(
@@ -527,7 +264,8 @@ class ChunkEnricher:
                 else:
                     result = self._call_ollama(prompt, model=model)
 
-                return self._parse_enrichment_response(result)
+                data = repair_and_load_json(result)
+                return parse_enrichment_data(data)
             
             except (json.JSONDecodeError, ValueError) as e:
                 last_error = e

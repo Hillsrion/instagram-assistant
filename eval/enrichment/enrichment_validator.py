@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from rag_pipeline.chunker import Chunk
 from rag_pipeline.config import Config, default_config
 from rag_pipeline.llm_provider import create_provider
+from rag_pipeline.json_utils import repair_and_load_json
 
 # Optional ROUGE scoring for summary validation
 try:
@@ -901,27 +902,7 @@ Assure-toi que la sortie est un JSON valide. N'inclus pas de balises markdown ``
         
         try:
             response = provider.generate([{"role": "user", "content": prompt}], temperature=0.1)
-            
-            # Clean response aggressively
-            text = response.strip()
-            
-            # 1. Remove markdown code blocks if present
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0].strip()
-                
-            # 2. Extract content between first { and last } to ignore preamble/postamble
-            start = text.find('{')
-            end = text.rfind('}')
-            if start != -1 and end != -1:
-                text = text[start:end+1]
-            
-            # 3. CRITICAL: Replace internal control characters that break JSON parsing
-            # (new lines, tabs inside the string content)
-            text = text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-            
-            eval_json = json.loads(text)
+            eval_json = repair_and_load_json(response)
                 
             # Update heuristic report with LLM scores
             # We treat the LLM score as the "Quality Score" and Heuristic as "Schema Score"

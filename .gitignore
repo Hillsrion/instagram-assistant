@@ -95,27 +95,18 @@ conversations.db
 temp/
 tmp/
 
-# Evaluation data (keep the module, ignore generated data)
+# Evaluation data (ignore results and datasets, keep scripts)
 eval/__pycache__/
-eval/*.json
+eval/results/
+eval/**/results/
+eval/**/*.json
+eval/**/*.html
 !eval/eval_dataset.sample.json
-eval/*.html
-eval/core/
-eval/generation/
+!eval/core/
+!eval/generation/
+!eval/**/*.py
 *_eval_dataset.json
 
-# Enrichment logs
-enrichment_logs/
-enrichment_log.csv
-enrichment_log.jsonl
-
-# Phase 0 validation (generated benchmark datasets)
-validation_dataset.json
-benchmark_report.json
-benchmark_report_*.json
-
-# Evaluation results (organized output)
-eval/results/
 
 # macOS
 .DS_Store

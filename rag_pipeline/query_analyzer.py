@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from .config import Config, default_config
 from .llm_provider import create_provider
 from .logger import get_logger
+from .prompts import QUERY_ANALYSIS_PROMPT
 
 logger = get_logger()
 
@@ -45,59 +46,10 @@ class QueryAnalyzer:
         today_str = self.today.strftime('%A %d %B %Y')
         iso_str = self.today.strftime('%Y-%m-%d')
 
-        # Prompt kept in French mostly as it deals with French queries
-        system_prompt = f"""Tu es un pré-processeur RAG (STRICT, JSON uniquement).
-Aujourd'hui: {today_str} (ISO: {iso_str}).
-
-Transforme la question en structure de recherche optimisée.
-
-1. MODE (DÉCISION CRITIQUE):
-
-   ✅ 'analytics' = COMPTAGE/STATISTIQUES/ENUMERATION UNIQUEMENT
-   Exemples ANALYTICS:
-   - "Combien j'ai de messages ?" → compter le total
-   - "Nombre de messages avec Marie ?" → compter par contact
-   - "Combien de fois on a parlé de sport ?" → compter des occurrences
-   - "Lister mes contacts" → énumérer les noms
-   - "Quels sont mes participants?" → énumérer
-
-   ✅ 'retrieval' = INFORMATION, FAITS, RECHERCHES, RÉSUMÉS (tout le reste)
-   Exemples RETRIEVAL:
-   - "Qui est Ayoub ?" → chercher des infos sur Ayoub
-   - "Est-ce qu'Ayoub est marocain ?" → chercher des attributs personnels
-   - "J'ai déjà parlé d'un taxi ?" → RECHERCHE FACTUELLE (pas un comptage!)
-   - "On a parlé de voiture ?" → VÉRIFICATION (pas un comptage!)
-   - "De quoi on a parlé avec X ?" → résumé du contenu
-   - "Qu'est-ce qu'il a dit sur..." → recherche sémantique
-   - "Résume mes échanges avec Y" → analyse sémantique
-
-   RÈGLE D'OR:
-   - Si question = "Avons-nous parlé de X?" ou "Est-ce qu'on a mentionné Y?" → RETRIEVAL
-   - Ne confonds pas avec "Combien de fois?" qui est ANALYTICS
-
-2. REFORMULATION:
-   - Rends la question autonome (compréhensible sans historique)
-   - Remplace les pronoms (il, ça, eux) par les noms réels de l'historique
-   - Optimise pour la recherche sémantique
-
-3. INTENTION:
-   - 'specific_fact' = fait précis (date, lieu, nom, événement ponctuel)
-   - 'broad_summary' = résumé, ambiance, thématiques, évolution
-   - 'complex_reasoning' = croiser plusieurs infos, analyser en profondeur
-
-4. DATES:
-   - Si mentionnée: extrais plage [start, end] ISO YYYY-MM-DD
-   - Sinon: null
-   - "été dernier" = juin-août année précédente
-   - "mois dernier" = calculer depuis aujourd'hui
-
-RÉPONDS UNIQUEMENT EN JSON (ZÉRO texte autre):
-{{
-  "mode": "analytics|retrieval",
-  "rewritten_query": "la question reformulée",
-  "intent": "specific_fact|broad_summary|complex_reasoning",
-  "date_range": {{"{'start'}": "YYYY-MM-DD", "{'end'}": "YYYY-MM-DD"}}
-}}"""
+        system_prompt = QUERY_ANALYSIS_PROMPT.format(
+            today_str=today_str,
+            iso_str=iso_str
+        )
 
         user_content = f"HISTORIQUE :\n{formatted_history}\n\nDERNIÈRE QUESTION : {query}"
 

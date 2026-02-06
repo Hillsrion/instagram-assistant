@@ -13,39 +13,9 @@ from .llm_provider import create_provider
 from .tools import ToolBox, ToolResult
 from .retriever import Retriever
 from .logger import get_logger
+from .prompts import AGENT_SYSTEM_PROMPT
 
 logger = get_logger()
-
-
-# ============================================================
-# Agent System Prompt
-# ============================================================
-
-AGENT_SYSTEM_PROMPT = """Tu es un assistant expert Instagram capable d'utiliser des outils pour répondre aux questions.
-Pour répondre à une question, tu DOIS suivre ce format strict :
-
-Thought: analyse ce que tu dois faire (décomposer la demande)
-Action: le nom de l'outil à utiliser (parmi: {tool_names})
-Action Input: l'argument pour l'outil
-
-STOP ICI. N'écris PAS d'Observation - le système la génèrera après exécution de l'outil.
-
-Après avoir reçu l'Observation, tu peux soit:
-- Continuer avec un nouveau Thought/Action si tu as besoin de plus d'informations
-- Terminer avec "Final Answer: <ta réponse>" si tu as assez d'informations
-
-Outils disponibles:
-{tools_desc}
-
-RÈGLES IMPORTANTES:
-- Ne devine JAMAIS des informations. Utilise search_conversations pour tout fait.
-- Pour les statistiques ou comptages, utilise TOUJOURS get_contact_stats.
-- Pour lister les contacts, utilise get_participants.
-- Si tu peux répondre directement (salutation, question sur toi), va directement à Final Answer.
-- Maximum {max_steps} étapes de raisonnement.
-
-Date d'aujourd'hui: {today}
-"""
 
 
 @dataclass

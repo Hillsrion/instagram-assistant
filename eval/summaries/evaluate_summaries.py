@@ -22,6 +22,7 @@ from rag_pipeline.summary_store import SummaryStore
 from rag_pipeline.summary_models import ConversationSummary, PeriodSummary
 from eval.core._output_paths import get_summaries_report_path
 from rag_pipeline.llm_provider import create_provider
+from rag_pipeline.json_utils import repair_and_load_json
 
 
 @dataclass
@@ -173,13 +174,7 @@ Only return JSON, no explanation."""
         response = self._call_llm(prompt)
 
         try:
-            # Extract JSON
-            if "```json" in response:
-                response = response.split("```json")[1].split("```")[0]
-            elif "```" in response:
-                response = response.split("```")[1].split("```")[0]
-
-            data = json.loads(response)
+            data = repair_and_load_json(response)
             return [(q['question'], q['expected_answer']) for q in data[:3]]
         except:
             # Fallback questions
@@ -219,12 +214,7 @@ Only return JSON, no explanation."""
         response = self._call_llm(prompt)
 
         try:
-            if "```json" in response:
-                response = response.split("```json")[1].split("```")[0]
-            elif "```" in response:
-                response = response.split("```")[1].split("```")[0]
-
-            data = json.loads(response)
+            data = repair_and_load_json(response)
             return [(q['question'], q['expected_answer']) for q in data[:2]]
         except:
             return [
@@ -263,13 +253,7 @@ Réponds en JSON:
         try:
             response = self._call_llm(prompt)
 
-            # Extract JSON
-            if "```json" in response:
-                response = response.split("```json")[1].split("```")[0]
-            elif "```" in response:
-                response = response.split("```")[1].split("```")[0]
-
-            data = json.loads(response)
+            data = repair_and_load_json(response)
             return (
                 float(data.get('conciseness', 0.5)),
                 float(data.get('completeness', 0.5)),
