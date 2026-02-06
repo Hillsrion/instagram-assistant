@@ -108,6 +108,11 @@ def run(config: Config, reset: bool = False, batch_size: int = DEFAULT_BATCH_SIZ
     CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
     np.save(get_checkpoint_path(0, CHECKPOINT_DIR), embeddings)
     
+    # Print summary if we generated any embeddings
+    if 'embedding_model' in locals():
+        embedding_model.logger.export_csv()
+        embedding_model.logger.print_summary()
+    
     return embeddings
 
 def main():

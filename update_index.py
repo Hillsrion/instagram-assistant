@@ -170,7 +170,7 @@ def run_incremental_update(config: Config, force_full: bool = False):
     if new_chunks:
         print(f"\nGenerating embeddings for {len(new_chunks)} chunks...")
         texts = [chunk.get_embedding_text() for chunk in new_chunks]
-        new_embeddings = embedding_model.encode_batch(
+        new_embeddings = embedding_model.encode(
             texts,
             show_progress=True
         )
@@ -188,6 +188,10 @@ def run_incremental_update(config: Config, force_full: bool = False):
         # Save vector store
         print("\nSaving vector store...")
         vector_store.save()
+        
+        # Print embedding metrics
+        embedding_model.logger.export_csv()
+        embedding_model.logger.print_summary()
     elif chunk_ids_to_remove and vector_store.index is not None:
         # Only removals, no new chunks
         vector_store.remove_vectors(list(chunk_ids_to_remove))

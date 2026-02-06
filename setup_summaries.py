@@ -148,6 +148,10 @@ def run(config: Config, reset: bool = False, model: str = None) -> bool:
             summary_store.build_indexes(conversation_summaries, period_summaries)
             summary_store.save()
             print("Summary index built and saved.")
+            
+            # Print embedding metrics
+            embedding_model.logger.export_csv()
+            embedding_model.logger.print_summary()
         else:
             print("No summaries to index.")
 

@@ -3,10 +3,12 @@ Embeddings module for RAG Pipeline.
 Uses sentence-transformers with bge-m3 model (multilingual).
 """
 import numpy as np
+import time
 from typing import List, Optional
 from pathlib import Path
 
 from .config import Config, default_config
+from .embedding_log import EmbeddingLogger
 
 
 class EmbeddingModel:
@@ -16,6 +18,7 @@ class EmbeddingModel:
         self.config = config or default_config
         self.model = None
         self._device = None
+        self.logger = EmbeddingLogger()
     
     def _load_model(self):
         """Loads the embedding model (lazy loading)."""
@@ -62,11 +65,23 @@ class EmbeddingModel:
         """
         self._load_model()
         
+        start_time = time.time()
+        batch_size = 32
+        
         embeddings = self.model.encode(
             texts,
             show_progress_bar=show_progress,
             normalize_embeddings=True,  # Normalization for cosine similarity
-            batch_size=32,
+            batch_size=batch_size,
+        )
+        
+        duration_ms = (time.time() - start_time) * 1000
+        self.logger.log_batch(
+            batch_size=batch_size,
+            total_texts=len(texts),
+            model_name=self.config.embedding_model,
+            device=str(self._device),
+            duration_ms=duration_ms
         )
         
         return embeddings
@@ -91,6 +106,7 @@ class OllamaEmbeddings:
     def __init__(self, config: Config = None):
         self.config = config or default_config
         self.model_name = "nomic-embed-text"
+        self.logger = EmbeddingLogger()
     
     def _call_ollama(self, text: str) -> List[float]:
         """Calls Ollama API to get an embedding."""
@@ -110,6 +126,7 @@ class OllamaEmbeddings:
         """Encodes a list of texts via Ollama."""
         embeddings = []
         
+        start_time = time.time()
         iterator = texts
         if show_progress:
             try:
@@ -121,6 +138,15 @@ class OllamaEmbeddings:
         for text in iterator:
             emb = self._call_ollama(text)
             embeddings.append(emb)
+        
+        duration_ms = (time.time() - start_time) * 1000
+        self.logger.log_batch(
+            batch_size=1,  # Ollama is usually sequential in this implementation
+            total_texts=len(texts),
+            model_name=self.model_name,
+            device="ollama_api",
+            duration_ms=duration_ms
+        )
         
         return np.array(embeddings, dtype=np.float32)
     
