@@ -56,7 +56,7 @@ The system requires two steps to process your data:
 
 1. Request your data export from Instagram (JSON format).
 2. Download and unzip the export.
-3. Configure the path in `.env` (or use `setup_env.py`):
+3. Configure the path in `.env` (or use `scripts/setup/setup_env.py`):
 
 ```bash
 INSTAGRAM_EXPORT_DIR=/path/to/your/instagram_export/messages/inbox
@@ -69,7 +69,7 @@ INSTAGRAM_EXPORT_DIR=/path/to/your/instagram_export/messages/inbox
 Run the conversion script to parse JSON files and generate optimized text files:
 
 ```bash
-python instagram_to_text.py
+python scripts/ingestion/instagram_to_text.py
 ```
 
 This will populate `instagram_conversations/` with `.txt` files.
@@ -113,12 +113,10 @@ Type your questions directly in the terminal.
 After adding/modifying files:
 
 ```bash
-# View detected changes
-python update_index.py --status
+python scripts/maintenance/update_index.py --status
 
 # Apply changes
-python update_index.py
-```
+python scripts/maintenance/update_index.py```
 
 ## Evaluation
 
@@ -147,9 +145,9 @@ python -m eval.config_comparison.compare_configs
 | `python app.py` | Launch web server |
 | `python cli.py` | Command-line interface |
 | `python setup_rag_batch.py` | Full indexing |
-| `python update_index.py` | Incremental update |
-| `python update_index.py --status` | View changes |
-| `python update_index.py --full` | Force full rebuild |
+| `python scripts/maintenance/update_index.py` | Incremental update |
+| `python scripts/maintenance/update_index.py --status` | View changes |
+| `python scripts/maintenance/update_index.py --full` | Force full rebuild |
 | `python utils/rag_stats.py` | View dataset statistics |
 | `python utils/top_20_messages.py` | List top conversations by size |
 | `python -m eval.dataset.generate_dataset N` | Generate N QA pairs |
@@ -200,7 +198,7 @@ Changes are detected by content hash. If only the file date changed, it won't be
 
 To force update:
 ```bash
-python update_index.py --full
+python scripts/maintenance/update_index.py --full
 ```
 
 ## Resources

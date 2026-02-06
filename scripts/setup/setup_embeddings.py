@@ -10,7 +10,7 @@ import json
 import numpy as np
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from rag_pipeline.config import Config
 from rag_pipeline.chunker import ConversationChunker, Chunk

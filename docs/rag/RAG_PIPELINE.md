@@ -6,7 +6,7 @@ This document provides a concise end-to-end overview of the RAG pipeline. For de
 
 ## Stage 1: Indexing (Offline)
 
-Orchestrated by `setup_rag.py`, runs sequentially:
+Orchestrated by `scripts/setup/setup_rag.py`, runs sequentially:
 
 ### Step 1 — Chunking (`rag_pipeline/chunker.py`)
 

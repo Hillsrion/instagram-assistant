@@ -49,29 +49,28 @@ JSONL format (JSON Lines) with a structured trace per request. Each line is a co
 }
 ```
 
-## Using the `view_logs.py` script
+## Using the `scripts/utils/view_logs.py` script
 
 ### Show latest logs
 ```bash
-python view_logs.py debug        # The last 10 requests
-python view_logs.py debug 20     # The last 20 requests
+python scripts/utils/view_logs.py debug        # The last 10 requests
+python scripts/utils/view_logs.py debug 20     # The last 20 requests
 ```
 
 ### Show RAG logs in real-time
 ```bash
-python view_logs.py tail         # The last 50 lines
-python view_logs.py tail 100     # The last 100 lines
+python scripts/utils/view_logs.py tail         # The last 50 lines
+python scripts/utils/view_logs.py tail 100     # The last 100 lines
 ```
 
 ### Search for a specific query
 ```bash
-python view_logs.py search "who is ayoub"
-python view_logs.py search "how many messages"
+python scripts/utils/view_logs.py search "who is ayoub"
 ```
 
 ### View the latest request in detail
 ```bash
-python view_logs.py latest
+python scripts/utils/view_logs.py latest
 ```
 
 ## Interpreting Logs
@@ -86,7 +85,7 @@ You reported that for the question **"who is ayoub ?"**:
 
 1. **Search for your query:**
    ```bash
-   python view_logs.py search "who is ayoub"
+   python scripts/utils/view_logs.py search "who is ayoub"
    ```
 
 2. **Look at the `mode` field:**
@@ -149,7 +148,7 @@ The problem is that the QueryAnalyzer prompt is ambiguous or inconsistent.
 
 3. **Monitor results**:
    ```bash
-   python view_logs.py search "who is"
+   python scripts/utils/view_logs.py search "who is"
    # Verify that mode=retrieval for all these questions
    ```
 
@@ -170,7 +169,7 @@ You will see each request in real-time:
 
 ### Analyzing Structured Traces Afterwards
 ```bash
-python view_logs.py debug 20
+python scripts/utils/view_logs.py debug 20
 # Examine each request with its detailed events
 ```
 
@@ -200,4 +199,4 @@ The logging system allows you to:
 3. ✅ Debug problems quickly
 4. ✅ Archive traces for analysis
 
-**Next Step:** Use `python view_logs.py search "who is ayoub"` after testing the query to see why it is classified differently between calls.
+**Next Step:** Use `python scripts/utils/view_logs.py search "who is ayoub"` after testing the query to see why it is classified differently between calls.

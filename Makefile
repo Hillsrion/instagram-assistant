@@ -41,7 +41,7 @@ install:
 
 .PHONY: setup-env
 setup-env:
-	$(PYTHON) setup_env.py
+	$(PYTHON) scripts/setup/setup_env.py
 
 # Application
 .PHONY: run
@@ -59,15 +59,15 @@ cli-query:
 # RAG Pipeline
 .PHONY: index
 index:
-	$(PYTHON) setup_rag.py
+	$(PYTHON) scripts/setup/setup_rag.py
 
 .PHONY: update
 update:
-	$(PYTHON) update_index.py
+	$(PYTHON) scripts/maintenance/update_index.py
 
 .PHONY: status
 status:
-	$(PYTHON) setup_rag.py --status
+	$(PYTHON) scripts/setup/setup_rag.py --status
 
 # Evaluation
 .PHONY: eval-retrieval
@@ -81,11 +81,11 @@ eval-gen:
 # Utilities
 .PHONY: stats
 stats:
-	$(PYTHON) scripts/conversation_stats.py
+	$(PYTHON) scripts/analysis/conversation_stats.py
 
 .PHONY: check-enrich
 check-enrich:
-	$(PYTHON) scripts/check_enrichment_status.py
+	$(PYTHON) scripts/utils/check_enrichment_status.py
 
 .PHONY: clean
 clean:

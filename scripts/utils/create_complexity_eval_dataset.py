@@ -12,6 +12,9 @@ Examples:
     python scripts/create_complexity_eval_dataset.py --limit 100
     python scripts/create_complexity_eval_dataset.py --limit 50
 """
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import json
 import sys
 from pathlib import Path

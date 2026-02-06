@@ -698,13 +698,12 @@ removed, added = vector_store.update_vectors(
 
 ```bash
 # Show status (detected changes)
-python update_index.py --status
+python scripts/maintenance/update_index.py --status
 
 # Run incremental update
-python update_index.py
+python scripts/maintenance/update_index.py
 
-# Force full rebuild
-python update_index.py --full
+python scripts/maintenance/update_index.py --full
 ```
 
 #### Example Output
@@ -921,7 +920,7 @@ instagram-assistant/
 │   │   ├── routes/              # Pages (Analytics, Chat...)
 │   │   └── lib/                 # API client & utils
 │   └── package.json
-├── update_index.py              # Incremental update script
+├── scripts/maintenance/update_index.py              # Incremental update script
 └── docs/
     └── FEATURES.md              # This documentation
 ```
@@ -1117,7 +1116,7 @@ Verify:
 ### How to force full rebuild?
 
 ```bash
-python update_index.py --full
+python scripts/maintenance/update_index.py --full
 ```
 
-Or delete `rag_data/file_state.json` then run `update_index.py`.
+Or delete `rag_data/file_state.json` then run `python scripts/maintenance/update_index.py`.

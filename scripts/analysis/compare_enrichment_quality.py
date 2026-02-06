@@ -18,6 +18,9 @@ Examples:
     # Compare on 10 chunks (full test, ~30 minutes)
     python scripts/compare_enrichment_quality.py --limit 10
 """
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import json
 import sys
 import time
@@ -39,7 +42,7 @@ def load_chunks(limit: int = 3) -> List[Chunk]:
 
     if not chunks_path.exists():
         print(f"❌ chunks.json not found at {chunks_path}")
-        print("   Run: python setup_rag.py --limit 100")
+        print("   Run: python scripts/setup/setup_rag.py --limit 100")
         sys.exit(1)
 
     with open(chunks_path) as f:

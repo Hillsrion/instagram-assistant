@@ -8,9 +8,9 @@ Detects changes in conversation files and updates the index incrementally:
 - Deleted files: remove chunks from index
 
 Usage:
-    python update_index.py           # Run incremental update
-    python update_index.py --full    # Force full rebuild
-    python update_index.py --status  # Show status only
+    python scripts/maintenance/update_index.py           # Run incremental update
+    python scripts/maintenance/update_index.py --full    # Force full rebuild
+    python scripts/maintenance/update_index.py --status  # Show status only
 """
 
 import argparse
@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from rag_pipeline.config import Config
 from rag_pipeline.chunker import ConversationChunker
@@ -69,7 +69,7 @@ def show_status(config: Config):
 
     print()
     if delta.has_changes:
-        print("Run 'python update_index.py' to apply changes.")
+        print("Run 'python scripts/maintenance/update_index.py' to apply changes.")
     else:
         print("Index is up to date.")
 

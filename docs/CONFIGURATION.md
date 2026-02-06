@@ -6,8 +6,7 @@ This project now uses an environment variable-based configuration system to avoi
 
 ### Option 1: Interactive Script (Recommended)
 
-```bash
-python setup_env.py
+python scripts/setup/setup_env.py
 ```
 
 The script will guide you through configuring all necessary settings.
@@ -124,13 +123,11 @@ python setup_rag_batch.py --import-test --limit 5 --reset
 
 ```bash
 # 1. Configure the environment
-python setup_env.py
-
+python scripts/setup/setup_env.py
 # 2. Install dependencies (includes python-dotenv)
 pip install -r requirements.txt
 
-# 3. Convert your conversations
-python instagram_to_text.py
+python scripts/ingestion/instagram_to_text.py
 
 # 4. Create the index
 python setup_rag_batch.py
@@ -155,8 +152,7 @@ python merge_instagram_exports.py \
 nano .env
 
 # 3. Convert and index
-python instagram_to_text.py
-python update_index.py
+python scripts/maintenance/update_index.py
 ```
 
 ### Update with a New Export
@@ -171,8 +167,8 @@ python merge_instagram_exports.py \
 # 2. Update INSTAGRAM_EXPORT_DIR in .env
 
 # 3. Reconvert and update the index
-python instagram_to_text.py
-python update_index.py
+python scripts/ingestion/instagram_to_text.py
+python scripts/maintenance/update_index.py
 ```
 
 ## Relative vs Absolute Paths
@@ -228,7 +224,7 @@ pip install --upgrade python-dotenv
 
 ## Automatic Import Logic
 
-The script `instagram_to_text.py` has been improved to automatically detect your Instagram exports. It searches in the following priority order:
+The script `scripts/ingestion/instagram_to_text.py` has been improved to automatically detect your Instagram exports. It searches in the following priority order:
 
 1. The `INSTAGRAM_EXPORT_DIR` environment variable (if defined)
 2. The `merged_instagram_export/` directory (created by `merge_instagram_exports.py`)
@@ -241,7 +237,7 @@ This logic allows easily handling multiple or merged exports without constant re
 
 If you are using a previous version with hardcoded paths:
 
-1. Run `python setup_env.py`
+1. Run `python scripts/setup/setup_env.py`
 2. Your existing data in `instagram_conversations/` and `rag_data/` will be automatically used
 3. No re-indexing is necessary
 

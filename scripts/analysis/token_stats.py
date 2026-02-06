@@ -7,6 +7,8 @@ Usage:
     python3 scripts/token_stats.py
 """
 import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import os
 from pathlib import Path
 

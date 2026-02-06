@@ -54,20 +54,20 @@ cd frontend && pnpm lint          # Run ESLint
 ## Indexing Pipeline
 
 ```bash
-python setup_rag.py              # Run full pipeline
-python setup_rag.py --status     # Show indexing progress
-python setup_rag.py --reset      # Full reindex from scratch
-python setup_rag.py --only chunks  # Run a single step (chunks, embeddings, etc.)
+python scripts/setup/setup_rag.py              # Run full pipeline
+python scripts/setup/setup_rag.py --status     # Show indexing progress
+python scripts/setup/setup_rag.py --reset      # Full reindex from scratch
+python scripts/setup/setup_rag.py --only chunks  # Run a single step (chunks, embeddings, etc.)
 
 # Partial Indexing (Test with enriched data only)
-python setup_embeddings.py --enriched-only  # Only vectorise fully enriched chunks
-python setup_indexes.py                     # Will auto-detect partial index
+python scripts/setup/setup_embeddings.py --enriched-only  # Only vectorise fully enriched chunks
+python scripts/setup/setup_indexes.py                     # Will auto-detect partial index
 
 # Maintenance / Incremental Update (When new messages are added)
-python scripts/update_chunks.py             # Sync .txt files with chunks.json (preserves existing enrichment)
-python setup_enrich.py                      # Enrich only the new/modified chunks
-python setup_embeddings.py --enriched-only  # Update vectors (incremental cache)
-python setup_indexes.py                     # Refresh index
+python scripts/maintenance/update_chunks.py             # Sync .txt files with chunks.json (preserves existing enrichment)
+python scripts/setup/setup_enrich.py                      # Enrich only the new/modified chunks
+python scripts/setup/setup_embeddings.py --enriched-only  # Update vectors (incremental cache)
+python scripts/setup/setup_indexes.py                     # Refresh index
 
 ```
 
@@ -131,7 +131,7 @@ To speed up enrichment across multiple machines:
 
 **On Machine 1:**
 ```bash
-python setup_enrich.py --total-shards 2 --shard-index 0
+python scripts/setup/setup_enrich.py --total-shards 2 --shard-index 0
 # Processes chunks 0, 2, 4, 6... (~50% of work)
 # Output: rag_data/chunks_shard0.json
 ```
@@ -141,7 +141,7 @@ python setup_enrich.py --total-shards 2 --shard-index 0
 # First, copy chunks.json from Machine 1
 scp user@machine1:~/instagram-assistant/rag_data/chunks.json ./rag_data/
 
-python setup_enrich.py --total-shards 2 --shard-index 1
+python scripts/setup/setup_enrich.py --total-shards 2 --shard-index 1
 # Processes chunks 1, 3, 5, 7... (~50% of work)
 # Output: rag_data/chunks_shard1.json
 ```
@@ -154,13 +154,12 @@ scp user@machine2:~/instagram-assistant/rag_data/chunks_shard1.json ./rag_data/
 # Merge shards
 python scripts/merge_enriched_shards.py
 
-# Continue pipeline
-python setup_embeddings.py
+python scripts/setup/setup_embeddings.py
 ```
 
 Monitor distributed progress:
 ```bash
-python scripts/check_enrichment_status.py --show-shards  # Show shard file status
+python scripts/utils/check_enrichment_status.py --show-shards  # Show shard file status
 tail -f enrichment_shard0.log  # On Machine 1
 tail -f enrichment_shard1.log  # On Machine 2
 ```
@@ -171,26 +170,26 @@ Scripts located in `scripts/` to help with data analysis and debugging.
 
 ```bash
 # Check enrichment (summarization/HyDE) status of conversations
-python scripts/check_enrichment_status.py                  # Summary of all conversations
-python scripts/check_enrichment_status.py --detailed       # Per-conversation breakdown
-python scripts/check_enrichment_status.py --show-enriched  # List fully enriched conversations
-python scripts/check_enrichment_status.py --show-not-enriched # List conversations not started
-python scripts/check_enrichment_status.py --show-shards    # Show progress on shard files during distributed enrichment
+python scripts/utils/check_enrichment_status.py                  # Summary of all conversations
+python scripts/utils/check_enrichment_status.py --detailed       # Per-conversation breakdown
+python scripts/utils/check_enrichment_status.py --show-enriched  # List fully enriched conversations
+python scripts/utils/check_enrichment_status.py --show-not-enriched # List conversations not started
+python scripts/utils/check_enrichment_status.py --show-shards    # Show progress on shard files during distributed enrichment
 
 # Merge enriched shards (after distributed enrichment)
-python scripts/merge_enriched_shards.py                    # Auto-detect and merge all shards
-python scripts/merge_enriched_shards.py --dry-run          # Preview merge without writing
-python scripts/merge_enriched_shards.py --verbose          # Show detailed merge progress
+python scripts/maintenance/merge_enriched_shards.py
+python scripts/maintenance/merge_enriched_shards.py --dry-run          # Preview merge without writing
+python scripts/maintenance/merge_enriched_shards.py --verbose          # Show detailed merge progress
 
 # Get conversation statistics
-python scripts/conversation_stats.py                       # List all conversations by message count
-python scripts/conversation_stats.py --limit 10            # Top 10 conversations
-python scripts/conversation_stats.py --min-messages 100    # Filter small conversations
-python scripts/conversation_stats.py --json                # JSON output for external tools
+python scripts/analysis/conversation_stats.py                       # List all conversations by message count
+python scripts/analysis/conversation_stats.py --limit 10            # Top 10 conversations
+python scripts/analysis/conversation_stats.py --min-messages 100    # Filter small conversations
+python scripts/analysis/conversation_stats.py --json                # JSON output for external tools
 
 # Analyze chunks for top_k optimization
-python analyze_chunks_stats.py                             # Analyze all chunks, display stats
-python analyze_chunks_stats.py --output report.md          # Generate markdown report
-python analyze_chunks_stats.py --chunks path/to/chunks.json # Custom chunks path
+python scripts/analysis/analyze_chunks_stats.py                             # Analyze all chunks, display stats
+python scripts/analysis/analyze_chunks_stats.py --output report.md          # Generate markdown report
+python scripts/analysis/analyze_chunks_stats.py --chunks path/to/chunks.json # Custom chunks path
 # See docs/TOP_K_ANALYSIS_REPORT.md for detailed analysis and recommendations
 ```

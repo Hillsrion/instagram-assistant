@@ -4,7 +4,7 @@
 
 1.  **Configuration:**
     - Copy `.env.example` to `.env`.
-    - Run `python setup_env.py` for interactive configuration.
+    - Run `python scripts/setup/setup_env.py` for interactive configuration.
 
 2.  **Dependencies:**
     - **Recommended:** Use a virtual environment to avoid version conflicts (especially with MLX/Transformers).
@@ -48,9 +48,9 @@ To fix environment issues:
 
 ### Data Pipeline (Indexing)
 The RAG pipeline must be indexed before queries work.
-1.  **Convert Export:** `python instagram_to_text.py`
-2.  **Full Indexing:** `python setup_rag.py`
-3.  **Check Status:** `python setup_rag.py --status`
+1.  **Convert Export:** `python scripts/ingestion/instagram_to_text.py`
+2.  **Full Indexing:** `python scripts/setup/setup_rag.py`
+3.  **Check Status:** `python scripts/setup/setup_rag.py --status`
 
 ### Running the Application
 - **Backend:** `python app.py` (Port 8000)

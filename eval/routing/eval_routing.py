@@ -215,7 +215,7 @@ def initialize_components(config: Config, model: str = None, provider_type: str 
     vector_store = VectorStore(config)
 
     if not vector_store.load():
-        print("❌ Vector store not found. Run setup_rag.py first.")
+        print("❌ Vector store not found. Run scripts/setup/setup_rag.py first.")
         sys.exit(1)
 
     retriever = Retriever(embedding_model, vector_store, config)

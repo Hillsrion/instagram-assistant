@@ -22,7 +22,7 @@ Local AI assistant for querying exported Instagram conversations using a RAG pip
 - **Start Backend:** `python app.py`
 - **Start Frontend:** `cd frontend && pnpm dev`
 - **CLI Chat:** `python cli.py`
-- **Full Indexing:** `python setup_rag.py`
+- **Full Indexing:** `python scripts/setup/setup_rag.py`
 
 ### Testing
 - **Unit Tests:** `pytest tests/`

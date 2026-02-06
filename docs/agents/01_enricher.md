@@ -1,7 +1,7 @@
 # Enricher Agent ("The Indexer")
 
 **Component:** `rag_pipeline/enricher.py`
-**Trigger:** Data ingestion (`setup_rag.py`)
+**Trigger:** Data ingestion (`scripts/setup/setup_rag.py`)
 **Default Model:** `ministral-8b`
 
 The Enricher reads raw conversation chunks (batches of messages) and transforms them into rich, searchable documents.

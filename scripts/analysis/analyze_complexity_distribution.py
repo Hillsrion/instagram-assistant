@@ -5,6 +5,8 @@ Helps in tuning the thresholds for Simple/Medium/Complex categories.
 """
 
 import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import numpy as np
 from pathlib import Path
 from collections import Counter

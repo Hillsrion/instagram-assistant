@@ -8,6 +8,9 @@ These QA pairs can be used with eval_generation.py to evaluate model quality.
 Usage:
     python scripts/create_qa_from_complexity.py [--limit N]
 """
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import json
 import sys
 from pathlib import Path

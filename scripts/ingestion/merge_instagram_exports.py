@@ -390,9 +390,9 @@ Examples:
     print(f"  • Duplicates removed: {total_messages_before - total_messages_after:,}")
     print(f"\n📁 Result available in: {args.output}")
     print(f"\nNext steps:")
-    print(f"  1. Modify instagram_to_text.py line 194 to point to: {args.output}")
-    print(f"  2. Run: python3 instagram_to_text.py")
-    print(f"  3. Run: python3 update_index.py")
+    print(f"  1. Modify scripts/ingestion/instagram_to_text.py line 194 to point to: {args.output}")
+    print(f"  2. Run: python3 scripts/ingestion/instagram_to_text.py")
+    print(f"  3. Run: python3 scripts/maintenance/update_index.py")
 
     return 0
 

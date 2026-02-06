@@ -19,6 +19,9 @@ Examples:
     # Test specific model
     python scripts/test_enrichment_quality.py --limit 5 --model ministral-3:3b
 """
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import json
 import time
 import sys
@@ -41,7 +44,7 @@ def load_chunks(limit: int = 5) -> List[Chunk]:
 
     if not chunks_path.exists():
         print(f"❌ chunks.json not found at {chunks_path}")
-        print("   Run: python setup_rag.py --limit 100")
+        print("   Run: python scripts/setup/setup_rag.py --limit 100")
         sys.exit(1)
 
     with open(chunks_path) as f:

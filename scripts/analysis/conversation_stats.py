@@ -4,7 +4,7 @@ Script to get statistics about conversations.
 Shows message counts, date ranges, and participants, ordered by message count.
 
 Usage:
-    python3 scripts/conversation_stats.py [--limit N]
+    python3 scripts/analysis/conversation_stats.py [--limit N]
 """
 import argparse
 import json

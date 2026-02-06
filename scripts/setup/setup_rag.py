@@ -3,25 +3,25 @@
 RAG Pipeline Orchestrator - Main Entry Point.
 
 This script orchestrates the execution of all RAG pipeline steps:
-1. Loading/Generating chunks (setup_chunks.py)
-2. LLM Enrichment (setup_enrich.py)
-3. Generating embeddings (setup_embeddings.py)
-4-6. FAISS + BM25 + Metadata Indexes (setup_indexes.py)
-7-8. Hierarchical Summaries + their index (setup_summaries.py)
+1. Loading/Generating chunks (scripts/setup/setup_chunks.py)
+2. LLM Enrichment (scripts/setup/setup_enrich.py)
+3. Generating embeddings (scripts/setup/setup_embeddings.py)
+4-6. FAISS + BM25 + Metadata Indexes (scripts/setup/setup_indexes.py)
+7-8. Hierarchical Summaries + their index (scripts/setup/setup_summaries.py)
 
 Usage:
-    python setup_rag.py                  # Runs the whole pipeline
-    python setup_rag.py --status         # Shows status of all components
-    python setup_rag.py --reset          # Full reset and restart
-    python setup_rag.py --only chunks    # Runs a single step
-    python setup_rag.py --skip-enrich    # Skips enrichment
-    python setup_rag.py --limit 10       # Limits to 10 conversations
+    python scripts/setup/setup_rag.py                  # Runs the whole pipeline
+    python scripts/setup/setup_rag.py --status         # Shows status of all components
+    python scripts/setup/setup_rag.py --reset          # Full reset and restart
+    python scripts/setup/setup_rag.py --only chunks    # Runs a single step
+    python scripts/setup/setup_rag.py --skip-enrich    # Skips enrichment
+    python scripts/setup/setup_rag.py --limit 10       # Limits to 10 conversations
 """
 import sys
 import argparse
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from rag_pipeline.config import Config
 from rag_pipeline.chunker import ConversationChunker
@@ -176,11 +176,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 Examples:
-    python setup_rag.py                  # Runs the whole pipeline
-    python setup_rag.py --status         # Shows status
-    python setup_rag.py --reset          # Full reset
-    python setup_rag.py --only chunks    # Only chunks
-    python setup_rag.py --skip-enrich --skip-summary  # Without enrichment or summaries
+    python scripts/setup/setup_rag.py                  # Runs the whole pipeline
+    python scripts/setup/setup_rag.py --status         # Shows status
+    python scripts/setup/setup_rag.py --reset          # Full reset
+    python scripts/setup/setup_rag.py --only chunks    # Only chunks
+    python scripts/setup/setup_rag.py --skip-enrich --skip-summary  # Without enrichment or summaries
         """
     )
 

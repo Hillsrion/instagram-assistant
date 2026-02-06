@@ -120,10 +120,10 @@ def main():
     """Main command handler."""
     if len(sys.argv) < 2:
         print("Usage:")
-        print("  python view_logs.py debug [limit=10]     - View latest debug logs")
-        print("  python view_logs.py tail [lines=50]       - View RAG pipeline logs")
-        print("  python view_logs.py search <query>        - Search for specific query")
-        print("  python view_logs.py latest                - Show latest request details")
+        print("  python scripts/utils/view_logs.py debug [limit=10]     - View latest debug logs")
+        print("  python scripts/utils/view_logs.py tail [lines=50]       - View RAG pipeline logs")
+        print("  python scripts/utils/view_logs.py search <query>        - Search for specific query")
+        print("  python scripts/utils/view_logs.py latest                - Show latest request details")
         return
 
     command = sys.argv[1]

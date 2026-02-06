@@ -144,11 +144,11 @@ Next steps:
      - Track routing decisions and quality
 
   5. Test on small batch
-     - Run: python setup_rag.py --limit 500 --reset
+     - Run: python scripts/setup/setup_rag.py --limit 500 --reset
      - Verify routing decisions and output quality
 
   6. Full indexing
-     - Run: python setup_rag.py
+     - Run: python scripts/setup/setup_rag.py
      - Monitor enrichment progress and model switching overhead
 """)
     else:

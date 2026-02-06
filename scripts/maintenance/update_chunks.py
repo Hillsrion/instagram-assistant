@@ -13,6 +13,8 @@ Mechanics:
 4. Saves the updated list to chunks.json.
 """
 import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import json
 import hashlib
 import argparse

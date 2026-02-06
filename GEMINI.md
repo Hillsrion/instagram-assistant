@@ -26,7 +26,7 @@ This `GEMINI.md` provides context for the Gemini CLI agent working on the Instag
 - **Backend:** `python app.py` (FastAPI on 8000)
 - **Frontend:** `cd frontend && pnpm dev` (Vite on 5173)
 - **CLI Chat:** `python cli.py`
-- **Indexing:** `python setup_rag.py`
+- **Indexing:** `python scripts/setup/setup_rag.py`
 
 ### Key Directories
 - `rag_pipeline/`: Core logic (Chunking, Embedding, Search, Chat).
