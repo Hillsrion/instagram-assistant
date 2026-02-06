@@ -115,8 +115,13 @@ def main():
     parser.add_argument("--reset", action="store_true")
     parser.add_argument("--enriched-only", action="store_true", help="Only embed enriched chunks")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
+    parser.add_argument("--cpu", action="store_true", help="Force CPU usage (ignore GPU/MPS)")
     args = parser.parse_args()
+    
     config = Config()
+    if args.cpu:
+        config.use_gpu = False
+        
     embeddings = run(config, reset=args.reset, batch_size=args.batch_size, enriched_only=args.enriched_only)
     sys.exit(0 if embeddings is not None else 1)
 

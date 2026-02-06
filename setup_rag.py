@@ -213,6 +213,8 @@ Examples:
                         help=f"Embedding batch size (default: {DEFAULT_BATCH_SIZE})")
     parser.add_argument("--import-test", action="store_true",
                         help="Import test conversations")
+    parser.add_argument("--cpu", action="store_true",
+                        help="Force CPU usage for embeddings and LLM")
     parser.add_argument("--log-verbose", action="store_true",
                         help="Enable verbose logging")
 
@@ -222,6 +224,10 @@ Examples:
     initialize_logging(args.log_verbose)
 
     config = Config()
+    
+    if args.cpu:
+        config.use_gpu = False
+        print("🔧 Forced CPU mode (GPU/MPS disabled)")
 
     if args.model:
         config.llm_model = args.model
