@@ -31,9 +31,9 @@ class EmbeddingLogger:
         Initialize logger.
 
         Args:
-            output_dir: Directory to save logs (default: rag_data/logs/embedding_logs)
+            output_dir: Directory to save logs (default: logs)
         """
-        self.output_dir = Path(output_dir or "rag_data/logs/embedding_logs")
+        self.output_dir = Path(output_dir or "logs")
         self.output_dir.mkdir(exist_ok=True, parents=True)
 
         self.log_file = self.output_dir / "embedding_log.jsonl"

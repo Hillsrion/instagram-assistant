@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-LOG_DIR = Path("rag_data/logs")
+LOG_DIR = Path("logs")
 DEBUG_LOG_FILE = LOG_DIR / "debug.jsonl"
 RAG_LOG_FILE = LOG_DIR / "rag_pipeline.log"
 

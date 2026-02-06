@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 # Create logs directory if it doesn't exist
-LOG_DIR = Path("rag_data/logs")
+LOG_DIR = Path("logs")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Main log file

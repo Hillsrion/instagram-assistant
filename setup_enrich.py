@@ -39,7 +39,9 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
         True if success, False otherwise
     """
     script_start_time = time.time()
-    log_file = Path(f"enrichment_shard{shard_index}.log" if total_shards > 1 else "enrichment.log")
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True, parents=True)
+    log_file = log_dir / (f"enrichment_shard{shard_index}.log" if total_shards > 1 else "enrichment.log")
 
     # Reset log if chunks file doesn't exist and log is not empty
     if not config.chunks_cache_path.exists() and log_file.exists() and log_file.stat().st_size > 0:
