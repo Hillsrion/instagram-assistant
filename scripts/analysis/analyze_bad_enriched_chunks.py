@@ -1,0 +1,124 @@
+
+import sys
+import json
+import os
+from pathlib import Path
+from dataclasses import asdict
+
+# Add project root to path
+sys.path.append(os.getcwd())
+
+from rag_pipeline.config import default_config
+from rag_pipeline.chunker import Chunk
+
+def is_low_quality(chunk: Chunk) -> bool:
+    """
+    Detects if a chunk has low quality enrichment (sparse fields).
+    Matches the logic in ChunkEnricher._is_low_quality_enrichment
+    """
+    # If not enriched at all (no summary), count as "not enriched", effectively "bad" if we expect enrichment
+    if not chunk.narrative_summary:
+        return True
+
+    populated = 0
+    
+    if chunk.hypothetical_questions and len(chunk.hypothetical_questions) > 0:
+        populated += 1
+    
+    if chunk.speaker_intents and len(chunk.speaker_intents) > 0:
+        populated += 1
+    
+    if chunk.temporal_context and len(chunk.temporal_context.strip()) > 0:
+        populated += 1
+    
+    if chunk.entities and isinstance(chunk.entities, dict):
+        # Check if any entity category has values
+        if any(v for v in chunk.entities.values() if v):
+            populated += 1
+    
+    if chunk.emotions and isinstance(chunk.emotions, dict) and chunk.emotions.get('dominant'):
+        populated += 1
+    
+    if chunk.interaction_pattern:
+        populated += 1
+    
+    if chunk.initiative:
+        populated += 1
+    
+    if chunk.emotional_shift:
+        populated += 1
+    
+    if chunk.open_loops and len(chunk.open_loops) > 0:
+        populated += 1
+    
+    # Threshold from enricher.py
+    return populated < 3
+
+def analyze_chunks():
+    chunks_path = default_config.chunks_cache_path
+    if not chunks_path.exists():
+        print(f"❌ No chunks file found at {chunks_path}")
+        return
+
+    print(f"📂 Loading chunks from {chunks_path}...")
+    try:
+        with open(chunks_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        chunks = [Chunk.from_dict(d) for d in data]
+    except Exception as e:
+        print(f"❌ Failed to load chunks: {e}")
+        return
+
+    total = len(chunks)
+    enriched_count = 0
+    low_quality_count = 0
+    failed_count = 0
+    
+    low_quality_chunks = []
+
+    print(f"🔍 Analyzing {total} chunks...")
+
+    for chunk in chunks:
+        if chunk.enrichment_failed:
+            failed_count += 1
+            continue
+
+        if chunk.narrative_summary:
+            enriched_count += 1
+            if is_low_quality(chunk):
+                low_quality_count += 1
+                low_quality_chunks.append(chunk)
+        else:
+            # No summary, but not marked as failed? 
+            # Could be unenriched or legacy chunk.
+            pass
+
+    print("\n" + "="*50)
+    print("📊 Analysis Results")
+    print("="*50)
+    print(f"Total Chunks:       {total}")
+    print(f"Enriched:           {enriched_count}")
+    print(f"Marked Failed:      {failed_count}")
+    print(f"Low Quality:        {low_quality_count} ({low_quality_count/enriched_count*100:.1f}% of enriched)" if enriched_count > 0 else "Low Quality:        0")
+    print("="*50)
+
+    if low_quality_count > 0:
+        print("\n⚠️  Sample Low Quality Chunks:")
+        for i, chunk in enumerate(low_quality_chunks[:5]):
+            print(f"- {chunk.chunk_id}: {chunk.narrative_summary[:100]}...")
+            # Print which fields ARE populated
+            fields = []
+            if chunk.hypothetical_questions: fields.append("questions")
+            if chunk.speaker_intents: fields.append("intents")
+            if chunk.temporal_context: fields.append("time")
+            if chunk.entities: fields.append("entities")
+            if chunk.emotions: fields.append("emotions")
+            print(f"  Populated: {', '.join(fields) if fields else 'None'}")
+        
+        output_file = Path("bad_chunks.json")
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump([c.to_dict() for c in low_quality_chunks], f, indent=2, ensure_ascii=False)
+        print(f"\n💾 Saved {len(low_quality_chunks)} low quality chunks to {output_file.absolute()}")
+
+if __name__ == "__main__":
+    analyze_chunks()
