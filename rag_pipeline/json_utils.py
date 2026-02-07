@@ -1,83 +1,254 @@
 """
-Utility functions for cleaning and parsing LLM-generated JSON.
+Robust JSON Parser for LLM-Generated Output.
+
+WHY THIS EXISTS
+===============
+Local LLMs (Ollama, MLX) frequently generate malformed JSON when asked to produce
+structured enrichment data. Common issues include:
+
+1. **Unescaped internal quotes**: LLM writes `"He said "hello" to me"` instead of
+   properly escaping the inner quotes as `\"hello\"`.
+
+2. **Missing commas**: LLM forgets commas between properties, especially after
+   multi-line values:
+   ```
+   "summary": "some text"
+   "questions": [...]  // Missing comma!
+   ```
+
+3. **Inline comments**: LLM adds `// comment` annotations which are invalid JSON.
+
+4. **Orphan values in objects**: LLM produces keys without values like:
+   ```
+   "speaker_intents": {
+     "Alice": "She wants X",
+     "No other participant"  // This is not a valid key:value pair!
+   }
+   ```
+
+HOW IT WORKS
+============
+The parser uses a multi-stage approach:
+
+1. **Markdown stripping**: Removes ```json fences if present.
+
+2. **Comment removal**: Pre-processes line-by-line to strip `//` comments
+   outside of string literals.
+
+3. **State-machine parsing**: Character-by-character scan that tracks:
+   - Whether we're inside a string (`in_string`)
+   - Whether the previous char was an escape (`escaped`)
+   - Whether a value just ended (`last_value_ended`)
+   
+   Key logic:
+   - **Quote detection**: Uses look-ahead to determine if a `"` is structural
+     (followed by `:,}]"` or end-of-input) or internal (needs escaping).
+   - **Missing comma insertion**: If a new string starts after a value ended
+     without a comma, one is inserted.
+
+4. **Fallback repairs** in `repair_and_load_json`:
+   - Removes orphan string values in objects (`, "string"` not followed by `:`)
+   - Auto-closes truncated JSON by adding missing `}`
+
+USAGE
+=====
+```python
+from rag_pipeline.json_utils import repair_and_load_json, parse_enrichment_data
+
+raw_llm_output = '''```json
+{"summary": "He said "hello"", "tags": ["a", "b"]}
+```'''
+
+data = repair_and_load_json(raw_llm_output)
+enrichment = parse_enrichment_data(data)
+```
 """
-import json
 import re
+import json
 from typing import Any, Dict, List, Tuple, Optional
 
 def clean_llm_json(json_str: str) -> str:
-    """Cleans JSON string from common LLM artifacts and fixes unescaped quotes."""
+    """
+    Cleans JSON string with high robustness using a state-machine parser.
+    Handles:
+    - Unescaped internal quotes (e.g., "He said "hello" to me")
+    - Missing commas between properties
+    - // comments from LLM
+    - Trailing commas
+    """
+    if not json_str:
+        return ""
+
+    # 1. Basic markdown stripping
     cleaned = json_str.strip()
-    
-    # Remove markdown code blocks
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    elif cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-    
-    if "```" in cleaned:
-        cleaned = cleaned.split("```")[0]
-        
+    if "```json" in cleaned:
+        cleaned = cleaned.split("```json")[1].split("```")[0]
+    elif "```" in cleaned:
+        cleaned = cleaned.split("```")[1].split("```")[0]
     cleaned = cleaned.strip()
+
+    # 2. Extract object boundary
+    start_idx = cleaned.find("{")
+    end_idx = cleaned.rfind("}")
+    if start_idx == -1 or end_idx == -1 or end_idx <= start_idx:
+        return cleaned
     
-    # If it doesn't start with {, try to find it
-    if not cleaned.startswith("{") and "{" in cleaned:
-        cleaned = cleaned[cleaned.find("{"):]
-        
-    # Fix trailing commas before closing symbols
-    cleaned = re.sub(r",\s*([\"\]\}})", r"\1", cleaned)
+    raw = cleaned[start_idx : end_idx + 1]
     
-    # Robust fix for unescaped quotes inside string values
-    lines = cleaned.split('\n')
-    fixed_lines = []
-    
+    # 3. Pre-process: remove // comments outside strings
+    lines = raw.split('\n')
+    processed_lines = []
+    temp_in_string = False
+    temp_escaped = False
     for line in lines:
-        stripped_line = line.strip()
-        
-        # Case 1: "key": "value"
-        if ':' in line and '"' in line:
-            parts = line.split(':', 1)
-            if len(parts) == 2:
-                key_part = parts[0]
-                val_part = parts[1].strip()
-                if val_part.startswith('"') and (val_part.endswith(',') or val_part.endswith('"')):
-                    has_comma = val_part.endswith(',')
-                    content = val_part[1:-2] if has_comma else val_part[1:-1]
-                    if '"' in content:
-                        content = content.replace('"', '\"')
-                        val_part = f'"{content}"'
-                        if has_comma: val_part += ','
-                        line = f"{key_part}: {val_part}"
-        
-        # Case 2: List item: "value" or "value",
-        elif stripped_line.startswith('"') and (stripped_line.endswith('"') or stripped_line.endswith('",')):
-            has_comma = stripped_line.endswith(',')
-            content_part = stripped_line[1:-2] if has_comma else stripped_line[1:-1]
-            if '"' in content_part:
-                fixed_content = content_part.replace('"', '\"')
-                indent = line[:line.find('"')]
-                line = f'{indent}"{fixed_content}"'
-                if has_comma: line += ","
-        
-        fixed_lines.append(line)
-    
-    # Second pass: Fix missing commas between fields
-    final_lines = []
-    for i, line in enumerate(fixed_lines):
-        line = line.rstrip()
-        next_line = None
-        for j in range(i + 1, len(fixed_lines)):
-            if fixed_lines[j].strip():
-                next_line = fixed_lines[j].strip()
+        clean_line_chars = []
+        temp_in_string = False  # Reset per line for simplicity in comment detection
+        temp_escaped = False
+        comment_start = -1
+        for ci, c in enumerate(line):
+            if temp_escaped:
+                temp_escaped = False
+            elif c == '\\':
+                temp_escaped = True
+            elif c == '"':
+                temp_in_string = not temp_in_string
+            elif not temp_in_string and c == '/' and ci + 1 < len(line) and line[ci + 1] == '/':
+                comment_start = ci
                 break
-        if next_line:
-            stripped = line.strip()
-            if stripped.endswith('"') or stripped.endswith(']') or stripped.endswith('}'):
-                if next_line.startswith('"') or next_line.startswith('{') or next_line.startswith('['):
-                     line += ","
-        final_lines.append(line)
+        if comment_start != -1:
+            clean_line_chars = list(line[:comment_start])
+        else:
+            clean_line_chars = list(line)
+        processed_lines.append(''.join(clean_line_chars))
+    raw = '\n'.join(processed_lines)
+    
+    # 4. State machine parser
+    # Include '"' because if we see a quote after value, it means missing comma before new key/value
+    STRUCTURAL_CHARS = frozenset(':,}]"')
+    
+    result = []
+    in_string = False
+    escaped = False
+    last_value_ended = False  # True after a string value ends (not after ':')
+    
+    i = 0
+    while i < len(raw):
+        char = raw[i]
         
-    return '\n'.join(final_lines)
+        if escaped:
+            escaped = False
+            result.append(char)
+            i += 1
+            continue
+            
+        if char == '\\':
+            escaped = True
+            result.append(char)
+            i += 1
+            continue
+        
+        if char == '"':
+            if not in_string:
+                # Starting a string
+                # Check if we need to insert a missing comma
+                if last_value_ended:
+                    # Look backwards: was the last non-whitespace char a structural char?
+                    # If not, we need a comma
+                    needs_comma = True
+                    for ri in range(len(result) - 1, -1, -1):
+                        rc = result[ri]
+                        if rc.isspace():
+                            continue
+                        if rc in ',:{[':
+                            needs_comma = False
+                        break
+                    
+                    if needs_comma:
+                        # Find position to insert comma (before trailing whitespace)
+                        insert_pos = len(result)
+                        while insert_pos > 0 and result[insert_pos - 1].isspace():
+                            insert_pos -= 1
+                        result.insert(insert_pos, ',')
+                
+                in_string = True
+                last_value_ended = False
+                result.append(char)
+            else:
+                # Potential end of string - use look-ahead
+                # Find first non-whitespace character after this quote
+                j = i + 1
+                while j < len(raw) and raw[j] in ' \t\n\r':
+                    j += 1
+                
+                is_structural_quote = False
+                if j >= len(raw):
+                    # End of input - this quote ends the string
+                    is_structural_quote = True
+                elif raw[j] in STRUCTURAL_CHARS:
+                    # Followed by :, }, ], , - this is a structural quote
+                    is_structural_quote = True
+                
+                if is_structural_quote:
+                    in_string = False
+                    # Only mark value ended if this wasn't a key (next char is not ':')
+                    if j < len(raw) and raw[j] == ':':
+                        last_value_ended = False  # This was a key
+                    else:
+                        last_value_ended = True  # This was a value
+                    result.append(char)
+                else:
+                    # Internal quote - escape it
+                    result.append('\\')
+                    result.append('"')
+        
+        elif not in_string:
+            # Outside string - handle structural characters
+            if char == ':':
+                last_value_ended = False
+                result.append(char)
+            elif char == ',':
+                last_value_ended = False
+                result.append(char)
+            elif char == '{':
+                last_value_ended = False
+                result.append(char)
+            elif char == '[':
+                last_value_ended = False
+                result.append(char)
+            elif char in '}]':
+                last_value_ended = True
+                result.append(char)
+            elif char.isspace():
+                result.append(char)
+            else:
+                # Could be true/false/null or numbers
+                rem = raw[i:]
+                matched = False
+                for token in ['true', 'false', 'null']:
+                    if rem.startswith(token):
+                        # Verify it's a complete token (not part of a word)
+                        end_pos = len(token)
+                        if len(rem) > end_pos and rem[end_pos].isalnum():
+                            continue  # Not a complete token
+                        result.extend(list(token))
+                        i += len(token) - 1
+                        last_value_ended = True
+                        matched = True
+                        break
+                if not matched:
+                    result.append(char)
+        else:
+            # Inside string - just append
+            result.append(char)
+        
+        i += 1
+        
+    cleaned = "".join(result)
+    
+    # 5. Final cleanup: remove trailing commas before } or ]
+    cleaned = re.sub(r',(\s*[\}\]])', r'\1', cleaned)
+    
+    return cleaned
 
 def repair_and_load_json(json_str: str) -> Dict[str, Any]:
     """Attempts to repair and load a potentially truncated or malformed JSON."""
@@ -89,18 +260,34 @@ def repair_and_load_json(json_str: str) -> Dict[str, Any]:
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError as e:
-        # Fallback: if it's truncated, try to close the JSON manually
+        # Attempt to fix common structural errors
+        
+        # Fix 1: Remove orphan values in objects (value without key)
+        # Pattern: ,"string_without_colon_after" followed by } or ,
+        # This handles LLM errors like: {"key": "val", "orphan string"}
+        fixed = re.sub(
+            r',\s*"([^"\\]|\\.)*"\s*(?=[,}])',  # Match: , "string" followed by , or }
+            '',
+            cleaned
+        )
+        if fixed != cleaned:
+            try:
+                return json.loads(fixed)
+            except json.JSONDecodeError:
+                pass  # Continue with other fixes
+        
+        # Fix 2: If truncated, try to close the JSON manually
         if "{" in cleaned and not cleaned.endswith("}"):
             try:
-                # Very simple recovery for partial objects
                 recovered = cleaned
                 if recovered.count("{") > recovered.count("}"):
-                     recovered += "}" * (recovered.count("{") - recovered.count("}") )
+                     recovered += "}" * (recovered.count("{") - recovered.count("}"))
                 return json.loads(recovered)
-            except:
-                raise e
-        else:
-            raise e
+            except json.JSONDecodeError:
+                pass
+        
+        # If all fixes failed, raise the original error
+        raise e
 
 def parse_enrichment_data(data: dict) -> Tuple:
     """Robustly parse the JSON data specifically for conversation enrichment."""
@@ -125,7 +312,7 @@ def parse_enrichment_data(data: dict) -> Tuple:
     summary = str(summary)
 
     questions = ensure_str_list(data.get("questions", []))
-    speaker_intents = ensure_str_dict(data.get("speaker_intents", {{}}))
+    speaker_intents = ensure_str_dict(data.get("speaker_intents", {}))
     
     temporal_context = data.get("temporal_context", "")
     if isinstance(temporal_context, list):
@@ -133,8 +320,8 @@ def parse_enrichment_data(data: dict) -> Tuple:
     else:
         temporal_context = str(temporal_context)
     
-    entities = data.get("entities", {{}})
-    cleaned_entities = {{}}
+    entities = data.get("entities", {})
+    cleaned_entities = {}
     if isinstance(entities, dict):
         for key, val in entities.items():
             # Some LLMs nest emotions or other fields inside entities
@@ -164,7 +351,7 @@ def parse_enrichment_data(data: dict) -> Tuple:
 
     emotions = get_field("emotions", data)
     if not isinstance(emotions, dict):
-        emotions = {{}}
+        emotions = {}
 
     interaction_pattern = get_field("interaction_pattern", data)
     initiative = get_field("initiative", data)
