@@ -332,7 +332,9 @@ class ChunkEnricher:
                     last_error = e
                     # Log the malformed content for debugging
                     try:
-                        with open("malformed_json_debug.log", "a", encoding="utf-8") as debug_f:
+                        from .logger import LOG_DIR
+                        debug_log_path = LOG_DIR / "malformed_json_debug.log"
+                        with open(debug_log_path, "a", encoding="utf-8") as debug_f:
                             debug_f.write(f"--- Chunk {chunk.chunk_id} (Attempt {attempt+1}) ---\n")
                             debug_f.write(f"Error: {e}\n")
                             debug_f.write(f"Content:\n{result}\n")
@@ -429,9 +431,10 @@ class ChunkEnricher:
                 last_error = e
                 # Log the malformed content for debugging
                 try:
-                    from .json_utils import clean_llm_json
+                    from .logger import LOG_DIR
                     cleaned_debug = clean_llm_json(result) if 'result' in dir() else "N/A"
-                    with open("malformed_json_debug.log", "a", encoding="utf-8") as debug_f:
+                    debug_log_path = LOG_DIR / "malformed_json_debug.log"
+                    with open(debug_log_path, "a", encoding="utf-8") as debug_f:
                         debug_f.write(f"--- Chunk {chunk.chunk_id} (Attempt {attempt+1}) [Model: {current_model}] ---\n")
                         debug_f.write(f"Error: {e}\n")
                         debug_f.write(f"Fallback used: {used_fallback}\n")

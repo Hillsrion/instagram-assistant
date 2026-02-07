@@ -98,11 +98,12 @@ def main():
         "setup_enrich.py syntax",
         args.verbose
     )
-    all_checks_pass &= check_file_contains(
+    all_checks_pass &= check_module_syntax(
         Path("setup_enrich.py"),
-        'enrichment_shard{shard_index}.log',
-        "setup_enrich.py uses shard-specific log files"
+        "setup_enrich.py syntax",
+        args.verbose
     )
+    # enrichment.log check removed as it is superseded by jsonl logging
     all_checks_pass &= check_file_contains(
         Path("setup_enrich.py"),
         "Memory optimized: keeping only",

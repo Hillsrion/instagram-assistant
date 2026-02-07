@@ -39,19 +39,11 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
         True if success, False otherwise
     """
     script_start_time = time.time()
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True, parents=True)
-    log_file = log_dir / (f"enrichment_shard{shard_index}.log" if total_shards > 1 else "enrichment.log")
-
-    # Reset log if chunks file doesn't exist and log is not empty
-    if not config.chunks_cache_path.exists() and log_file.exists() and log_file.stat().st_size > 0:
-        try:
-            with open(log_file, "w") as f:
-                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Log reset. Chunks file missing.\n")
-            print("Enrichment log reset because chunks file is missing.")
-        except Exception as e:
-            print(f"Warning: Could not reset log file: {e}")
-
+    script_start_time = time.time()
+    
+    # Log directory setup removed as we use centralized logging via EnrichmentLogger
+    # which handles its own paths in logs/
+    
     if model:
         config.llm_model = model
         print(f"LLM Model Override: {config.llm_model}")
@@ -131,12 +123,6 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
 
             log_msg = f"Batch saved. Duration: {duration:.2f}s"
             sys.stdout.write(f"  {log_msg}\n")
-
-            try:
-                with open(log_file, "a") as f:
-                    f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {log_msg}\n")
-            except Exception as e:
-                sys.stdout.write(f"\nWarning: Could not write to log file: {e}\n")
 
         enricher.enrich_batch(
             to_enrich,

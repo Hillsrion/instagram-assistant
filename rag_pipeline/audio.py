@@ -10,28 +10,35 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+
 from .config import default_config
 from .audio_cache import AudioCache
+from .mlx_audio_provider import MlxAudioProvider
 
 logger = logging.getLogger(__name__)
 
 class AudioTranscriber:
     """
-    Handles audio transcription using a local VLLM server running Voxtral.
+    Handles audio transcription using a local MLX Voxtral model.
     Integrates with AudioCache to avoid redundant processing.
     """
-    def __init__(self, api_url: str = None):
-        self.api_url = api_url or default_config.vllm_audio_url
+    def __init__(self):
         self.enabled = default_config.enable_audio_transcription
         self.cache = AudioCache() if self.enabled else None
+        self.provider = None
+
+    def _ensure_provider(self):
+        """Lazy loads the MLX audio provider."""
+        if self.provider is None and self.enabled:
+            self.provider = MlxAudioProvider()
 
     def transcribe(self, audio_path: Path) -> Optional[str]:
         """
-        Transcribes an audio file using the VLLM endpoint.
+        Transcribes an audio file using the local MLX model.
         Checks cache first.
         
         Args:
-            audio_path: Absolute path to the audio file
+            audio_path: Absolute path to the audio file (mp4, m4a, aac, etc.)
             
         Returns:
             Transcription text if successful, None otherwise.
@@ -50,46 +57,15 @@ class AudioTranscriber:
 
         try:
             # 2. Real Transcription
-            with open(audio_path, "rb") as f:
-                audio_data = base64.b64encode(f.read()).decode("utf-8")
-                
-            payload = {
-                "model": default_config.vllm_audio_model_name,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": "Transcris cet audio fidèlement. Si c'est inaudible, dis '[inaudible]'."},
-                            {
-                                "type": "image_url", 
-                                "image_url": {
-                                    "url": f"data:audio/mp4;base64,{audio_data}" 
-                                }
-                            }
-                        ]
-                    }
-                ],
-                "max_tokens": 1024
-            }
+            self._ensure_provider()
+            content = self.provider.transcribe(audio_path, language=default_config.voxtral_language)
             
-            response = requests.post(
-                f"{self.api_url}/chat/completions",
-                headers={"Content-Type": "application/json"},
-                json=payload,
-                timeout=60  # Audio processing can be slow
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                content = result['choices'][0]['message']['content'].strip()
-                
+            if content:
                 # 3. Save to Cache
-                self.cache.set(audio_path, content, model=default_config.vllm_audio_model_name)
+                self.cache.set(audio_path, content, model=default_config.mlx_audio_model)
                 self.cache.save()
-                
                 return content
             else:
-                logger.error(f"VLLM API Error {response.status_code}: {response.text}")
                 return None
                 
         except Exception as e:

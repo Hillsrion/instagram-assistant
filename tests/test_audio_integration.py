@@ -5,8 +5,14 @@ import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import sys
+# Add scripts/ingestion to path to import the script module
+sys.path.append(str(Path(__file__).parent.parent / "scripts" / "ingestion"))
+
 from rag_pipeline.audio import AudioTranscriber
 from rag_pipeline.config import Config
+
+# Now we can import the script
 from instagram_to_text import process_conversation
 
 class TestAudioIntegration(unittest.TestCase):
@@ -51,23 +57,24 @@ class TestAudioIntegration(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.test_dir)
 
-    @patch("rag_pipeline.audio.requests.post")
-    def test_transcription_called(self, mock_post):
-        # Mock VLLM response
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": "This is a transcribed text"}}]
-        }
-        mock_post.return_value = mock_response
+    @patch("rag_pipeline.audio.default_config")
+    @patch("rag_pipeline.audio.MlxAudioProvider")
+    def test_transcription_called(self, MockProvider, mock_config):
+        # Mock Provider instance
+        mock_instance = MockProvider.return_value
+        mock_instance.transcribe.return_value = "This is a transcribed text"
         
-        # Setup Config
+        # Setup Config Mock
+        mock_config.enable_audio_transcription = True
+        mock_config.voxtral_language = "fr"
+        mock_config.mlx_audio_model = "shreyask/voxtral-mini-4b-realtime-mlx-int4"
+        
+        # Init without args (will pick up true from mock_config)
+        transcriber = AudioTranscriber()
+        
+        # Create a config object for process_conversation (it expects one)
         config = Config()
         config.enable_audio_transcription = True
-        config.vllm_audio_url = "http://fake-url"
-        
-        transcriber = AudioTranscriber(api_url="http://fake-url")
-        transcriber.enabled = True # Force enable for test
         
         # Run process
         process_conversation(self.message_json, self.output_dir, transcriber, config)
@@ -83,9 +90,10 @@ class TestAudioIntegration(unittest.TestCase):
         self.assertIn('(Transcription audio: "This is a transcribed text")', content)
         
         # Verify Mock Call
-        mock_post.assert_called_once()
-        args, kwargs = mock_post.call_args
-        self.assertIn("http://fake-url/chat/completions", args[0])
+        mock_instance.transcribe.assert_called_once()
+        args, kwargs = mock_instance.transcribe.call_args
+        # Check if the called path ends with test_audio.mp4
+        self.assertTrue(str(args[0]).endswith("test_audio.mp4"))
 
 if __name__ == "__main__":
     unittest.main()
