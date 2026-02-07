@@ -208,7 +208,50 @@ def clean_llm_json(json_str: str) -> str:
                     # Quote followed by quote - likely start of next key/value
                     is_structural_quote = True
                 elif raw[j] == '(':
-                    # Pattern like: "text" (more text) - LLM forgot quotes
+                    # Pattern like: "text" (more text)] - LLM forgot quotes
+                    # Scan to find closing ) and check what follows
+                    paren_close = j
+                    while paren_close < len(raw) and raw[paren_close] != ')':
+                        paren_close += 1
+                    if paren_close < len(raw):
+                        # Found ), check what's after
+                        after_paren = paren_close + 1
+                        while after_paren < len(raw) and raw[after_paren] in ' \t\n\r':
+                            after_paren += 1
+                        if after_paren < len(raw) and raw[after_paren] in '}]':
+                            # Pattern: "text" (annotation)] -> skip this quote, include the parens content
+                            # Don't add the quote, just add space and skip to after )
+                            result.append(' ')
+                            i += 1  # Skip past the quote we're on
+                            # Skip whitespace between quote and (
+                            while i < len(raw) and raw[i] in ' \t\n\r':
+                                i += 1
+                            # Skip the (
+                            if i < len(raw) and raw[i] == '(':
+                                result.append('(')
+                                i += 1
+                            # Add content until )
+                            while i < len(raw) and raw[i] != ')':
+                                c = raw[i]
+                                if c == '\n':
+                                    result.append('\\')
+                                    result.append('n')
+                                elif c == '\r':
+                                    result.append('\\')
+                                    result.append('r')
+                                else:
+                                    result.append(c)
+                                i += 1
+                            # Add the )
+                            if i < len(raw) and raw[i] == ')':
+                                result.append(')')
+                                i += 1
+                            # Add closing quote
+                            result.append('"')
+                            in_string = False
+                            last_value_ended = True
+                            continue  # Skip the rest of this iteration
+                    # If pattern doesn't match, treat as internal quote
                     is_structural_quote = False
                 elif raw[j].isalpha():
                     # Followed by a letter - LLM continuation error
