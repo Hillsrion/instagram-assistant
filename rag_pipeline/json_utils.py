@@ -184,16 +184,34 @@ def clean_llm_json(json_str: str) -> str:
                 if j >= len(raw):
                     # End of input - this quote ends the string
                     is_structural_quote = True
-                elif raw[j] in STRUCTURAL_CHARS:
-                    # Followed by :, }, ], , " - this is a structural quote
+                elif raw[j] in ':}]':
+                    # Followed by : (key), } or ] (end of container) - structural
+                    is_structural_quote = True
+                elif raw[j] == ',':
+                    # Comma after quote - could be structural OR textual punctuation
+                    # Look ahead past the comma to see what follows
+                    k = j + 1
+                    while k < len(raw) and raw[k] in ' \t\n\r':
+                        k += 1
+                    if k >= len(raw):
+                        is_structural_quote = True  # End of input
+                    elif raw[k] == '"':
+                        is_structural_quote = True  # Next property/value starts
+                    elif raw[k] in '}]':
+                        is_structural_quote = True  # Trailing comma before close
+                    elif raw[k] in '[{':
+                        is_structural_quote = True  # Next value is array/object
+                    else:
+                        # It's likely textual: "gâté", en réaction -> the comma is French punctuation
+                        is_structural_quote = False
+                elif raw[j] == '"':
+                    # Quote followed by quote - likely start of next key/value
                     is_structural_quote = True
                 elif raw[j] == '(':
-                    # Pattern like: "text" (more text) - the LLM forgot to keep it in quotes
-                    # This is an internal quote, escape it
+                    # Pattern like: "text" (more text) - LLM forgot quotes
                     is_structural_quote = False
                 elif raw[j].isalpha():
-                    # Followed by a letter - likely LLM continuation error
-                    # e.g., "value" continuation -> should be "value continuation"
+                    # Followed by a letter - LLM continuation error
                     is_structural_quote = False
                 
                 if is_structural_quote:
