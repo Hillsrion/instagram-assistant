@@ -40,7 +40,7 @@ RÈGLES JSON OBLIGATOIRES:
 - Guillemets internes dans les strings = échappés avec \" (ex: "Il a dit \"ok\"")
 - Chaque propriété DOIT être séparée par une virgule
 - NE PAS ajouter de parenthèses ou annotations après les strings (ex: "Film" (2020) est INTERDIT → utiliser "Film (2020)")
-- Valeurs possibles: "string", ["array"], {"object"}, null, true, false, nombres
+- Valeurs possibles: "string", ["array"], {{"object"}}, null, true, false, nombres
 
 FORMAT JSON (les valeurs sont des exemples de format, PAS des données à recopier):
 {{
