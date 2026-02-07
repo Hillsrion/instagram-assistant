@@ -409,7 +409,9 @@ class ChunkEnricher:
             # Filter chunks that need processing
             to_process_indices = []
             for local_idx, chunk in enumerate(batch_slice):
-                # Skip if already fully enriched
+                # Skip if already fully enriched OR marked as permanently failed
+                if chunk.enrichment_failed:
+                    continue
                 if chunk.narrative_summary and chunk.hypothetical_questions and chunk.entities:
                     continue
                 to_process_indices.append(local_idx)
@@ -509,7 +511,9 @@ class ChunkEnricher:
                         except Exception as e:
                             print(f"⚠️ Error enriching chunk {chunk.chunk_id}: {e}")
                             traceback.print_exc()
-                            # Log failure ...
+                            # Mark chunk as failed so it doesn't block progress
+                            chunk.enrichment_failed = True
+                            chunk.enrichment_error = str(e)
 
             else:
                 # Standard linear processing (No routing or MLX)
@@ -526,8 +530,11 @@ class ChunkEnricher:
                          chunk.interaction_pattern, chunk.initiative, 
                          chunk.emotional_shift, chunk.open_loops) = res
                     except Exception as e:
-                        print(f"⚠️ Error in standard enrichment: {e}")
+                        print(f"⚠️ Error in standard enrichment for {chunk.chunk_id}: {e}")
                         traceback.print_exc()
+                        # Mark chunk as failed so it doesn't block progress
+                        chunk.enrichment_failed = True
+                        chunk.enrichment_error = str(e)
 
             # Update progress
             if progress_callback:
