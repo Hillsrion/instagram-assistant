@@ -69,7 +69,32 @@ To avoid "model ping-pong" (loading/unloading latency), processing is grouped:
 - **Speed**: We offload approx. 30-40% of the easiest chunks to the fast model, saving ~10s per chunk on that segment.
 - **Cost**: Reduced computational load on simple, high-frequency "chitchat" chunks.
 
-## 5. Future Improvements
+## 5. Error Handling & Failure Tracking
+
+### A. JSON Parsing Robustness
+The `json_utils.py` module handles common LLM output errors:
+- Missing closing quotes before new properties
+- Unescaped internal quotes (`"text "with" quotes"`)
+- Parenthetical annotations (`"value" (annotation)`)
+- Missing commas between properties
+- Corrupted outputs (repetition loops, truncation)
+
+### B. Automatic Retry with 8B
+When the 3B model produces corrupted output (detected via pattern matching), the system automatically retries with the 8B model.
+
+### C. Failure Tracking
+Chunks that fail enrichment even after retry are marked with:
+- `enrichment_failed: bool = True`
+- `enrichment_error: str` (reason for failure)
+
+These chunks:
+- Are **skipped** in future enrichment runs
+- Are **included** in embedding (using raw content only)
+- Allow conversations to be marked as "complete"
+
+---
+
+## 6. Future Improvements
 
 - **Fine-tuning 3B**: A LoRA fine-tune on the 3B model could help it become less "timid" on Medium chunks.
 - **Speculative Decoding**: Using 3B as a drafter for 8B could speed up the Medium segment (requires MLX/llama.cpp support).
