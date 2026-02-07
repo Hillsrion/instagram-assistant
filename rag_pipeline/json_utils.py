@@ -238,8 +238,23 @@ def clean_llm_json(json_str: str) -> str:
                 if not matched:
                     result.append(char)
         else:
-            # Inside string - just append
-            result.append(char)
+            # Inside string - escape control characters that JSON doesn't allow
+            if char == '\n':
+                result.append('\\')
+                result.append('n')
+            elif char == '\r':
+                result.append('\\')
+                result.append('r')
+            elif char == '\t':
+                result.append('\\')
+                result.append('t')
+            elif ord(char) < 32:
+                # Other control characters - escape as unicode
+                result.append('\\')
+                result.append('u')
+                result.append(f'{ord(char):04x}')
+            else:
+                result.append(char)
         
         i += 1
         
