@@ -289,6 +289,12 @@ def clean_llm_json(json_str: str) -> str:
     # 5. Final cleanup: remove trailing commas before } or ]
     cleaned = re.sub(r',(\s*[\}\]])', r'\1', cleaned)
     
+    # 6. Fix unterminated strings: pattern where escaped quote + text ends with )] or )}
+    # e.g., "text\" (annotation)] -> "text (annotation)"]
+    # Insert closing quote before the bracket
+    cleaned = re.sub(r'\\" \(([^)]*)\)\]', r' (\1)"]', cleaned)
+    cleaned = re.sub(r'\\" \(([^)]*)\)\}', r' (\1)"}', cleaned)
+    
     return cleaned
 
 def repair_and_load_json(json_str: str) -> Dict[str, Any]:
