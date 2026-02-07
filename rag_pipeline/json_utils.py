@@ -309,6 +309,31 @@ def clean_llm_json(json_str: str) -> str:
         else:
             # Inside string - escape control characters that JSON doesn't allow
             if char == '\n':
+                # Check if this newline indicates a missing closing quote
+                # Pattern: newline + whitespace + "key": -> LLM forgot to close string
+                j = i + 1
+                while j < len(raw) and raw[j] in ' \t\n\r':
+                    j += 1
+                if j < len(raw) and raw[j] == '"':
+                    # Check if this looks like a new JSON key: "identifier":
+                    # Scan for closing quote of the key
+                    k = j + 1
+                    while k < len(raw) and raw[k] != '"':
+                        k += 1
+                    # Now check if followed by optional whitespace then :
+                    if k < len(raw):
+                        m = k + 1
+                        while m < len(raw) and raw[m] in ' \t':
+                            m += 1
+                        if m < len(raw) and raw[m] == ':':
+                            # This is a new property - close the current string
+                            result.append('"')
+                            result.append(',')  # Add missing comma too
+                            in_string = False
+                            last_value_ended = True
+                            i += 1
+                            continue
+                # Normal case: escape the newline
                 result.append('\\')
                 result.append('n')
             elif char == '\r':
