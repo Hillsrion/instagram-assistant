@@ -31,10 +31,16 @@ CONVERSATION:
 {content}
 
 RÈGLES STRICTES:
-- Format JSON obligatoire, ZÉRO texte avant ou après
+- Format JSON VALIDE UNIQUEMENT, ZÉRO texte avant ou après
 - ZÉRO détails non présents dans le texte
 - Si un champ entités n'a pas de correspondance dans le texte → [] (liste vide)
 - Ne recopie JAMAIS les exemples ci-dessous, ils illustrent uniquement le format
+
+RÈGLES JSON OBLIGATOIRES:
+- Guillemets internes dans les strings = échappés avec \" (ex: "Il a dit \"ok\"")
+- Chaque propriété DOIT être séparée par une virgule
+- NE PAS ajouter de parenthèses ou annotations après les strings (ex: "Film" (2020) est INTERDIT → utiliser "Film (2020)")
+- Valeurs possibles: "string", ["array"], {"object"}, null, true, false, nombres
 
 FORMAT JSON (les valeurs sont des exemples de format, PAS des données à recopier):
 {{

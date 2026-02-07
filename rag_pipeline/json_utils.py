@@ -185,8 +185,16 @@ def clean_llm_json(json_str: str) -> str:
                     # End of input - this quote ends the string
                     is_structural_quote = True
                 elif raw[j] in STRUCTURAL_CHARS:
-                    # Followed by :, }, ], , - this is a structural quote
+                    # Followed by :, }, ], , " - this is a structural quote
                     is_structural_quote = True
+                elif raw[j] == '(':
+                    # Pattern like: "text" (more text) - the LLM forgot to keep it in quotes
+                    # This is an internal quote, escape it
+                    is_structural_quote = False
+                elif raw[j].isalpha():
+                    # Followed by a letter - likely LLM continuation error
+                    # e.g., "value" continuation -> should be "value continuation"
+                    is_structural_quote = False
                 
                 if is_structural_quote:
                     in_string = False
