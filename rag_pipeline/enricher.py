@@ -171,6 +171,64 @@ class ChunkEnricher:
             return True
         
         return False
+    
+    def _is_low_quality_enrichment(self, data: tuple) -> bool:
+        """
+        Detect low-quality enrichments where the 3B model produced a summary
+        but left other critical fields empty.
+        
+        This pattern is common: the 3B model is "timid" and returns empty
+        lists/dicts for complex fields instead of risking hallucination.
+        
+        Args:
+            data: Tuple from parse_enrichment_data (summary, questions, intents, etc.)
+        
+        Returns:
+            True if enrichment is too sparse and should be retried with 8B.
+        """
+        (narrative_summary, hypothetical_questions, speaker_intents, 
+         temporal_context, entities, emotions, interaction_pattern,
+         initiative, emotional_shift, open_loops) = data
+        
+        # If there's no summary, it's a hard failure (handled elsewhere)
+        if not narrative_summary:
+            return False
+        
+        # Count populated fields (excluding summary which we know is present)
+        populated = 0
+        
+        if hypothetical_questions and len(hypothetical_questions) > 0:
+            populated += 1
+        
+        if speaker_intents and len(speaker_intents) > 0:
+            populated += 1
+        
+        if temporal_context and len(temporal_context.strip()) > 0:
+            populated += 1
+        
+        if entities and isinstance(entities, dict):
+            # Check if any entity category has values
+            if any(v for v in entities.values() if v):
+                populated += 1
+        
+        if emotions and isinstance(emotions, dict) and emotions.get('dominant'):
+            populated += 1
+        
+        if interaction_pattern:
+            populated += 1
+        
+        if initiative:
+            populated += 1
+        
+        if emotional_shift:
+            populated += 1
+        
+        if open_loops and len(open_loops) > 0:
+            populated += 1
+        
+        # If less than 3 out of 9 fields are populated, it's low quality
+        # (Summary alone doesn't count - we need actual enrichment)
+        return populated < 3
 
     def _select_model_for_chunk(self, chunk: Chunk) -> str:
         """Select which model to use for a chunk based on complexity."""
@@ -347,13 +405,25 @@ class ChunkEnricher:
                         raise ValueError("Corrupted output detected (repetition or truncation)")
 
                 data = repair_and_load_json(result)
+                enrichment_data = parse_enrichment_data(data)
+                
+                # Check for low-quality output (summary only, other fields empty)
+                # Only applies when using light model - retry with strong model
+                if current_model == self.light_model and self.provider != "mlx":
+                    if self._is_low_quality_enrichment(enrichment_data):
+                        print(f"⚠️ Low-quality output for {chunk.chunk_id} (sparse fields), retrying with {self.model}...")
+                        current_model = self.model
+                        used_fallback = True
+                        result = self._call_ollama(prompt, model=current_model)
+                        data = repair_and_load_json(result)
+                        enrichment_data = parse_enrichment_data(data)
                 
                 # Log if fallback was used (for analysis)
                 if used_fallback and self.enrichment_logger:
                     # Store in reason field for now
                     pass  # The logger call happens in the batch loop
                 
-                return parse_enrichment_data(data)
+                return enrichment_data
             
             except (json.JSONDecodeError, ValueError) as e:
                 last_error = e
