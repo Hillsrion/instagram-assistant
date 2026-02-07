@@ -145,6 +145,33 @@ class ChunkEnricher:
         # Generate with default params or config derived
         return self.mlx_provider.generate_chat(messages, temperature=0.1)
 
+    def _is_corrupted_output(self, raw: str) -> bool:
+        """
+        Detect corrupted LLM outputs (repetition loops, truncation).
+        
+        Returns True if the output looks corrupted and should be retried
+        with a more capable model.
+        """
+        if not raw:
+            return True
+        
+        # Pattern: 10+ identical characters in a row (repetition loop)
+        if re.search(r'(.)\1{10,}', raw):
+            return True
+        
+        # Very short output after stripping markdown (likely truncated)
+        stripped = raw.strip()
+        if '```' in stripped:
+            # Extract content between markdown fences
+            parts = stripped.split('```')
+            if len(parts) >= 2:
+                stripped = parts[1].replace('json', '').strip()
+        
+        if len(stripped) < 50:
+            return True
+        
+        return False
+
     def _select_model_for_chunk(self, chunk: Chunk) -> str:
         """Select which model to use for a chunk based on complexity."""
         # If routing is disabled or forced, use the specified model
@@ -282,7 +309,11 @@ class ChunkEnricher:
             return "", [], {}, "", {}, {}, None, None, None, None
 
     def _enrich_chunk_with_model_internal(self, chunk: Chunk, model: str) -> Tuple:
-        """Internal method to enrich a chunk with a specific model (skips routing logic)."""
+        """Internal method to enrich a chunk with a specific model (skips routing logic).
+        
+        If corruption is detected and we're using the light model, automatically
+        retries with the stronger model (8B).
+        """
         prompt = ENRICH_PROMPT.format(
             content=chunk.get_compact_content(),
             max_questions=self.config.max_questions
@@ -290,15 +321,38 @@ class ChunkEnricher:
         
         max_retries = 2
         last_error = None
+        current_model = model
+        used_fallback = False
         
         for attempt in range(max_retries):
             try:
                 if self.provider == "mlx":
                     result = self._call_mlx(prompt)
                 else:
-                    result = self._call_ollama(prompt, model=model)
+                    result = self._call_ollama(prompt, model=current_model)
+
+                # Check for corrupted output BEFORE parsing
+                if self._is_corrupted_output(result):
+                    # If using light model, retry with strong model
+                    if current_model == self.light_model and self.provider != "mlx":
+                        print(f"⚠️ Corruption detected for {chunk.chunk_id}, retrying with {self.model}...")
+                        current_model = self.model
+                        used_fallback = True
+                        result = self._call_ollama(prompt, model=current_model)
+                        
+                        # If still corrupted after fallback, raise an error
+                        if self._is_corrupted_output(result):
+                            raise ValueError(f"Corrupted output even with {self.model}")
+                    else:
+                        raise ValueError("Corrupted output detected (repetition or truncation)")
 
                 data = repair_and_load_json(result)
+                
+                # Log if fallback was used (for analysis)
+                if used_fallback and self.enrichment_logger:
+                    # Store in reason field for now
+                    pass  # The logger call happens in the batch loop
+                
                 return parse_enrichment_data(data)
             
             except (json.JSONDecodeError, ValueError) as e:
@@ -306,18 +360,19 @@ class ChunkEnricher:
                 # Log the malformed content for debugging
                 try:
                     from .json_utils import clean_llm_json
-                    cleaned_debug = clean_llm_json(result)
+                    cleaned_debug = clean_llm_json(result) if 'result' in dir() else "N/A"
                     with open("malformed_json_debug.log", "a", encoding="utf-8") as debug_f:
-                        debug_f.write(f"--- Chunk {chunk.chunk_id} (Attempt {attempt+1}) [Internal] ---\n")
+                        debug_f.write(f"--- Chunk {chunk.chunk_id} (Attempt {attempt+1}) [Model: {current_model}] ---\n")
                         debug_f.write(f"Error: {e}\n")
+                        debug_f.write(f"Fallback used: {used_fallback}\n")
                         debug_f.write(f"CLEANED Content:\n{cleaned_debug}\n")
-                        debug_f.write(f"RAW Content:\n{result}\n")
+                        debug_f.write(f"RAW Content:\n{result if 'result' in dir() else 'N/A'}\n")
                         debug_f.write("-" * 50 + "\n")
                 except Exception:
                     pass
 
                 if attempt < max_retries - 1:
-                    print(f"⚠️ JSON error (internal) for chunk {chunk.chunk_id} (Attempt {attempt+1}/{max_retries}): {e}. Retrying...")
+                    print(f"⚠️ JSON error for chunk {chunk.chunk_id} (Attempt {attempt+1}/{max_retries}): {e}. Retrying...")
                     time.sleep(0.5)
                 else:
                     # Reraise so the caller (batch loop) knows it failed
