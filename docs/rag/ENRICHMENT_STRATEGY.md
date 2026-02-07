@@ -80,7 +80,9 @@ The `json_utils.py` module handles common LLM output errors:
 - Corrupted outputs (repetition loops, truncation)
 
 ### B. Automatic Retry with 8B
-When the 3B model produces corrupted output (detected via pattern matching), the system automatically retries with the 8B model.
+When the 3B model produces problematic output, the system automatically retries with the 8B model:
+- **Corrupted output:** Detected via pattern matching (repetition loops, truncation).
+- **Low-quality output:** Summary is valid but < 3 out of 9 enrichment fields are populated.
 
 ### C. Failure Tracking
 Chunks that fail enrichment even after retry are marked with:

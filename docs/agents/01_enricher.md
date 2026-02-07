@@ -25,6 +25,6 @@ Uses a **Strict JSON** prompt (`ENRICH_PROMPT`) to force structured output. It i
 
 ## Error Handling
 
-- **Automatic Retry**: If the 3B model produces corrupted JSON (repetition loops, truncation), the system automatically retries with the 8B model.
+- **Automatic Retry**: If the 3B model produces corrupted JSON or low-quality output (< 3 fields populated), the system automatically retries with the 8B model.
 - **Failure Tracking**: Chunks that fail even with 8B are marked `enrichment_failed=True` and skipped in future runs.
 - **Graceful Degradation**: Failed chunks are still embedded using raw content only, preserving context for search.
