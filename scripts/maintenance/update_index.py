@@ -168,6 +168,11 @@ def run_incremental_update(config: Config, force_full: bool = False):
 
     # Generate embeddings for new chunks
     if new_chunks:
+        # Log chunks that failed enrichment (they'll use raw content only)
+        failed_count = sum(1 for c in new_chunks if getattr(c, 'enrichment_failed', False))
+        if failed_count > 0:
+            print(f"ℹ️ {failed_count} chunks failed enrichment - using raw content only")
+        
         print(f"\nGenerating embeddings for {len(new_chunks)} chunks...")
         texts = [chunk.get_embedding_text() for chunk in new_chunks]
         new_embeddings = embedding_model.encode(

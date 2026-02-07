@@ -46,6 +46,11 @@ def run(config: Config, reset: bool = False, batch_size: int = DEFAULT_BATCH_SIZ
     else:
         chunks = all_chunks
         print(f"Processing all {len(chunks)} chunks")
+    
+    # Log chunks that failed enrichment (they'll use raw content only)
+    failed_chunks = [c for c in chunks if getattr(c, 'enrichment_failed', False)]
+    if failed_chunks:
+        print(f"ℹ️ {len(failed_chunks)} chunks failed enrichment - using raw content only")
 
     if not chunks:
         print("No chunks to process.")
