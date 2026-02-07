@@ -10,6 +10,7 @@ import time
 import requests
 import psutil
 import re
+import traceback
 from typing import List, Optional, Tuple, Dict
 from .config import Config, default_config
 from .chunker import Chunk
@@ -111,6 +112,38 @@ class ChunkEnricher:
                 self.current_loaded_model = model_name
             except Exception as e:
                 print(f"⚠️ Failed to load {model_name}: {e}")
+
+    def _call_ollama(self, prompt: str, model: str) -> str:
+        """Call Ollama chat API."""
+        try:
+            url = f"{self.config.ollama_url}/api/chat"
+            # Context window size: larger for ministral, smaller for others if not specified
+            num_ctx = self.config.num_ctx
+            
+            payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "options": {
+                    "temperature": 0.0,  # Deterministic for JSON
+                    "num_ctx": num_ctx
+                }
+            }
+            response = requests.post(url, json=payload, timeout=300)
+            response.raise_for_status()
+            return response.json()["message"]["content"]
+        except Exception as e:
+            # Propagate to let caller handle retries/logging
+            raise e
+
+    def _call_mlx(self, prompt: str) -> str:
+        """Call MLX provider."""
+        if not self.mlx_provider:
+             raise ValueError("MLX provider not initialized")
+        
+        messages = [{"role": "user", "content": prompt}]
+        # Generate with default params or config derived
+        return self.mlx_provider.generate_chat(messages, temperature=0.1)
 
     def _select_model_for_chunk(self, chunk: Chunk) -> str:
         """Select which model to use for a chunk based on complexity."""
@@ -231,6 +264,7 @@ class ChunkEnricher:
         except Exception as e:
             enrichment_time_ms = (time.time() - start_time) * 1000
             print(f"⚠️ Enrichment failed for chunk {chunk.chunk_id} after retries: {e}")
+            traceback.print_exc()
             
             # Log failure
             if self.enrichment_logger and self.enable_routing:
@@ -271,10 +305,13 @@ class ChunkEnricher:
                 last_error = e
                 # Log the malformed content for debugging
                 try:
+                    from .json_utils import clean_llm_json
+                    cleaned_debug = clean_llm_json(result)
                     with open("malformed_json_debug.log", "a", encoding="utf-8") as debug_f:
                         debug_f.write(f"--- Chunk {chunk.chunk_id} (Attempt {attempt+1}) [Internal] ---\n")
                         debug_f.write(f"Error: {e}\n")
-                        debug_f.write(f"Content:\n{result}\n")
+                        debug_f.write(f"CLEANED Content:\n{cleaned_debug}\n")
+                        debug_f.write(f"RAW Content:\n{result}\n")
                         debug_f.write("-" * 50 + "\n")
                 except Exception:
                     pass
@@ -416,6 +453,7 @@ class ChunkEnricher:
                                 
                         except Exception as e:
                             print(f"⚠️ Error enriching chunk {chunk.chunk_id}: {e}")
+                            traceback.print_exc()
                             # Log failure ...
 
             else:
@@ -434,6 +472,7 @@ class ChunkEnricher:
                          chunk.emotional_shift, chunk.open_loops) = res
                     except Exception as e:
                         print(f"⚠️ Error in standard enrichment: {e}")
+                        traceback.print_exc()
 
             # Update progress
             if progress_callback:
