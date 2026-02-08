@@ -68,7 +68,15 @@ class QueryAnalyzer:
                 max_tokens=256
             )
             logger.debug(f"LLM raw response: {content}")
-            data = json.loads(content)
+            
+            # Extract JSON from potential markdown blocks
+            json_content = content.strip()
+            if "```json" in json_content:
+                json_content = json_content.split("```json")[1].split("```")[0].strip()
+            elif "```" in json_content:
+                json_content = json_content.split("```")[1].split("```")[0].strip()
+            
+            data = json.loads(json_content)
 
             # Map parameters based on intent
             intent = data.get("intent", "complex_reasoning")

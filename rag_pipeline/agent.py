@@ -100,7 +100,7 @@ class AgentRunner:
 
         # Check for Thought (handles numbered lists, multi-line)
         thought_match = re.search(
-            r"Thought:\s*(.+?)(?=\n\s*Action:|Final Answer:|$)",
+            r"(?:Thought|Pensée):\s*(.+?)(?=\n\s*(?:Action|Final Answer|Réponse finale):|$)",
             normalized,
             re.DOTALL | re.IGNORECASE
         )
@@ -118,7 +118,7 @@ class AgentRunner:
 
         # Check for Action Input (handles JSON, backticks, or simple strings)
         input_match = re.search(
-            r"Action Input:\s*`?(.+?)`?\s*(?=\n|$)",
+            r"(?:Action Input|Entrée):\s*`?(.+?)`?\s*(?=\n|$)",
             normalized,
             re.IGNORECASE | re.DOTALL
         )
@@ -136,7 +136,7 @@ class AgentRunner:
 
         # Check for Final Answer
         final_match = re.search(
-            r"Final Answer:\s*(.+?)$",
+            r"(?:Final Answer|Réponse finale):\s*(.+?)$",
             normalized,
             re.DOTALL | re.IGNORECASE
         )
@@ -256,6 +256,14 @@ class AgentRunner:
 
             # Execute action if present
             if parsed["action"] and parsed["action_input"] is not None:
+                # Prevent repetition
+                action_key = f"{parsed['action']}:{parsed['action_input']}"
+                if any(f"{s.action}:{s.action_input}" == action_key for s in steps):
+                    logger.warning(f"Step {step_num}: Repetitive action detected: {action_key}")
+                    scratchpad += f"\nObservation: J'ai déjà essayé cette action avec ce paramètre. Je dois essayer une autre approche ou conclure si j'ai assez d'informations.\n"
+                    steps.append(step)
+                    continue
+
                 tool_result = self.tools.execute(
                     parsed["action"],
                     parsed["action_input"]
@@ -280,8 +288,9 @@ class AgentRunner:
                 steps.append(step)
                 logger.warning(f"Step {step_num}: No valid action parsed")
 
-                # Add partial response to scratchpad
+                # Add partial response to scratchpad with a nudge
                 scratchpad += f"\n{llm_response}\n"
+                scratchpad += "\nObservation: Format invalide détecté. Tu dois impérativement utiliser 'Action: <nom_outil>' et 'Action Input: <input>' ou terminer par 'Final Answer: <réponse>'.\n"
 
         # Max steps reached
         logger.warning(f"⚠️ Agent reached max steps ({self.max_steps})")

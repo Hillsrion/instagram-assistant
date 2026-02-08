@@ -18,8 +18,8 @@ def should_use_agent(analysis: AnalysisResult) -> bool:
     if analysis.mode != "retrieval":
         return True  # analytics/discovery always use agent
 
-    if analysis.intent in ("broad_summary", "complex_reasoning"):
+    if analysis.intent == "complex_reasoning":
         return True  # complex queries use agent
 
-    # specific_fact -> fast-path
+    # specific_fact and broad_summary -> fast-path
     return False
