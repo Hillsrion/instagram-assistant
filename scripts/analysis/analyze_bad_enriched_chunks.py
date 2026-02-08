@@ -10,49 +10,27 @@ sys.path.append(os.getcwd())
 
 from rag_pipeline.config import default_config
 from rag_pipeline.chunker import Chunk
+from rag_pipeline.enrichment_validator import is_low_quality_enrichment
 
 def is_low_quality(chunk: Chunk) -> bool:
     """
     Detects if a chunk has low quality enrichment (sparse fields).
-    Matches the logic in ChunkEnricher._is_low_quality_enrichment
+    Uses the logic from rag_pipeline.enrichment_validator.
     """
-    # If not enriched at all (no summary), count as "not enriched", effectively "bad" if we expect enrichment
-    if not chunk.narrative_summary:
-        return True
-
-    populated = 0
-    
-    if chunk.hypothetical_questions and len(chunk.hypothetical_questions) > 0:
-        populated += 1
-    
-    if chunk.speaker_intents and len(chunk.speaker_intents) > 0:
-        populated += 1
-    
-    if chunk.temporal_context and len(chunk.temporal_context.strip()) > 0:
-        populated += 1
-    
-    if chunk.entities and isinstance(chunk.entities, dict):
-        # Check if any entity category has values
-        if any(v for v in chunk.entities.values() if v):
-            populated += 1
-    
-    if chunk.emotions and isinstance(chunk.emotions, dict) and chunk.emotions.get('dominant'):
-        populated += 1
-    
-    if chunk.interaction_pattern:
-        populated += 1
-    
-    if chunk.initiative:
-        populated += 1
-    
-    if chunk.emotional_shift:
-        populated += 1
-    
-    if chunk.open_loops and len(chunk.open_loops) > 0:
-        populated += 1
-    
-    # Threshold from enricher.py
-    return populated < 3
+    # Convert chunk to the tuple format expected by the validator
+    data = (
+        chunk.narrative_summary,
+        chunk.hypothetical_questions,
+        chunk.speaker_intents,
+        chunk.temporal_context,
+        chunk.entities,
+        chunk.emotions,
+        chunk.interaction_pattern,
+        chunk.initiative,
+        chunk.emotional_shift,
+        chunk.open_loops
+    )
+    return is_low_quality_enrichment(data)
 
 def analyze_chunks():
     chunks_path = default_config.chunks_cache_path

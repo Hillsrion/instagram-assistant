@@ -365,6 +365,20 @@ def clean_llm_json(json_str: str) -> str:
     
     return cleaned
 
+def log_malformed_json(json_str: str, error: Exception, context_id: str, attempt: int, model: str = "unknown"):
+    """Logs malformed JSON and the error for debugging purposes."""
+    try:
+        from .logger import LOG_DIR
+        debug_log_path = LOG_DIR / "malformed_json_debug.log"
+        with open(debug_log_path, "a", encoding="utf-8") as debug_f:
+            debug_f.write(f"--- {context_id} (Attempt {attempt}) [Model: {model}] ---\n")
+            debug_f.write(f"Error: {error}\n")
+            debug_f.write(f"CLEANED Content:\n{clean_llm_json(json_str)}\n")
+            debug_f.write(f"RAW Content:\n{json_str}\n")
+            debug_f.write("-" * 50 + "\n")
+    except Exception as e:
+        print(f"⚠️ Failed to log malformed JSON: {e}")
+
 def repair_and_load_json(json_str: str) -> Dict[str, Any]:
     """Attempts to repair and load a potentially truncated or malformed JSON."""
     if not json_str:

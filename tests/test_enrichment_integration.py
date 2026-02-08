@@ -230,7 +230,7 @@ class TestRoutingDecisions:
         for chunk in test_chunks[:10]:
             _ = enricher_routed._select_model_for_chunk(chunk)
 
-        stats = enricher_routed.routing_stats
+        stats = enricher_routed.model_manager.stats
 
         print(f"\nRouting Statistics:")
         print(f"  Simple: {stats['simple']}")
@@ -389,7 +389,7 @@ class TestErrorHandling:
         config3 = Config()
         config3.model_loading_strategy = "on-demand"
         enricher3 = ChunkEnricher(config=config3)
-        assert enricher3.loading_strategy == "on-demand"
+        assert enricher3.model_manager.loading_strategy == "on-demand"
         print(f"✓ Created enricher with on-demand strategy")
 
     def test_chunk_with_missing_fields(self, enricher_routed):
@@ -423,7 +423,7 @@ class TestEndToEnd:
         for i, chunk in enumerate(test_chunks[:5]):
             enricher_routed._select_model_for_chunk(chunk)
 
-        stats = enricher_routed.routing_stats
+        stats = enricher_routed.model_manager.stats
         total = sum(stats[k] for k in ['simple', 'medium', 'complex'])
 
         print(f"\nBatch Statistics (5 chunks):")
