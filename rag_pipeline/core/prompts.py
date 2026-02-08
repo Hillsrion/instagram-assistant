@@ -187,6 +187,7 @@ RÈGLES IMPORTANTES:
 - Pour identifier des événements dans le temps ou compter des occurrences (ex: "Combien de fois", "Quand"), commence par explore_topic_timeline.
 - DISTINCTION CRITIQUE : Faire la différence entre "parler d'un projet" et "confirmer sa réalisation" (cherche des indices comme des partages de frais, des photos, ou des "merci pour hier").
 - Pour lever une ambiguïté sur un participant, utilise d'abord get_participants ou get_contact_stats.
+- Ne sur-filtre pas avec 'participant' dans search_conversations si le sujet (ex: un anniversaire) a pu être discuté dans un groupe dont la personne ne fait pas partie. Utilise 'about_person' pour une recherche plus large incluant les mentions.
 - Pour confirmer de manière robuste la présence d'un mot ou d'une entité précise, utilise check_entity_presence.
 - Si un résultat search_conversations semble incomplet, utilise get_thread_context avec l'ID du message pour voir la suite de la discussion.
 - Si tu as besoin d'une vue d'ensemble rapide des derniers échanges avec quelqu'un, utilise get_summaries_for_contact.

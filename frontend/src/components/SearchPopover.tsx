@@ -15,8 +15,10 @@ interface SearchPopoverProps {
   participantNames: string[]
   selectedParticipant: string
   onSelectParticipant: (name: string) => void
-  selectedGroup: string // NEW
-  onSelectGroup: (group: string) => void // NEW
+  isBroadSearch: boolean // NEW
+  onBroadSearchChange: (isBroad: boolean) => void // NEW
+  selectedGroup: string
+  onSelectGroup: (group: string) => void
   children: React.ReactNode
 }
 
@@ -31,8 +33,10 @@ export function SearchPopover({
   participantNames,
   selectedParticipant,
   onSelectParticipant,
-  selectedGroup, // NEW
-  onSelectGroup, // NEW
+  isBroadSearch, // NEW
+  onBroadSearchChange, // NEW
+  selectedGroup,
+  onSelectGroup,
   children
 }: SearchPopoverProps) {
   const [search, setSearch] = useState("")
@@ -107,7 +111,7 @@ export function SearchPopover({
           {/* RIGHT SIDE: PARTICIPANTS */}
           <div className="flex-1 flex flex-col min-w-0">
             {/* Search Header */}
-            <div className="p-3 border-b">
+            <div className="p-3 border-b flex flex-col gap-2">
                <div className="relative">
                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                  <Input
@@ -117,6 +121,22 @@ export function SearchPopover({
                    onChange={(e) => setSearch(e.target.value)}
                  />
                </div>
+
+               {/* Broad Search Toggle */}
+               {selectedParticipant && (
+                 <div className="flex items-center gap-2 px-1">
+                    <input 
+                      type="checkbox" 
+                      id="popover-broad-search"
+                      checked={isBroadSearch}
+                      onChange={(e) => onBroadSearchChange(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <label htmlFor="popover-broad-search" className="text-[11px] font-medium text-muted-foreground cursor-pointer select-none">
+                      Inclure les mentions (recherche large)
+                    </label>
+                 </div>
+               )}
             </div>
 
             {/* List */}

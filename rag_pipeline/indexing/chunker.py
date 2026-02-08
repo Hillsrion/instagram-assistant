@@ -20,9 +20,13 @@ class ConversationChunker:
         self.config = config or default_config
         self.parser = InstagramParser()
     
-    def format_chunk_content(self, messages: List[Message]) -> str:
-        """Formats chunk content for indexing."""
-        lines = []
+    def format_chunk_content(self, metadata: Dict, messages: List[Message]) -> str:
+        """Formats chunk content for indexing, including metadata header."""
+        title = metadata.get('title', 'Conversation')
+        participants = ", ".join(metadata.get('participants', []))
+        
+        lines = [f"CONVERSATION: {title} | PARTICIPANTS: {participants}\n"]
+        
         for msg in messages:
             timestamp = msg.timestamp.strftime('%Y-%m-%d %H:%M')
             content = msg.content if msg.content else ""
@@ -138,7 +142,7 @@ class ConversationChunker:
             date_start=messages[0].timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             date_end=messages[-1].timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             message_count=len(messages),
-            content=self.format_chunk_content(messages),
+            content=self.format_chunk_content(metadata, messages),
             file_source=file_path.name
         )
     

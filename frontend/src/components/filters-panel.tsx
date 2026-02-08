@@ -14,18 +14,25 @@ import {
 interface FiltersPanelProps {
   onParticipantChange?: (participant: string) => void
   onDateRangeChange?: (start: string, end: string) => void
+  onBroadSearchChange?: (isBroad: boolean) => void
   participants?: string[]
 }
 
-export function FiltersPanel({ onParticipantChange, onDateRangeChange, participants = [] }: FiltersPanelProps) {
+export function FiltersPanel({ onParticipantChange, onDateRangeChange, onBroadSearchChange, participants = [] }: FiltersPanelProps) {
   const [selectedParticipant, setSelectedParticipant] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
+  const [isBroad, setIsBroad] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
   const handleParticipantChange = (participant: string) => {
     setSelectedParticipant(participant)
     onParticipantChange?.(participant)
+  }
+
+  const handleBroadSearchChange = (checked: boolean) => {
+    setIsBroad(checked)
+    onBroadSearchChange?.(checked)
   }
 
   const handleDateRangeChange = () => {
@@ -36,14 +43,17 @@ export function FiltersPanel({ onParticipantChange, onDateRangeChange, participa
     setSelectedParticipant('')
     setStartDate('')
     setEndDate('')
+    setIsBroad(false)
     onParticipantChange?.('')
     onDateRangeChange?.('', '')
+    onBroadSearchChange?.(false)
   }
 
   const activeFiltersCount = [
     selectedParticipant,
     startDate,
-    endDate
+    endDate,
+    isBroad ? 'broad' : null
   ].filter(Boolean).length
 
   return (
@@ -85,6 +95,22 @@ export function FiltersPanel({ onParticipantChange, onDateRangeChange, participa
                   </option>
                 ))}
               </select>
+
+              {/* Broad Search Checkbox */}
+              {selectedParticipant && (
+                <div className="flex items-center gap-2 mt-2 px-1">
+                  <input
+                    type="checkbox"
+                    id="broad-search"
+                    checked={isBroad}
+                    onChange={(e) => handleBroadSearchChange(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="broad-search" className="text-[11px] text-muted-foreground cursor-pointer select-none">
+                    Include mentions (group chats, etc.)
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* Date Range */}

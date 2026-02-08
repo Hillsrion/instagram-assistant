@@ -171,6 +171,40 @@ class MetadataStore:
             return result.intersection(chunk_indices)
         return result
 
+    def filter_by_person(
+        self,
+        person: str,
+        chunk_indices: Optional[Set[int]] = None
+    ) -> Set[int]:
+        """
+        Filter chunks where a person is either a participant OR mentioned as an entity.
+        Broad filter to find all conversations related to someone.
+
+        Args:
+            person: Name of the person
+            chunk_indices: Starting set
+
+        Returns:
+            Set of chunk indices
+        """
+        self._connect()
+
+        # 1. Matches in participants
+        q1 = "SELECT DISTINCT chunk_idx FROM chunk_participants WHERE participant LIKE ?"
+        c1 = self.conn.execute(q1, (f"%{person.lower()}%",))
+        r1 = {row[0] for row in c1.fetchall()}
+
+        # 2. Matches in entities (people category)
+        q2 = "SELECT DISTINCT chunk_idx FROM chunk_entities WHERE category = 'people' AND value LIKE ?"
+        c2 = self.conn.execute(q2, (f"%{person.lower()}%",))
+        r2 = {row[0] for row in c2.fetchall()}
+
+        result = r1.union(r2)
+
+        if chunk_indices is not None:
+            return result.intersection(chunk_indices)
+        return result
+
     def filter_by_entity(
         self,
         value: str,

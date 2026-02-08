@@ -28,7 +28,9 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[str] = None
     model: Optional[str] = None
     participant_filter: Optional[str] = None
-    group_filter: Optional[str] = None # NEW
+    about_person: Optional[str] = None 
+    use_about_person: bool = False # NEW: toggle between strict and broad person search
+    group_filter: Optional[str] = None 
     year_filter: Optional[int] = None
     date_start: Optional[str] = None
     date_end: Optional[str] = None

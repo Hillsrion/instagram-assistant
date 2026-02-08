@@ -83,7 +83,8 @@ function ChatRoute() {
 
   // Filters State
   const [filterParticipant, setFilterParticipant] = useState<string>('')
-  const [filterGroup, setFilterGroup] = useState<string>('') // NEW
+  const [filterGroup, setFilterGroup] = useState<string>('') 
+  const [filterBroad, setFilterBroad] = useState<boolean>(false) // NEW
   
   // Filter Logic
   const filteredMessages = useMemo(() => {
@@ -91,8 +92,8 @@ function ChatRoute() {
       // User messages are always shown
       if (msg.role === 'user') return true;
 
-      // Participant Filter
-      if (filterParticipant) {
+      // Participant Filter (Strict only for UI rendering)
+      if (filterParticipant && !filterBroad) { // Modified: only strict if not broad
         // If it's an assistant message, we show it if:
         // 1. It has NO sources (likely a "not found" or general message)
         // 2. OR one of its sources contains the filtered participant
@@ -118,7 +119,7 @@ function ChatRoute() {
       
       return true;
     });
-  }, [messages, filterParticipant])
+  }, [messages, filterParticipant, filterBroad])
 
   // Auto-scroll
   useEffect(() => {
@@ -138,7 +139,8 @@ function ChatRoute() {
     if (inputRef.current?.value) {
       sendMessage(inputRef.current.value, { 
         participant: filterParticipant, 
-        group: filterGroup 
+        group: filterGroup,
+        broadSearch: filterBroad // NEW
       })
       inputRef.current.value = ''
     }
@@ -273,12 +275,18 @@ function ChatRoute() {
                   selectedParticipant={filterParticipant}
                   onSelectParticipant={(p) => {
                     setFilterParticipant(p)
-                    if(p) setFilterGroup('') // Exclusive or override
+                    if(p) setFilterGroup('') 
+                    if(!p) setFilterBroad(false) // Reset broad if no participant
                   }}
-                  selectedGroup={filterGroup} // NEW
+                  isBroadSearch={filterBroad} // NEW
+                  onBroadSearchChange={setFilterBroad} // NEW
+                  selectedGroup={filterGroup} 
                   onSelectGroup={(g) => {
                     setFilterGroup(g)
-                    if(g) setFilterParticipant('') // Exclusive or override
+                    if(g) {
+                      setFilterParticipant('')
+                      setFilterBroad(false)
+                    }
                   }}
                 >
                   <Button 
@@ -291,7 +299,7 @@ function ChatRoute() {
                   >
                     <SlidersHorizontal className="h-3.5 w-3.5" />
                     {filterParticipant ? (
-                       <span>Personne: <span className="font-semibold">{filterParticipant}</span></span>
+                       <span>Personne: <span className="font-semibold">{filterParticipant}</span>{filterBroad && <span className="text-[10px] ml-1 opacity-70">(Large)</span>}</span>
                     ) : filterGroup ? (
                        <span>Groupe: <span className="font-semibold">{filterGroup}</span></span>
                     ) : (

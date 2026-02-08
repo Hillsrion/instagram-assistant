@@ -116,7 +116,10 @@ class ToolBox:
 
     def get_tools_description(self) -> str:
         """Returns description of available tools for the agent prompt."""
-        return """1. search_conversations(query: str, participant: str = None, date_range: str = None): Recherche sémantique. Paramètres optionnels pour forcer un participant ou une période (format "YYYY-MM-DD to YYYY-MM-DD"). Renvoie des extraits de conversations avec leurs IDs.
+        return """1. search_conversations(query: str, participant: str = None, about_person: str = None, date_range: str = None): Recherche sémantique.
+   - 'participant': UNIQUEMENT pour restreindre aux conversations où la personne est présente (ex: "Qu'a dit X?").
+   - 'about_person': Pour chercher TOUT ce qui concerne une personne (elle est présente OU mentionnée). Préférable pour des sujets comme des anniversaires ou cadeaux.
+   - 'date_range': format "YYYY-MM-DD to YYYY-MM-DD".
 2. get_contact_stats(contact_name: str): Statistiques (messages, conversations, dates) pour un contact précis.
 3. get_participants(): Liste tous les participants connus avec leurs statistiques globales.
 4. get_todays_date(): Date actuelle pour aider aux calculs temporels.
@@ -177,7 +180,7 @@ class ToolBox:
                 input_args=tool_input
             )
 
-    def search_conversations(self, query: str, participant: str = None, date_range: str = None) -> str:
+    def search_conversations(self, query: str, participant: str = None, about_person: str = None, date_range: str = None) -> str:
         """
         Recherche sémantique avec pipeline complet (reranking, filtres, fallback).
         """
@@ -212,7 +215,8 @@ class ToolBox:
             expand_context=expand_context,
             date_start=date_start,
             date_end=date_end,
-            participant_filter=participant_filter
+            participant_filter=participant_filter,
+            about_person=about_person
         )
 
         # Smart Fallback

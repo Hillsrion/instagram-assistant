@@ -103,6 +103,7 @@ class AdvancedRetriever:
         min_score: float = None,
         # Filters
         participant_filter: Optional[str] = None,
+        about_person: Optional[str] = None,
         date_start: Optional[str] = None,
         date_end: Optional[str] = None,
         year_filter: Optional[int] = None,
@@ -120,7 +121,8 @@ class AdvancedRetriever:
             query: User question
             top_k: Final number of results
             min_score: Minimum score
-            participant_filter: Filter by participant
+            participant_filter: Filter by participant (strict: must be in conversation)
+            about_person: Filter by person mentioned (broad: participant OR entity)
             date_start/date_end: Filter by period
             year_filter: Filter by year
             conversation_filter: Filter by conversation
@@ -154,7 +156,7 @@ class AdvancedRetriever:
         allowed_indices: Optional[Set[int]] = None
 
         if self.metadata_store and any([
-            participant_filter, date_start, date_end, year_filter, conversation_filter
+            participant_filter, about_person, date_start, date_end, year_filter, conversation_filter
         ]):
             allowed_indices = None
 
@@ -163,6 +165,12 @@ class AdvancedRetriever:
                     participant_filter, allowed_indices
                 )
                 filters_applied['participant'] = participant_filter
+
+            if about_person:
+                allowed_indices = self.metadata_store.filter_by_person(
+                    about_person, allowed_indices
+                )
+                filters_applied['about_person'] = about_person
 
             if date_start or date_end:
                 allowed_indices = self.metadata_store.filter_by_date_range(

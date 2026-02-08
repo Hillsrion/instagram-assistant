@@ -227,38 +227,33 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
     # Progress: Search step
     yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Analyzing question...'})}\n\n"
 
-    # Analysis parameters
-    dyn_top_k = analysis.top_k
-    dyn_reranking = analysis.use_reranking
-    dyn_expand = analysis.expand_context
-    search_query = analysis.rewritten_query
-
-    intent_label = analysis.intent or 'info'
-    yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': f'Searching ({intent_label})...'})}\n\n"
-
-    # Dates
-    final_date_start = request.date_start or analysis.date_start
-    final_date_end = request.date_end or analysis.date_end
-
-    context = retriever.retrieve(
-        query=search_query,
-        participant_filter=request.participant_filter,
-        year_filter=request.year_filter,
-        date_start=final_date_start,
-        date_end=final_date_end,
-        top_k=dyn_top_k,
-        use_reranking=dyn_reranking,
-        use_hybrid=request.use_hybrid,
-        expand_context=dyn_expand
-    )
-
-    # Smart Fallback: If rewritten query yields poor results, try original query
-    if (context.low_confidence or not context.has_results) and search_query != request.message:
-        yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Broadening search (Smart Fallback)...'})}\n\n"
-
-        fallback_context = retriever.retrieve(
-            query=request.message,
-            participant_filter=request.participant_filter,
+        # Analysis parameters
+        dyn_top_k = analysis.top_k
+        dyn_reranking = analysis.use_reranking
+        dyn_expand = analysis.expand_context
+        search_query = analysis.rewritten_query
+    
+        intent_label = analysis.intent or 'info'
+        yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': f'Searching ({intent_label})...'})}\n\n"
+    
+        # Handle broad vs strict person filtering
+        p_filter = request.participant_filter
+        a_person = request.about_person
+        
+        # If the UI sends a participant and asks for broad search, we move it to about_person
+        if request.use_about_person and p_filter:
+            a_person = p_filter
+            p_filter = None
+    
+        # Dates
+        final_date_start = request.date_start or analysis.date_start
+        final_date_end = request.date_end or analysis.date_end
+    
+        context = retriever.retrieve(
+            query=search_query,
+            participant_filter=p_filter,
+            about_person=a_person,
+            conversation_filter=request.group_filter,
             year_filter=request.year_filter,
             date_start=final_date_start,
             date_end=final_date_end,
@@ -266,9 +261,24 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
             use_reranking=dyn_reranking,
             use_hybrid=request.use_hybrid,
             expand_context=dyn_expand
-        )
-
-        # If fallback is better, replace
+        )    
+            # Smart Fallback: If rewritten query yields poor results, try original query
+            if (context.low_confidence or not context.has_results) and search_query != request.message:
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Broadening search (Smart Fallback)...'})}\n\n"
+        
+                fallback_context = retriever.retrieve(
+                    query=request.message,
+                    participant_filter=p_filter,
+                    about_person=a_person,
+                    conversation_filter=request.group_filter,
+                    year_filter=request.year_filter,
+                    date_start=final_date_start,
+                    date_end=final_date_end,
+                    top_k=dyn_top_k,
+                    use_reranking=dyn_reranking,
+                    use_hybrid=request.use_hybrid,
+                    expand_context=dyn_expand
+                )        # If fallback is better, replace
         if fallback_context.max_confidence_score > context.max_confidence_score:
             context = fallback_context
             yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Better results found.'})}\n\n"
@@ -423,6 +433,8 @@ async def chat(request: ChatRequest):
     context = retriever.retrieve(
         query=search_query,
         participant_filter=request.participant_filter,
+        about_person=request.about_person,
+        conversation_filter=request.group_filter,
         year_filter=request.year_filter,
         date_start=final_date_start,
         date_end=final_date_end,
@@ -437,6 +449,8 @@ async def chat(request: ChatRequest):
         fallback_context = retriever.retrieve(
             query=request.message,
             participant_filter=request.participant_filter,
+            about_person=request.about_person,
+            conversation_filter=request.group_filter,
             year_filter=request.year_filter,
             date_start=final_date_start,
             date_end=final_date_end,
