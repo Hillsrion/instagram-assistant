@@ -292,27 +292,50 @@ class AgentRunner:
                 scratchpad += f"\n{llm_response}\n"
                 scratchpad += "\nObservation: Format invalide détecté. Tu dois impérativement utiliser 'Action: <nom_outil>' et 'Action Input: <input>' ou terminer par 'Final Answer: <réponse>'.\n"
 
-        # Max steps reached
-        logger.warning(f"⚠️ Agent reached max steps ({self.max_steps})")
+        # Max steps reached or error occurred
+        logger.warning(f"⚠️ Agent reached max steps ({self.max_steps}) or failed. Synthesizing fallback answer.")
 
         sources, summary_sources = self._extract_results()
 
-        # Try to synthesize an answer from observations
-        observations = [s.observation for s in steps if s.observation]
-        if observations:
-            synthesized = "Voici ce que j'ai trouvé:\n" + "\n".join(observations[-2:])
-        else:
-            synthesized = "Désolé, je n'ai pas réussi à trouver une réponse."
+        # Fallback Synthesis: Call LLM one last time to make sense of the scratchpad
+        fallback_answer = self._synthesize_fallback(query, scratchpad)
 
         return AgentResult(
-            answer=synthesized,
+            answer=fallback_answer,
             steps=steps,
             sources=sources,
             summary_sources=summary_sources,
             total_time=time.time() - start_time,
             success=False,
-            error="Max steps reached"
+            error="Max steps reached - Synthesized fallback"
         )
+
+    def _synthesize_fallback(self, query: str, scratchpad: str) -> str:
+        """Synthesize a final answer from a partial scratchpad."""
+        if not scratchpad:
+            return "Désolé, je n'ai pas trouvé assez d'informations pour répondre à votre question."
+
+        prompt = f"""Tu es un assistant de secours. L'agent de recherche n'a pas pu terminer son raisonnement, mais voici ses notes de recherche (scratchpad).
+Utilise ces informations pour donner la meilleure réponse possible à la question initiale.
+
+IMPORTANT:
+- Si les informations sont incomplètes, dis-le honnêtement.
+- Ne mentionne pas que tu es un "système de secours" ou que l'agent a échoué, réponds naturellement.
+- Si le scratchpad contient des preuves contradictoires, expose-les.
+
+QUESTION INITIALE: {query}
+
+NOTES DE RECHERCHE:
+{scratchpad}
+
+RÉPONSE FINALE:"""
+
+        try:
+            messages = [{"role": "user", "content": prompt}]
+            return self.provider.generate(messages, temperature=0.3, max_tokens=512)
+        except Exception as e:
+            logger.error(f"Fallback synthesis failed: {e}")
+            return "Désolé, une erreur est survenue lors de la synthèse des résultats."
 
     def run_stream(
         self,
@@ -403,10 +426,17 @@ class AgentRunner:
                 )
 
         sources, summary_sources = self._extract_results()
+        
+        # Fallback Synthesis for stream
+        yield {"type": "thinking", "step": "fallback"}
+        fallback_answer = self._synthesize_fallback(query, scratchpad)
+        
         yield {
-            "type": "max_steps",
+            "type": "final",
+            "answer": fallback_answer,
             "sources": sources,
             "summary_sources": summary_sources,
-            "message": f"Maximum d'étapes atteint ({self.max_steps})",
-            "total_time": time.time() - start_time
+            "total_time": time.time() - start_time,
+            "steps": self.max_steps,
+            "is_fallback": True
         }
