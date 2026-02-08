@@ -21,11 +21,17 @@ class ConversationChunker:
         self.parser = InstagramParser()
     
     def format_chunk_content(self, metadata: Dict, messages: List[Message]) -> str:
-        """Formats chunk content for indexing, including metadata header."""
+        """Formats chunk content for indexing, including metadata header (limited to avoid noise)."""
         title = metadata.get('title', 'Conversation')
-        participants = ", ".join(metadata.get('participants', []))
+        all_participants = metadata.get('participants', [])
         
-        lines = [f"CONVERSATION: {title} | PARTICIPANTS: {participants}\n"]
+        # Limit participant names in text to avoid noise in large groups
+        if len(all_participants) <= 10:
+            participants_str = ", ".join(all_participants)
+        else:
+            participants_str = f"{len(all_participants)} participants"
+        
+        lines = [f"CONVERSATION: {title} | PARTICIPANTS: {participants_str}\n"]
         
         for msg in messages:
             timestamp = msg.timestamp.strftime('%Y-%m-%d %H:%M')
