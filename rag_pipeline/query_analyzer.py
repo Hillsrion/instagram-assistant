@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from .config import Config, default_config
 from .llm_provider import create_provider
 from .logger import get_logger
+from .json_utils import repair_and_load_json
 from .prompts import QUERY_ANALYSIS_PROMPT
 
 logger = get_logger()
@@ -69,14 +70,8 @@ class QueryAnalyzer:
             )
             logger.debug(f"LLM raw response: {content}")
             
-            # Extract JSON from potential markdown blocks
-            json_content = content.strip()
-            if "```json" in json_content:
-                json_content = json_content.split("```json")[1].split("```")[0].strip()
-            elif "```" in json_content:
-                json_content = json_content.split("```")[1].split("```")[0].strip()
-            
-            data = json.loads(json_content)
+            # Use robust repair and load utility
+            data = repair_and_load_json(content)
 
             # Map parameters based on intent
             intent = data.get("intent", "complex_reasoning")

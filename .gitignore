@@ -146,6 +146,7 @@ coverage.xml
 
 # AI
 .claude
+.gemini
 
 # Imports and Exports
 original_import_folders/
