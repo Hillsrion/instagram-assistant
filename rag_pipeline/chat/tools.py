@@ -38,6 +38,11 @@ class ToolBox:
         self._analysis = None
         self._original_query = None
         self._last_context = None
+        
+        # Source accumulation for multi-step reasoning
+        self._sources_registry = {}  # chunk_id -> dict
+        self._summaries_registry = {} # summary_id -> dict
+        
         self._tools_registry = {
             "search_conversations": self.search_conversations,
             "get_contact_stats": self.get_contact_stats,
@@ -49,6 +54,46 @@ class ToolBox:
             "get_summaries_for_contact": self.get_summaries_for_contact,
         }
 
+    def _register_chunks(self, results, expanded=False):
+        """Helper to accumulate chunks from different tools."""
+        for r in results:
+            # Handle both AdvancedSearchResult and raw Chunk objects
+            chunk = getattr(r, 'chunk', r)
+            score = getattr(r, 'final_score', 1.0)
+            
+            if chunk.chunk_id not in self._sources_registry:
+                self._sources_registry[chunk.chunk_id] = {
+                    "chunk_id": chunk.chunk_id,
+                    "file": chunk.file_source,
+                    "participants": chunk.participants,
+                    "date_start": chunk.date_start[:10],
+                    "date_end": chunk.date_end[:10],
+                    "score": round(score, 2),
+                    "expanded": expanded or getattr(r, 'is_expanded', False),
+                    "preview": (chunk.narrative_summary or chunk.summary or chunk.content[:200])[:200]
+                }
+
+    def _register_summaries(self, results):
+        """Helper to accumulate summaries from different tools."""
+        for r in results:
+            # Handle both SummarySearchResult and raw Summary objects
+            summary = getattr(r, 'summary', r)
+            score = getattr(r, 'score', 1.0)
+            level = getattr(r, 'level', 'unknown')
+            
+            summary_id = getattr(summary, 'summary_id', f"sum_{summary.date_start}_{summary.date_end}")
+            
+            if summary_id not in self._summaries_registry:
+                self._summaries_registry[summary_id] = {
+                    "type": "summary",
+                    "level": level,
+                    "summary_id": summary_id,
+                    "participants": summary.participants,
+                    "period": getattr(summary, 'period', None) or f"{summary.date_start[:10]} - {summary.date_end[:10]}",
+                    "score": round(score, 2),
+                    "preview": summary.summary[:200]
+                }
+
     def set_analysis(self, analysis):
         """Inject QueryAnalyzer results so tools can use them."""
         self._analysis = analysis
@@ -58,43 +103,12 @@ class ToolBox:
         self._original_query = query
 
     def get_sources(self) -> list:
-        """Extract sources from the last retrieval context."""
-        if not self._last_context or not self._last_context.results:
-            return []
-        sources = []
-        for r in self._last_context.results:
-            sources.append({
-                "rank": r.rank,
-                "chunk_id": r.chunk.chunk_id,
-                "file": r.chunk.file_source,
-                "participants": r.chunk.participants,
-                "date_start": r.chunk.date_start[:10],
-                "date_end": r.chunk.date_end[:10],
-                "score": round(r.final_score, 2),
-                "expanded": r.is_expanded,
-                "preview": (r.chunk.narrative_summary or r.chunk.summary or r.chunk.content[:200])[:200]
-            })
-        return sources
+        """Extract all accumulated sources."""
+        return list(self._sources_registry.values())
 
     def get_summary_sources(self) -> list:
-        """Extract summary sources from the last retrieval context."""
-        if not self._last_context:
-            return []
-        if not getattr(self._last_context, 'used_summary_fallback', False) or not getattr(self._last_context, 'summary_results', []):
-            return []
-        summary_sources = []
-        for sr in self._last_context.summary_results:
-            summary = sr.summary
-            summary_sources.append({
-                "type": "summary",
-                "level": sr.level,
-                "summary_id": getattr(summary, 'summary_id', 'N/A'),
-                "participants": summary.participants,
-                "period": getattr(summary, 'period', None) or f"{summary.date_start[:10]} - {summary.date_end[:10]}",
-                "score": round(sr.score, 2),
-                "preview": summary.summary[:200]
-            })
-        return summary_sources
+        """Extract all accumulated summary sources."""
+        return list(self._summaries_registry.values())
 
     def get_last_context(self):
         """Return the last retrieval context (for chat.py to access confidence, etc.)."""
@@ -102,12 +116,12 @@ class ToolBox:
 
     def get_tools_description(self) -> str:
         """Returns description of available tools for the agent prompt."""
-        return """1. search_conversations(query: str, participant: str = None, date_range: str = None): Recherche sémantique. Paramètres optionnels pour forcer un participant ou une période (format "YYYY-MM-DD to YYYY-MM-DD").
+        return """1. search_conversations(query: str, participant: str = None, date_range: str = None): Recherche sémantique. Paramètres optionnels pour forcer un participant ou une période (format "YYYY-MM-DD to YYYY-MM-DD"). Renvoie des extraits de conversations avec leurs IDs.
 2. get_contact_stats(contact_name: str): Statistiques (messages, conversations, dates) pour un contact précis.
 3. get_participants(): Liste tous les participants connus avec leurs statistiques globales.
 4. get_todays_date(): Date actuelle pour aider aux calculs temporels.
 5. explore_topic_timeline(query: str): Chronologie détaillée d'un sujet avec volume mensuel et épisodes clés.
-6. get_thread_context(chunk_id: str, window: int = 5): Récupère les messages entourant un extrait précis pour comprendre le flux de la conversation.
+6. get_thread_context(chunk_id: str, window: int = 5): Récupère les messages entourant un extrait précis (ID de chunk) pour comprendre le flux de la conversation.
 7. check_entity_presence(keyword: str, participant: str = None): Vérifie de manière stricte (mot-clé) la présence d'un terme. Très fiable pour confirmer ou infirmer une mention.
 8. get_summaries_for_contact(contact: str, limit: int = 5): Récupère les résumés de haut niveau des dernières conversations avec ce contact."""
 
@@ -201,9 +215,8 @@ class ToolBox:
             participant_filter=participant_filter
         )
 
-        # Smart Fallback: si la requête réécrite donne de mauvais résultats
+        # Smart Fallback
         if (context.low_confidence or not context.has_results) and self._original_query and query != self._original_query:
-            logger.info(f"⚠️ Agent smart fallback: score={context.max_confidence_score:.2f}, trying original query")
             fallback = self.retriever.retrieve(
                 query=self._original_query,
                 top_k=top_k,
@@ -217,8 +230,11 @@ class ToolBox:
             if fallback.max_confidence_score > context.max_confidence_score:
                 context = fallback
 
-        # Stocker le contexte pour extraction des sources
+        # Accumuler les sources
         self._last_context = context
+        self._register_chunks(context.results)
+        if context.used_summary_fallback:
+            self._register_summaries(context.summary_results)
 
         if not context.has_results:
             return f"Aucun résultat trouvé pour: '{query}'"
@@ -257,10 +273,8 @@ class ToolBox:
         if count == 0:
             return f"Aucun message trouvé avec '{contact_name}'."
 
-        # Récupérer les stats détaillées
         stats = self.analytics.get_participant_stats()
 
-        # Chercher le contact (correspondance partielle insensible à la casse)
         matched_stats = None
         matched_name = contact_name
         for name, info in stats.items():
@@ -277,207 +291,124 @@ class ToolBox:
                 f"- Période: {matched_stats.get('date_start', 'N/A')} à {matched_stats.get('date_end', 'N/A')}"
             )
 
-        return (
-            f"Statistiques pour '{contact_name}':\n"
-            f"- Nombre de messages: environ {count}"
-        )
+        return f"Statistiques pour '{contact_name}':\n- Nombre de messages: environ {count}"
 
     def get_participants(self, _: str = None) -> str:
-        """
-        Liste tous les participants avec leurs statistiques.
-        """
+        """Liste tous les participants avec leurs statistiques."""
         if not self.analytics:
             return "Erreur: Module analytics non initialisé."
 
         stats = self.analytics.get_participant_stats()
 
         if not stats:
-            return "Aucun participant trouvé dans les conversations."
+            return "Aucun participant trouvé."
 
         lines = [f"**{len(stats)} participants trouvés:**\n"]
         for participant, info in list(stats.items())[:20]:
-            lines.append(
-                f"• {participant}: {info['message_count']} messages, "
-                f"{info['conversations']} conversations"
-            )
-
-        if len(stats) > 20:
-            lines.append(f"\n... et {len(stats) - 20} autres participants.")
+            lines.append(f"• {participant}: {info['message_count']} messages")
 
         return "\n".join(lines)
 
     def get_todays_date(self, _: str = None) -> str:
         """Returns today's date."""
         now = datetime.now()
-        return (
-            f"Date actuelle: {now.strftime('%A %d %B %Y')} "
-            f"(ISO: {now.strftime('%Y-%m-%d')})"
-        )
+        return f"Date actuelle: {now.strftime('%A %d %B %Y')} (ISO: {now.strftime('%Y-%m-%d')})"
 
     def explore_topic_timeline(self, query: str) -> str:
-        """
-        Analyse chronologique d'un sujet en croisant les résumés hiérarchiques et les chunks.
-        Ajoute maintenant des statistiques de volume mensuel.
-        """
+        """Analyse chronologique d'un sujet."""
         if not self.retriever:
             return "Erreur: Retriever non initialisé."
 
         query = query.strip().strip('"\'')
-        logger.info(f"⏳ Exploring timeline for: '{query}'")
-
-        # 1. Search in hierarchical summaries (Conversation and Period)
+        
+        # 1. Search summaries
         summary_results = []
         if self.retriever.summary_store:
-            summary_results = self.retriever.summary_store.search(
-                query, level="all", top_k=5, min_score=0.3
-            )
+            summary_results = self.retriever.summary_store.search(query, level="all", top_k=5)
+            self._register_summaries(summary_results)
 
-        # 2. Search in detailed chunks
-        context = self.retriever.retrieve(
-            query, top_k=15, use_reranking=True, expand_context=False
-        )
+        # 2. Search chunks
+        context = self.retriever.retrieve(query, top_k=15, use_reranking=True)
+        self._register_chunks(context.results)
 
         if not summary_results and not context.has_results:
-            return f"Aucun épisode ou mention trouvé pour le sujet: '{query}'"
+            return f"Aucun épisode trouvé pour: '{query}'"
 
         timeline = [f"Chronologie pour '{query}':\n"]
 
-        # 3. Monthly volume (via Analytics if possible, or sampling)
-        if self.analytics:
-            # We use a keyword search fallback for volume if it's a specific term
-            # For simplicity, we report global monthly activity if the query is a participant
-            stats = self.analytics.get_participant_stats()
-            matched_participant = None
-            for p in stats:
-                if p.lower() in query.lower():
-                    matched_participant = p
-                    break
-            
-            if matched_participant:
-                monthly = self.analytics.get_message_count_by_month(participant=matched_participant)
-                if monthly:
-                    timeline.append("**Volume d'activité mensuel (avec ce contact):**")
-                    for m in monthly[-12:]: # Last 12 active months
-                        timeline.append(f"- {m['month_name']} {m['year']}: {m['message_count']} messages")
-                    timeline.append("")
-
-        # 4. Format Summaries (Episodes)
         if summary_results:
-            timeline.append("**Épisodes clés identifiés:**")
+            timeline.append("**Épisodes clés:**")
             for r in summary_results:
-                s = r.summary
-                period = getattr(s, 'period', f"{s.date_start[:10]} à {s.date_end[:10]}")
-                line = f"- [{period}]: {s.summary[:200]}..."
-                timeline.append(line)
+                timeline.append(f"- [{r.summary.date_start[:10]}]: {r.summary.summary[:150]}...")
             timeline.append("")
 
-        # 5. Format detailed mentions
         if context.has_results:
-            timeline.append("**Mentions détaillées chronologiques:**")
+            timeline.append("**Mentions détaillées:**")
             for r in sorted(context.results, key=lambda x: x.chunk.date_start):
-                date = r.chunk.date_start[:10]
-                text = r.chunk.narrative_summary or r.chunk.content[:100]
-                timeline.append(f"- {date}: {text[:120]}...")
+                timeline.append(f"- {r.chunk.date_start[:10]}: {r.chunk.content[:100]}...")
 
         return "\n".join(timeline)
 
     def get_thread_context(self, chunk_id: str, window: int = 5) -> str:
-        """
-        Récupère les messages entourant un extrait précis.
-        """
+        """Récupère les messages entourant un extrait précis."""
         if not self.retriever or not self.retriever.metadata_store:
-            return "Erreur: MetadataStore non disponible pour l'expansion de contexte."
+            return "Erreur: MetadataStore non disponible."
 
         chunk_id = chunk_id.strip().strip('"\'')
-        logger.info(f"🧵 Expanding context for chunk: {chunk_id} (window={window})")
-
-        # Get adjacent indices from metadata store
         adj_indices = self.retriever.metadata_store.get_adjacent_chunks(chunk_id, window=window)
         
         if not adj_indices:
-            return f"Impossible de trouver le contexte pour l'ID: {chunk_id}"
+            return f"Impossible de trouver le contexte pour {chunk_id}"
 
-        # Get chunks from vector store
         chunks = [self.retriever.vector_store.chunks[idx] for idx in sorted(adj_indices)]
         
-        output = [f"Contexte étendu pour {chunk_id} (+/- {window} blocs):\n"]
+        # Accumuler ces nouveaux chunks comme sources
+        self._register_chunks(chunks, expanded=True)
+        
+        output = [f"Contexte étendu pour {chunk_id}:\n"]
         for c in chunks:
             marker = ">>> " if c.chunk_id == chunk_id else "    "
-            output.append(f"{marker}[{c.date_start[11:16]}] {', '.join(c.participants)}:\n{c.content}\n")
+            output.append(f"{marker}[{c.date_start[11:16]}] {', '.join(c.participants)}: {c.content}")
             
         return "\n---\n".join(output)
 
     def check_entity_presence(self, keyword: str, participant: str = None) -> str:
-        """
-        Vérification stricte par mot-clé (BM25 ou Exact match).
-        """
+        """Vérification stricte par mot-clé."""
         if not self.retriever or not self.retriever.bm25_index:
-            # Fallback to simple scan if BM25 is not ready
-            return f"Vérification pour '{keyword}': Le moteur de recherche stricte n'est pas prêt."
+            return "Erreur: BM25 non prêt."
 
-        keyword = keyword.strip().strip('"\'')
-        
-        # We search specifically for the keyword
-        # Use BM25 index directly
         results = self.retriever.bm25_index.search(keyword, top_k=50)
         
-        if not results:
-            return f"Confirmation: Le terme '{keyword}' n'apparaît nulle part dans les conversations."
-
-        # Filter by participant if requested
         matches = []
-        for idx, score in results:
+        for idx, _ in results:
             chunk = self.retriever.vector_store.chunks[idx]
-            if participant:
-                if not any(participant.lower() in p.lower() for p in chunk.participants):
-                    continue
-            
-            # Verify exact presence in content (case insensitive)
+            if participant and not any(participant.lower() in p.lower() for p in chunk.participants):
+                continue
             if keyword.lower() in chunk.content.lower():
                 matches.append(chunk)
 
         if not matches:
-            return f"Le terme '{keyword}' est absent (ou pas trouvé avec {participant if participant else 'ces critères'})."
+            return f"Le terme '{keyword}' n'a pas été trouvé."
 
-        # Summarize findings
-        dates = sorted(list(set(m.date_start[:10] for m in matches)))
-        participants = list(set(p for m in matches for p in m.participants))
+        # Accumuler les matches comme sources
+        self._register_chunks(matches)
         
-        return (
-            f"Confirmation: '{keyword}' trouvé dans {len(matches)} segments.\n"
-            f"- Dates: {', '.join(dates[:5])}{'...' if len(dates) > 5 else ''}\n"
-            f"- Participants impliqués: {', '.join(participants[:5])}\n"
-            f"- Premier extrait: \"...{matches[0].content[:150]}...\""
-        )
+        return f"Confirmé: '{keyword}' trouvé dans {len(matches)} segments. Ex: \"{matches[0].content[:150]}...\""
 
     def get_summaries_for_contact(self, contact: str, limit: int = 5) -> str:
-        """
-        Récupère les résumés globaux des conversations avec un contact.
-        """
+        """Récupère les résumés globaux pour un contact."""
         if not self.retriever or not self.retriever.summary_store:
             return "Erreur: Service de résumés non disponible."
 
-        contact = contact.strip().strip('"\'')
         convs, periods = self.retriever.summary_store.get_summaries_for_participant(contact)
         
-        if not convs and not periods:
-            return f"Aucun résumé trouvé pour '{contact}'."
-
-        output = [f"Résumés de haut niveau pour {contact}:\n"]
+        # Accumuler les résumés comme sources
+        self._register_summaries(convs[:limit])
+        self._register_summaries(periods[:limit])
         
-        # Mix and sort by date
-        all_summaries = []
-        for s in convs: all_summaries.append(("conversation", s))
-        for s in periods: all_summaries.append(("period", s))
-        
-        all_summaries.sort(key=lambda x: x[1].date_start, reverse=True)
-        
-        for stype, s in all_summaries[:limit]:
-            date = s.date_start[:10]
-            if stype == "conversation":
-                output.append(f"- [{date}] Conversation ({s.total_messages} msg): {s.summary[:300]}...")
-            else:
-                output.append(f"- [{date}] Période ({getattr(s, 'period', 'N/A')}): {s.summary[:300]}...")
+        output = [f"Résumés pour {contact}:\n"]
+        for s in (convs + periods)[:limit]:
+            output.append(f"- [{s.date_start[:10]}] {s.summary[:200]}...")
                 
         return "\n\n".join(output)
 
