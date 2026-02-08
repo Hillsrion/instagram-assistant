@@ -6,7 +6,7 @@ import argparse
 from typing import List, Optional
 
 from .synthetic_generator import SyntheticDataGenerator, QuestionFilter, QuestionType, Difficulty, QAPair
-from rag_pipeline.config import Config
+from rag_pipeline.core.config import Config
 
 
 def print_header(title: str):

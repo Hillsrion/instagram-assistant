@@ -28,11 +28,12 @@ from datetime import datetime
 # Add root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker, Chunk
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
 from eval.core import RAGASMetrics, MultiChunkEvalResult, SyntheticDataGenerator, MultiChunkQAPair
 from eval.core._output_paths import get_multichunk_report_path
-from rag_pipeline.llm_provider import create_provider
+from rag_pipeline.core.llm_provider import create_provider
 
 # Reuse helper functions from eval_generation.py
 from eval.generation.eval_generation import (

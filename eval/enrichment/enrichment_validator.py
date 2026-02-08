@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 """
 Validation and evaluation of chunk enrichment quality.
 
@@ -18,10 +19,9 @@ from enum import Enum
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from rag_pipeline.chunker import Chunk
-from rag_pipeline.config import Config, default_config
-from rag_pipeline.llm_provider import create_provider
-from rag_pipeline.json_utils import repair_and_load_json
+from rag_pipeline.core.config import Config, default_config
+from rag_pipeline.core.llm_provider import create_provider
+from rag_pipeline.enrichment.json_utils import repair_and_load_json
 
 # Optional ROUGE scoring for summary validation
 try:

@@ -17,12 +17,12 @@ from dataclasses import dataclass
 # Add root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from rag_pipeline.config import Config
-from rag_pipeline.summary_store import SummaryStore
-from rag_pipeline.summary_models import ConversationSummary, PeriodSummary
+from rag_pipeline.core.config import Config
+from rag_pipeline.summaries.summary_store import SummaryStore
+from rag_pipeline.summaries.summary_models import ConversationSummary, PeriodSummary
 from eval.core._output_paths import get_summaries_report_path
-from rag_pipeline.llm_provider import create_provider
-from rag_pipeline.json_utils import repair_and_load_json
+from rag_pipeline.core.llm_provider import create_provider
+from rag_pipeline.enrichment.json_utils import repair_and_load_json
 
 
 @dataclass

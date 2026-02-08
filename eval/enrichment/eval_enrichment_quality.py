@@ -24,9 +24,10 @@ from datetime import datetime
 # Add root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from rag_pipeline.config import Config, default_config
-from rag_pipeline.chunker import Chunk, ConversationChunker
-from rag_pipeline.enricher import ChunkEnricher
+from rag_pipeline.core.config import Config, default_config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
+from rag_pipeline.enrichment.enricher import ChunkEnricher
 from eval.enrichment.enrichment_validator import (
     EnrichmentValidator,
     EnrichmentBenchmarkReport,
@@ -34,7 +35,7 @@ from eval.enrichment.enrichment_validator import (
     ChunkEnrichmentValidationReport
 )
 from eval.core._output_paths import get_enrichment_report_path
-from rag_pipeline.llm_provider import create_provider
+from rag_pipeline.core.llm_provider import create_provider
 
 def calculate_stats(results: List[Dict], models: List[str]) -> Dict:
     """Calculate aggregate statistics for models."""

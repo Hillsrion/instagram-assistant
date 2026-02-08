@@ -24,13 +24,13 @@ from dataclasses import dataclass, asdict
 # Add root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.config import Config
-from rag_pipeline.agent import AgentRunner
-from rag_pipeline.chat import ChatBot
-from rag_pipeline.retriever import Retriever
-from rag_pipeline.embeddings import EmbeddingModel
-from rag_pipeline.vector_store import VectorStore
-from rag_pipeline.query_analyzer import QueryAnalyzer
+from rag_pipeline.core.config import Config
+from rag_pipeline.chat.agent import AgentRunner
+from rag_pipeline.chat.chat import ChatBot
+from rag_pipeline.query.retriever import Retriever
+from rag_pipeline.indexing.embeddings import EmbeddingModel
+from rag_pipeline.indexing.vector_store import VectorStore
+from rag_pipeline.query.query_analyzer import QueryAnalyzer
 from api.routing import should_use_agent
 from eval.core import RAGASMetrics
 

@@ -12,9 +12,9 @@ from datetime import datetime
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from rag_pipeline.config import Config, default_config
-from rag_pipeline.advanced_retriever import AdvancedRetriever, create_advanced_retriever
-from rag_pipeline.chat import ChatBot
+from rag_pipeline.core.config import Config, default_config
+from rag_pipeline.query.advanced_retriever import AdvancedRetriever, create_advanced_retriever
+from rag_pipeline.chat.chat import ChatBot
 
 from .synthetic_generator import QAPair, QuestionType
 from .metrics import RAGASMetrics, EvalResult, BenchmarkReport

@@ -14,8 +14,9 @@ from statistics import mean, median
 # Add parent folder to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
 
 def format_number(n):
     return f"{n:,}".replace(",", " ")

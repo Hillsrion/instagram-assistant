@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 """
 RAGAS-inspired metrics for RAG evaluation.
 Implements Retrieval Accuracy, MRR, and Faithfulness metrics.
@@ -12,10 +13,9 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from rag_pipeline.config import Config, default_config
-from rag_pipeline.advanced_retriever import AdvancedSearchResult
-from rag_pipeline.chunker import Chunk
-from rag_pipeline.json_utils import repair_and_load_json
+from rag_pipeline.core.config import Config, default_config
+from rag_pipeline.query.advanced_retriever import AdvancedSearchResult
+from rag_pipeline.enrichment.json_utils import repair_and_load_json
 
 
 @dataclass
@@ -441,7 +441,7 @@ class RAGASMetrics:
         """
         # Lazy init provider
         if self.provider is None:
-            from rag_pipeline.llm_provider import create_provider
+            from rag_pipeline.core.llm_provider import create_provider
             self.provider = create_provider(self.config, self.config.llm_model, self.provider_type)
 
         try:

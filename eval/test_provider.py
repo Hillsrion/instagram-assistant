@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.config import Config
+from rag_pipeline.core.config import Config
 from eval.llm_provider import create_provider, OllamaProvider, MLXProviderWrapper
 
 

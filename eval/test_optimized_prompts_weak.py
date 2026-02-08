@@ -19,8 +19,9 @@ from datetime import datetime
 # Add root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
 from eval.metrics import RAGASMetrics
 
 # Weak questions where Ministral performs poorly

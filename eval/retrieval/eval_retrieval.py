@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from rag_pipeline.config import Config
+from rag_pipeline.core.config import Config
 
 from eval.core import BenchmarkRunner, BenchmarkConfig
 from eval.core._cli_utils import print_header, add_filter_arguments, parse_filters, load_qa_pairs

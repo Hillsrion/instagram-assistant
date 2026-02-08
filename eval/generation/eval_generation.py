@@ -25,15 +25,16 @@ from datetime import datetime
 # Add root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker, Chunk
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
 from eval.core import RAGASMetrics
 from eval.core._output_paths import (
     EVAL_RESULTS_DIR,
     get_generation_report_path,
     get_dashboard_path
 )
-from rag_pipeline.llm_provider import create_provider
+from rag_pipeline.core.llm_provider import create_provider
 
 def escape_html(text: str) -> str:
     """Escape HTML special characters."""

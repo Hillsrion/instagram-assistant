@@ -17,8 +17,9 @@ from typing import Dict, Any
 # Add root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
 from eval.metrics import RAGASMetrics
 
 # Questions where Ministral scored 1.0/1.0 on BOTH faith and relevance

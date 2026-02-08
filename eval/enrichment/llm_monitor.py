@@ -6,8 +6,8 @@
         This method sends the chunk content and its enrichment to an LLM
         to evaluate the quality, accuracy, and relevance of the enriched metadata.
         """
-        from rag_pipeline.llm_provider import create_provider
-        from rag_pipeline.json_utils import repair_and_load_json
+        from rag_pipeline.core.llm_provider import create_provider
+        from rag_pipeline.enrichment.json_utils import repair_and_load_json
         
         provider = create_provider(self.config, judge_model, provider_type)
         

@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 import time
 import json
 import copy
@@ -10,9 +11,8 @@ from datetime import datetime
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import Chunk
-from rag_pipeline.enricher import ChunkEnricher
+from rag_pipeline.core.config import Config
+from rag_pipeline.enrichment.enricher import ChunkEnricher
 from eval.core._output_paths import get_enrichment_report_path
 
 def load_dataset_chunks(path: Path) -> List[Dict]:

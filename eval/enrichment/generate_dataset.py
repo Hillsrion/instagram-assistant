@@ -18,9 +18,10 @@ from typing import List, Dict
 # Add root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker, Chunk
-from rag_pipeline.complexity_analyzer import ChunkComplexityAnalyzer
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
+from rag_pipeline.enrichment.complexity_analyzer import ChunkComplexityAnalyzer
 
 def generate_enrichment_dataset(
     size: int = 100, 
