@@ -21,13 +21,22 @@ This skill provides a structured workflow for diagnosing issues in the Instagram
 3. **Retrieval Check**: Verify if the `Retriever` found relevant chunks and what their scores are.
 4. **Generation Check**: Verify if the `ChatBot` system prompt or context formatting is causing the issue.
 
-## Using the Debug Script
+## Using the Debug Scripts
 
-Run the isolated debug script with the problematic query:
+### 1. General Pipeline Debugging
+Run the isolated debug script with the problematic query to analyze the full RAG flow:
 
 ```bash
 python3 rag-debug-assistant/scripts/debug_query.py "VOTRE QUESTION ICI"
 ```
+
+### 2. Agent Source Accumulation Debugging
+If the agent fails to mention sources or omits important ones, use the specialized source accumulation tester:
+
+```bash
+python3 rag-debug-assistant/scripts/test_agent_sources.py
+```
+This script runs a complex query and displays exactly which chunks and summaries are registered by the agent's ToolBox.
 
 If the issue involves conversation history:
 
