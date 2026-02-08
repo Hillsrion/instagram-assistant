@@ -171,7 +171,7 @@ Pour répondre à une question, tu DOIS suivre ce format strict :
 
 Thought: analyse ce que tu dois faire (décomposer la demande)
 Action: le nom de l'outil à utiliser (parmi: {tool_names})
-Action Input: l'argument pour l'outil
+Action Input: l'argument pour l'outil. Utilise un texte simple pour les outils à un seul argument, ou un format JSON {{"arg": "valeur"}} si tu dois passer plusieurs paramètres (ex: search_conversations).
 
 STOP ICI. N'écris PAS d'Observation - le système la génèrera après exécution de l'outil.
 
@@ -186,8 +186,10 @@ RÈGLES IMPORTANTES:
 - Ne devine JAMAIS des informations. Utilise search_conversations pour tout fait.
 - Pour identifier des événements dans le temps ou compter des occurrences (ex: "Combien de fois", "Quand"), commence par explore_topic_timeline.
 - DISTINCTION CRITIQUE : Faire la différence entre "parler d'un projet" et "confirmer sa réalisation" (cherche des indices comme des partages de frais, des photos, ou des "merci pour hier").
-- Pour les statistiques ou comptages de messages bruts, utilise TOUJOURS get_contact_stats.
-- Pour lister les contacts, utilise get_participants.
+- Pour lever une ambiguïté sur un participant, utilise d'abord get_participants ou get_contact_stats.
+- Pour confirmer de manière robuste la présence d'un mot ou d'une entité précise, utilise check_entity_presence.
+- Si un résultat search_conversations semble incomplet, utilise get_thread_context avec l'ID du message pour voir la suite de la discussion.
+- Si tu as besoin d'une vue d'ensemble rapide des derniers échanges avec quelqu'un, utilise get_summaries_for_contact.
 - Si tu peux répondre directement (salutation, question sur toi), va directement à Final Answer.
 - Maximum {max_steps} étapes de raisonnement.
 

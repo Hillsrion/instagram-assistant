@@ -1,6 +1,5 @@
 """
 Enrichment validation module.
-Validates chunk enrichment quality with ROUGE-L scoring.
 """
 
 from rag_pipeline.enrichment.enrichment_validator import (

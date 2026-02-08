@@ -28,7 +28,7 @@ class Chunk:
     file_source: str
     # New fields for "Gold Standard" RAG
     narrative_summary: Optional[str] = None
-    reference_summary: Optional[str] = None  # Ground truth for ROUGE-L validation
+    reference_summary: Optional[str] = None  # Ground truth for overlap validation
     hypothetical_questions: Optional[List[str]] = None
     speaker_intents: Optional[Dict[str, str]] = None
     temporal_context: Optional[str] = None

@@ -10,12 +10,6 @@ Comprehensive guides for evaluating enrichment quality.
   - CLI tool and programmatic API
   - Benchmark reports and issue tracking
 
-- **[ROUGE-L Validation](ROUGE_VALIDATION.md)** - Summary evaluation using ROUGE-L
-  - Longest Common Subsequence (LCS) scoring
-  - Ground truth validation with reference summaries
-  - Score interpretation and best practices
-  - Comparing enrichment models
-  - Fallback word overlap metrics
 
 ## Quick Start
 
@@ -30,11 +24,6 @@ python eval/example_enrichment_validation.py
 python eval/validate_enrichment.py --sample --size 50
 ```
 
-### Validate with ROUGE-L
-
-```bash
-python eval/example_rouge_validation.py
-```
 
 ## Key Concepts
 
@@ -59,9 +48,9 @@ python eval/example_rouge_validation.py
 - **Issues vs warnings** (critical vs informational)
 - **Validity flag** (overall_validity = True if score ≥ 0.5 and no critical issues)
 
-### ROUGE-L
+### Ground Truth Comparison
 
-- **Longest Common Subsequence** between generated and reference summaries
+- **Word Overlap** (Jaccard similarity) between generated and reference summaries
 - Scores 0.0-1.0 (1.0 = identical)
 - Automatic when `reference_summary` field is present
 - Useful for comparing enrichment models

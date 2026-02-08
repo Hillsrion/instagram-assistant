@@ -9,7 +9,7 @@ The `eval/` module provides a comprehensive pipeline to evaluate the quality of 
 
 Specialized evaluation guides:
 
-- **[Enrichment Validation Guide](eval/)** - Validate chunk enrichment quality with ROUGE-L scoring
+- **[Enrichment Validation Guide](eval/)** - Validate chunk enrichment quality with quality scoring
 
 ## Module Structure
 
@@ -39,10 +39,9 @@ eval/
 │
 ├── enrichment/                    # Enrichment Validation
 │   ├── __init__.py
-│   ├── eval_enrichment.py         # Library: EnrichmentValidator
-│   ├── validate_enrichment.py     # Script: CLI validation tool
+│   ├── enrichment_validator.py    # Library: EnrichmentValidator
+│   ├── eval_enrichment_quality.py # Script: CLI validation tool
 │   ├── example_enrichment_validation.py   # Examples
-│   ├── example_rouge_validation.py        # ROUGE-L examples
 │   └── results/                   # Generated reports (ignored by git)
 │
 ├── summaries/                     # Summary Evaluation

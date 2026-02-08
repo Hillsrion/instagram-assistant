@@ -23,14 +23,6 @@ from rag_pipeline.core.config import Config, default_config
 from rag_pipeline.core.llm_provider import create_provider
 from rag_pipeline.enrichment.json_utils import repair_and_load_json
 
-# Optional ROUGE scoring for summary validation
-try:
-    from rouge_score import rouge_scorer
-    HAS_ROUGE = True
-except ImportError:
-    HAS_ROUGE = False
-
-
 class EnrichmentFieldType(Enum):
     """Types of enrichment fields for categorized validation."""
     NARRATIVE_SUMMARY = "narrative_summary"
@@ -141,39 +133,13 @@ class EnrichmentValidator:
 
     def __init__(self, config: Config = None):
         self.config = config or default_config
-        self.rouge_scorer = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=True) if HAS_ROUGE else None
 
-    @staticmethod
-    def calculate_rouge_l(reference: str, candidate: str) -> float:
-        """
-        Calculate ROUGE-L score between two texts.
-        ROUGE-L measures Longest Common Subsequence (LCS) similarity.
-
-        Args:
-            reference: Ground truth text
-            candidate: Generated/predicted text
-
-        Returns:
-            ROUGE-L f-measure score (0.0-1.0), or None if ROUGE not available
-        """
-        if not HAS_ROUGE:
-            return None
-
-        if not reference or not candidate:
-            return 0.0
-
-        try:
-            scorer = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=True)
-            scores = scorer.score(reference, candidate)
-            return scores['rougeL'].fmeasure
-        except Exception:
-            return None
 
     @staticmethod
     def calculate_word_overlap(reference: str, candidate: str) -> float:
         """
-        Fallback metric: Simple word overlap when ROUGE not available.
-        Calculates Jaccard similarity of word sets.
+        Calculate simple word overlap (Jaccard similarity) between two texts.
+        Used to compare generated summaries against ground truth reference summaries.
 
         Returns:
             Overlap score (0.0-1.0)
@@ -258,20 +224,20 @@ class EnrichmentValidator:
             result.warnings.append(f"Summary is very short ({word_count} words)")
             result.score = max(0.8, result.score)
 
-        # ROUGE-L comparison if reference summary available
-        rouge_score = None
+        # Text overlap comparison if reference summary available
+        overlap_score = None
         if hasattr(chunk, 'reference_summary') and chunk.reference_summary:
-            rouge_score = self.calculate_rouge_l(chunk.reference_summary, summary)
-            if rouge_score is not None:
-                result.metadata["rouge_l"] = round(rouge_score, 3)
-                if rouge_score < 0.3:
+            overlap_score = self.calculate_word_overlap(chunk.reference_summary, summary)
+            if overlap_score is not None:
+                result.metadata["word_overlap"] = round(overlap_score, 3)
+                if overlap_score < 0.2:
                     result.warnings.append(
-                        f"Low ROUGE-L vs reference ({rouge_score:.2%}), may differ significantly"
+                        f"Low overlap vs reference ({overlap_score:.2%}), may differ significantly"
                     )
                     result.score = min(result.score, 0.7)
-                elif rouge_score < 0.5:
+                elif overlap_score < 0.4:
                     result.warnings.append(
-                        f"Moderate ROUGE-L vs reference ({rouge_score:.2%})"
+                        f"Moderate overlap vs reference ({overlap_score:.2%})"
                     )
                     result.score = min(result.score, 0.85)
 
