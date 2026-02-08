@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 """
 Tests for setup_indexes.py - Index construction.
 """
@@ -9,10 +10,11 @@ from unittest.mock import patch, MagicMock
 import numpy as np
 
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+root_dir = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(root_dir))
+sys.path.insert(0, str(root_dir / "scripts" / "setup"))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import Chunk
+from rag_pipeline.core.config import Config
 
 
 class TestBuildFaissIndex(unittest.TestCase):

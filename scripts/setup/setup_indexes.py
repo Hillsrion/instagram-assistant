@@ -20,12 +20,13 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker
-from rag_pipeline.vector_store import VectorStore
-from rag_pipeline.bm25_index import BM25Index
-from rag_pipeline.metadata_store import MetadataStore
-from rag_pipeline.cli_utils import print_header, load_all_checkpoints, CHECKPOINT_DIR
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
+from rag_pipeline.indexing.vector_store import VectorStore
+from rag_pipeline.indexing.bm25_index import BM25Index
+from rag_pipeline.indexing.metadata_store import MetadataStore
+from rag_pipeline.utils.cli_utils import print_header, load_all_checkpoints, CHECKPOINT_DIR
 
 
 def build_faiss_index(config: Config, chunks: list, embeddings) -> bool:
@@ -90,7 +91,7 @@ def run(config: Config, reset: bool = False, only: str = None) -> bool:
     chunker = ConversationChunker(config)
     
     # Load chunks (from specialized indexed path if it exists, otherwise default)
-    indexed_chunks_path = Path("rag_data/chunks_indexed.json")
+    indexed_chunks_path = config.index_dir / "chunks_indexed.json"
     if indexed_chunks_path.exists():
         print(f"Loading specifically indexed chunks from {indexed_chunks_path}...")
         chunks = chunker.load_chunks(indexed_chunks_path)

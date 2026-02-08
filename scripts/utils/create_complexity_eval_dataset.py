@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 #!/usr/bin/env python3
 """
 Create evaluation dataset filtered by complexity levels.
@@ -22,8 +23,7 @@ from collections import defaultdict
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.chunker import Chunk
-from rag_pipeline.complexity_analyzer import ChunkComplexityAnalyzer
+from rag_pipeline.enrichment.complexity_analyzer import ChunkComplexityAnalyzer
 
 
 def load_and_classify_chunks(limit: int = 100) -> dict:

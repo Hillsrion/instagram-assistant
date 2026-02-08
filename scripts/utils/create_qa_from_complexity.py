@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 #!/usr/bin/env python3
 """
 Create QA dataset from complexity-filtered chunks.
@@ -17,8 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.chunker import Chunk
-from rag_pipeline.complexity_analyzer import ChunkComplexityAnalyzer
+from rag_pipeline.enrichment.complexity_analyzer import ChunkComplexityAnalyzer
 
 
 def create_qa_from_chunks():

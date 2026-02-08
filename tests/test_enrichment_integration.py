@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 """
 Integration tests for enrichment pipeline with real Ollama calls.
 
@@ -7,10 +8,9 @@ import pytest
 import json
 import time
 from pathlib import Path
-from rag_pipeline.enricher import ChunkEnricher
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import Chunk
-from rag_pipeline.complexity_analyzer import ChunkComplexityAnalyzer
+from rag_pipeline.enrichment.enricher import ChunkEnricher
+from rag_pipeline.core.config import Config
+from rag_pipeline.enrichment.complexity_analyzer import ChunkComplexityAnalyzer
 
 
 @pytest.fixture

@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 #!/usr/bin/env python3
 """
 Compare enrichment quality between 3B and 8B models using eval framework.
@@ -30,10 +31,9 @@ from collections import defaultdict
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.chunker import Chunk
-from rag_pipeline.enricher import ChunkEnricher
-from rag_pipeline.config import Config
-from rag_pipeline.complexity_analyzer import ChunkComplexityAnalyzer
+from rag_pipeline.enrichment.enricher import ChunkEnricher
+from rag_pipeline.core.config import Config
+from rag_pipeline.enrichment.complexity_analyzer import ChunkComplexityAnalyzer
 
 
 def load_chunks(limit: int = 3) -> List[Chunk]:

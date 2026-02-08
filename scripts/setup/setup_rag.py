@@ -23,10 +23,11 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker
-from rag_pipeline.logger import initialize_logging
-from rag_pipeline.cli_utils import (
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
+from rag_pipeline.core.logger import initialize_logging
+from rag_pipeline.utils.cli_utils import (
     print_header,
     CHECKPOINT_DIR,
     DEFAULT_BATCH_SIZE,

@@ -17,10 +17,11 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker
-from rag_pipeline.enricher import ChunkEnricher
-from rag_pipeline.cli_utils import print_header, format_duration
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
+from rag_pipeline.enrichment.enricher import ChunkEnricher
+from rag_pipeline.utils.cli_utils import print_header, format_duration
 
 
 def run(config: Config, reset: bool = False, model: str = None, total_shards: int = 1, shard_index: int = 0, provider: str = "ollama", enable_local_sharding: bool = None) -> bool:

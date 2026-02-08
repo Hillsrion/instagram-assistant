@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 #!/usr/bin/env python3
 """
 Phase 0: Benchmark 3B vs 8B models on validation dataset.
@@ -34,9 +35,8 @@ import os
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.chunker import Chunk
-from rag_pipeline.enricher import ChunkEnricher
-from rag_pipeline.config import default_config
+from rag_pipeline.enrichment.enricher import ChunkEnricher
+from rag_pipeline.core.config import default_config
 
 
 @dataclass

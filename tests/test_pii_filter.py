@@ -3,7 +3,7 @@ Tests for pii_filter.py module.
 Detection and masking of Personally Identifiable Information (PII).
 """
 import unittest
-from rag_pipeline.pii_filter import PIIFilter, PIIType, PIIMatch
+from rag_pipeline.chat.pii_filter import PIIFilter, PIIType, PIIMatch
 
 
 class TestPIIFilter(unittest.TestCase):

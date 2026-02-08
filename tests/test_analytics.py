@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 """
 Tests for analytics.py module.
 Analytics and statistics on conversations.
@@ -8,10 +9,9 @@ import shutil
 import sqlite3
 from pathlib import Path
 
-from rag_pipeline.config import Config
-from rag_pipeline.analytics import ConversationAnalytics
-from rag_pipeline.metadata_store import MetadataStore
-from rag_pipeline.chunker import Chunk
+from rag_pipeline.core.config import Config
+from rag_pipeline.utils.analytics import ConversationAnalytics
+from rag_pipeline.indexing.metadata_store import MetadataStore
 
 
 class TestConversationAnalytics(unittest.TestCase):

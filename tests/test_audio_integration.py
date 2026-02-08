@@ -9,8 +9,8 @@ import sys
 # Add scripts/ingestion to path to import the script module
 sys.path.append(str(Path(__file__).parent.parent / "scripts" / "ingestion"))
 
-from rag_pipeline.audio import AudioTranscriber
-from rag_pipeline.config import Config
+from rag_pipeline.audio.audio import AudioTranscriber
+from rag_pipeline.core.config import Config
 
 # Now we can import the script
 from instagram_to_text import process_conversation
@@ -57,8 +57,8 @@ class TestAudioIntegration(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.test_dir)
 
-    @patch("rag_pipeline.audio.default_config")
-    @patch("rag_pipeline.audio.MlxAudioProvider")
+    @patch("rag_pipeline.audio.audio.default_config")
+    @patch("rag_pipeline.audio.audio.MlxAudioProvider")
     def test_transcription_called(self, MockProvider, mock_config):
         # Mock Provider instance
         mock_instance = MockProvider.return_value

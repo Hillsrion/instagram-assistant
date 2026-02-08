@@ -8,9 +8,11 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+root_dir = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(root_dir))
+sys.path.insert(0, str(root_dir / "scripts" / "setup"))
 
-from rag_pipeline.config import Config
+from rag_pipeline.core.config import Config
 
 
 class TestSetupChunks(unittest.TestCase):

@@ -18,9 +18,9 @@ from threading import Lock
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from rag_pipeline.config import Config, default_config
-from rag_pipeline.audio import AudioTranscriber
-from rag_pipeline.logger import initialize_logging, logger
+from rag_pipeline.core.config import Config, default_config
+from rag_pipeline.audio.audio import AudioTranscriber
+from rag_pipeline.core.logger import initialize_logging, logger
 
 # Helper to decode latin-1 stuck in utf-8 (common Instagram export issue)
 def decode_instagram_text(text: str) -> str:

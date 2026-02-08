@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch
 
-from rag_pipeline.config import Config
+from rag_pipeline.core.config import Config
 
 
 class TestConfig(unittest.TestCase):

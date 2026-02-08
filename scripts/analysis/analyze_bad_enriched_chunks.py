@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 
 import sys
 import json
@@ -8,9 +9,8 @@ from dataclasses import asdict
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from rag_pipeline.config import default_config
-from rag_pipeline.chunker import Chunk
-from rag_pipeline.enrichment_validator import is_low_quality_enrichment
+from rag_pipeline.core.config import default_config
+from rag_pipeline.enrichment.enrichment_validator import is_low_quality_enrichment
 
 def is_low_quality(chunk: Chunk) -> bool:
     """

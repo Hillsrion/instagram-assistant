@@ -20,13 +20,14 @@ from datetime import datetime
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker
-from rag_pipeline.embeddings import EmbeddingModel
-from rag_pipeline.vector_store import VectorStore
-from rag_pipeline.bm25_index import BM25Index
-from rag_pipeline.metadata_store import MetadataStore
-from rag_pipeline.delta_tracker import DeltaTracker
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
+from rag_pipeline.indexing.embeddings import EmbeddingModel, get_chunk_embedding_text
+from rag_pipeline.indexing.vector_store import VectorStore
+from rag_pipeline.indexing.bm25_index import BM25Index
+from rag_pipeline.indexing.metadata_store import MetadataStore
+from rag_pipeline.indexing.delta_tracker import DeltaTracker
 
 
 def show_status(config: Config):
@@ -142,7 +143,7 @@ def run_incremental_update(config: Config, force_full: bool = False):
 
     # Enrich new chunks (optional - check if enricher is available)
     try:
-        from rag_pipeline.enricher import ChunkEnricher
+        from rag_pipeline.enrichment.enricher import ChunkEnricher
 
         if new_chunks:
             print(f"\nEnriching {len(new_chunks)} chunks...")
@@ -174,7 +175,7 @@ def run_incremental_update(config: Config, force_full: bool = False):
             print(f"ℹ️ {failed_count} chunks failed enrichment - using raw content only")
         
         print(f"\nGenerating embeddings for {len(new_chunks)} chunks...")
-        texts = [chunk.get_embedding_text() for chunk in new_chunks]
+        texts = [get_chunk_embedding_text(chunk) for chunk in new_chunks]
         new_embeddings = embedding_model.encode(
             texts,
             show_progress=True

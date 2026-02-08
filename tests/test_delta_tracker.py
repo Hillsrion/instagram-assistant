@@ -9,8 +9,8 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-from rag_pipeline.config import Config
-from rag_pipeline.delta_tracker import DeltaTracker, FileState, DeltaResult
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.delta_tracker import DeltaTracker, FileState, DeltaResult
 
 
 class TestDeltaTracker(unittest.TestCase):

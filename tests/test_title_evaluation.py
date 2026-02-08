@@ -6,8 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.chat import ChatBot
-from rag_pipeline.config import Config
+from rag_pipeline.chat.chat import ChatBot
+from rag_pipeline.core.config import Config
 
 class TestTitleEvaluation(unittest.TestCase):
 

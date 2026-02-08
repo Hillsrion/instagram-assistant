@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 """
 Tests for metadata_store.py module.
 SQLite Store for chunk metadata (pre-filtering).
@@ -7,9 +8,8 @@ import tempfile
 import shutil
 from pathlib import Path
 
-from rag_pipeline.config import Config
-from rag_pipeline.metadata_store import MetadataStore
-from rag_pipeline.chunker import Chunk
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.metadata_store import MetadataStore
 
 
 class TestMetadataStore(unittest.TestCase):

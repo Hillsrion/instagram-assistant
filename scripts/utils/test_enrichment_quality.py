@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 #!/usr/bin/env python3
 """
 Test enrichment quality and performance with real Ollama calls.
@@ -32,10 +33,9 @@ from collections import Counter
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.chunker import Chunk
-from rag_pipeline.enricher import ChunkEnricher
-from rag_pipeline.config import Config
-from rag_pipeline.complexity_analyzer import ChunkComplexityAnalyzer
+from rag_pipeline.enrichment.enricher import ChunkEnricher
+from rag_pipeline.core.config import Config
+from rag_pipeline.enrichment.complexity_analyzer import ChunkComplexityAnalyzer
 
 
 def load_chunks(limit: int = 5) -> List[Chunk]:

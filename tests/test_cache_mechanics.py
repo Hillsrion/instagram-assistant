@@ -5,7 +5,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag_pipeline.audio_cache import AudioCache
+from rag_pipeline.audio.audio_cache import AudioCache
 
 def test_cache():
     # Setup temp cache

@@ -5,8 +5,8 @@ Intent detection for RAG optimization.
 import unittest
 from unittest.mock import patch, MagicMock
 
-from rag_pipeline.config import Config
-from rag_pipeline.intent_detector import IntentDetector, SearchIntent
+from rag_pipeline.core.config import Config
+from rag_pipeline.query.intent_detector import IntentDetector, SearchIntent
 
 
 class TestIntentDetector(unittest.TestCase):

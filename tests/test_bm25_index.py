@@ -1,3 +1,4 @@
+from rag_pipeline.core.models import Chunk
 """
 Tests for bm25_index.py module.
 BM25 Index for lexical search.
@@ -8,9 +9,8 @@ import shutil
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from rag_pipeline.config import Config
-from rag_pipeline.bm25_index import BM25Index
-from rag_pipeline.chunker import Chunk
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.bm25_index import BM25Index
 
 
 class TestBM25Index(unittest.TestCase):

@@ -22,8 +22,9 @@ import argparse
 from tqdm import tqdm
 from typing import List, Dict
 from transformers import AutoTokenizer
-from rag_pipeline.config import default_config
-from rag_pipeline.chunker import Chunk
+from rag_pipeline.core.config import default_config
+from rag_pipeline.core.models import Chunk
+from rag_pipeline.indexing.embeddings import get_chunk_embedding_text
 
 def format_number(val):
     return f"{val:,.0f}".replace(",", " ")
@@ -76,7 +77,7 @@ def main():
         stats_content.append(tokens_content)
 
         # 2. Texte d'embedding (ce que le moteur voit)
-        embedding_text = chunk.get_embedding_text()
+        embedding_text = get_chunk_embedding_text(chunk)
         tokens_embedding = len(tokenizer.encode(embedding_text))
         stats_embedding.append(tokens_embedding)
 

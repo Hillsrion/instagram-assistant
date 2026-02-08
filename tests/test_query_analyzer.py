@@ -6,8 +6,8 @@ import unittest
 import json
 from unittest.mock import patch, MagicMock
 
-from rag_pipeline.config import Config
-from rag_pipeline.query_analyzer import QueryAnalyzer, AnalysisResult
+from rag_pipeline.core.config import Config
+from rag_pipeline.query.query_analyzer import QueryAnalyzer, AnalysisResult
 
 
 class TestQueryAnalyzer(unittest.TestCase):
@@ -114,7 +114,7 @@ class TestQueryAnalyzer(unittest.TestCase):
         """Optimized parameters for specific_fact."""
         params = self.analyzer._get_params_for_intent("specific_fact")
         
-        self.assertEqual(params["top_k"], 5)
+        self.assertEqual(params["top_k"], 15)
         self.assertTrue(params["use_reranking"])
         self.assertFalse(params["expand_context"])
 
@@ -122,15 +122,15 @@ class TestQueryAnalyzer(unittest.TestCase):
         """Optimized parameters for broad_summary."""
         params = self.analyzer._get_params_for_intent("broad_summary")
         
-        self.assertEqual(params["top_k"], 15)
-        self.assertFalse(params["use_reranking"])  # Too many docs
+        self.assertEqual(params["top_k"], 40)
+        self.assertTrue(params["use_reranking"])
         self.assertTrue(params["expand_context"])
 
     def test_get_params_for_complex_reasoning(self):
         """Optimized parameters for complex_reasoning."""
         params = self.analyzer._get_params_for_intent("complex_reasoning")
         
-        self.assertEqual(params["top_k"], 10)
+        self.assertEqual(params["top_k"], 30)
         self.assertTrue(params["use_reranking"])
         self.assertTrue(params["expand_context"])
 

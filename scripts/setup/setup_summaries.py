@@ -18,13 +18,14 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker
-from rag_pipeline.embeddings import EmbeddingModel
-from rag_pipeline.summary_generator import SummaryGenerator
-from rag_pipeline.summary_store import SummaryStore
-from rag_pipeline.summary_models import ConversationSummary, PeriodSummary
-from rag_pipeline.cli_utils import print_header, format_duration
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
+from rag_pipeline.indexing.embeddings import EmbeddingModel
+from rag_pipeline.summaries.summary_generator import SummaryGenerator
+from rag_pipeline.summaries.summary_store import SummaryStore
+from rag_pipeline.summaries.summary_models import ConversationSummary, PeriodSummary
+from rag_pipeline.utils.cli_utils import print_header, format_duration
 
 
 def run(config: Config, reset: bool = False, model: str = None) -> bool:

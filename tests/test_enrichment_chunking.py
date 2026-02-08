@@ -12,9 +12,10 @@ import json
 import datetime
 
 # Import project modules
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker, Chunk, Message
-from rag_pipeline.enricher import ChunkEnricher
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk, Message
+from rag_pipeline.enrichment.enricher import ChunkEnricher
 
 class TestEnrichmentChunking(unittest.TestCase):
 

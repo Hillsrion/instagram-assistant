@@ -12,10 +12,11 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from rag_pipeline.config import Config
-from rag_pipeline.chunker import ConversationChunker, Chunk
-from rag_pipeline.embeddings import EmbeddingModel
-from rag_pipeline.cli_utils import (
+from rag_pipeline.core.config import Config
+from rag_pipeline.indexing.chunker import ConversationChunker
+from rag_pipeline.core.models import Chunk
+from rag_pipeline.indexing.embeddings import EmbeddingModel, get_chunk_embedding_text
+from rag_pipeline.utils.cli_utils import (
     print_header,
     CHECKPOINT_DIR,
     DEFAULT_BATCH_SIZE,
@@ -68,7 +69,7 @@ def run(config: Config, reset: bool = False, batch_size: int = DEFAULT_BATCH_SIZ
     chunk_hashes = [] # To keep track of which hash corresponds to which chunk index
 
     for chunk in chunks:
-        text = chunk.get_embedding_text()
+        text = get_chunk_embedding_text(chunk)
         h = get_content_hash(text)
         chunk_hashes.append(h)
         
@@ -87,7 +88,7 @@ def run(config: Config, reset: bool = False, batch_size: int = DEFAULT_BATCH_SIZ
             batch_data = to_process[i*batch_size : (i+1)*batch_size]
             print(f"Batch {i+1}/{n_batches} ({len(batch_data)} chunks)...")
             
-            texts = [item[0].get_embedding_text() for item in batch_data]
+            texts = [get_chunk_embedding_text(item[0]) for item in batch_data]
             vectors = embedding_model.encode(texts, show_progress=True)
             
             for (chunk, h), vec in zip(batch_data, vectors):
