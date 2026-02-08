@@ -68,7 +68,8 @@ class AgentRunner:
             tool_names=", ".join(self.tools.get_tool_names()),
             tools_desc=self.tools.get_tools_description(),
             max_steps=self.max_steps,
-            today=datetime.now().strftime("%Y-%m-%d")
+            today=datetime.now().strftime("%Y-%m-%d"),
+            user_name=self.config.user_name
         )
 
     def _format_history(self, history: List[Dict[str, str]]) -> str:
@@ -319,6 +320,7 @@ class AgentRunner:
 Utilise ces informations pour donner la meilleure réponse possible à la question initiale.
 
 IMPORTANT:
+- L'utilisateur s'appelle {self.config.user_name}. S'il apparaît dans les notes, c'est lui qui parle.
 - Si les informations sont incomplètes, dis-le honnêtement.
 - Ne mentionne pas que tu es un "système de secours" ou que l'agent a échoué, réponds naturellement.
 - Si le scratchpad contient des preuves contradictoires, expose-les.

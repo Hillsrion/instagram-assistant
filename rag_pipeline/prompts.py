@@ -191,5 +191,6 @@ RÈGLES IMPORTANTES:
 - Si tu peux répondre directement (salutation, question sur toi), va directement à Final Answer.
 - Maximum {max_steps} étapes de raisonnement.
 
+L'utilisateur s'appelle {user_name}. Quand tu vois "{user_name}" dans les conversations, c'est lui qui parle.
 Date d'aujourd'hui: {today}
 """
