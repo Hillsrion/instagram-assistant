@@ -11,6 +11,8 @@ from rag_pipeline.config import Config
 from rag_pipeline.query_analyzer import QueryAnalyzer
 from rag_pipeline.advanced_retriever import create_advanced_retriever
 from rag_pipeline.chat import ChatBot
+from rag_pipeline.agent import AgentRunner
+from api.routing import should_use_agent
 
 def debug_query(query, history=None):
     if history is None:
@@ -27,38 +29,34 @@ def debug_query(query, history=None):
     print(f"  Intent: {analysis.intent}")
     print(f"  Rewritten: {analysis.rewritten_query}")
     print(f"  Top-K: {analysis.top_k}")
-    print(f"  Dates: {analysis.date_start} -> {analysis.date_end}")
     
-    # 2. Retrieve
-    print("\n[STEP 2] Retrieval...")
+    # 2. Routing Decision
+    use_agent = should_use_agent(analysis)
+    print(f"\n[STEP 2] Routing: {'AGENT PATH' if use_agent else 'FAST PATH'}")
+    
+    # 3. Execution
     retriever, _ = create_advanced_retriever(config)
-    context = retriever.retrieve(
-        analysis.rewritten_query,
-        top_k=analysis.top_k,
-        date_start=analysis.date_start,
-        date_end=analysis.date_end,
-        use_reranking=analysis.use_reranking,
-        expand_context=analysis.expand_context
-    )
     
-    print(f"  Found {len(context.results)} results.")
-    print(f"  Max score: {context.max_confidence_score:.4f}")
-    print(f"  Low confidence: {context.low_confidence}")
-    
-    for i, res in enumerate(context.results[:3]):
-        print(f"\n  Result {i+1} [Score {res.final_score:.4f}]:")
-        print(f"    Source: {res.chunk.file_source}")
-        print(f"    Date: {res.chunk.date_start[:10]}")
-        print(f"    Content (preview): {res.chunk.content[:200]}...")
-    
-    # 3. Chat (optional)
-    print("\n[STEP 3] LLM Generation...")
-    bot = ChatBot(retriever, config)
-    bot.conversation_history = history
-    
-    # Non-streaming call
-    response = bot.chat(query, stream=False, use_rewriting=False) # Already analyzed
-    print(f"\n  Final Answer:\n{response.answer}")
+    if use_agent:
+        print("\n[STEP 3] Agent Execution...")
+        agent = AgentRunner(config, retriever)
+        result = agent.run(query, history=history, analysis=analysis)
+        
+        print("\n--- AGENT REASONING ---")
+        for step in result.steps:
+            print(f"\nStep {step.step_num}:")
+            print(f"  Thought: {step.thought}")
+            if step.action:
+                print(f"  Action: {step.action}({step.action_input})")
+                print(f"  Observation: {str(step.observation)[:200]}...")
+        
+        print(f"\n  Final Answer:\n{result.answer}")
+    else:
+        print("\n[STEP 3] Fast Path Execution...")
+        bot = ChatBot(retriever, config)
+        bot.conversation_history = history
+        response = bot.chat(query, stream=False, use_rewriting=False)
+        print(f"\n  Final Answer:\n{response.answer}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

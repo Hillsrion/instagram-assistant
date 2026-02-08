@@ -42,13 +42,24 @@ class EmbeddingModel:
         else:
             self._device = "cpu"
         
-        print(f"📦 Loading model {self.config.embedding_model}...")
+        print(f"📦 Loading embedding model {self.config.embedding_model} (local cache)...")
         print(f"🖥️  Device: {self._device}")
         
-        self.model = SentenceTransformer(
-            self.config.embedding_model,
-            device=self._device
-        )
+        try:
+            # Try to load from local cache first to avoid 307 pings
+            self.model = SentenceTransformer(
+                self.config.embedding_model,
+                device=self._device,
+                local_files_only=True
+            )
+        except Exception:
+            # Fallback to standard loading if not in cache (first time)
+            print(f"ℹ️  Model not found in local cache, downloading from Hugging Face...")
+            self.model = SentenceTransformer(
+                self.config.embedding_model,
+                device=self._device,
+                local_files_only=False
+            )
         
         print("✅ Model loaded")
     

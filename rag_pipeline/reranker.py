@@ -55,14 +55,26 @@ class CrossEncoderReranker:
         else:
             self._device = "cpu"
 
-        print(f"📦 Loading reranker {self.model_name}...")
+        print(f"📦 Loading reranker {self.model_name} (local cache)...")
         print(f"🖥️  Device: {self._device}")
 
-        self.model = CrossEncoder(
-            self.model_name,
-            device=self._device,
-            max_length=512  # Limit to avoid OOM
-        )
+        try:
+            # Try to load from local cache first to avoid 307 pings
+            self.model = CrossEncoder(
+                self.model_name,
+                device=self._device,
+                max_length=512,  # Limit to avoid OOM
+                local_files_only=True
+            )
+        except Exception:
+            # Fallback to standard loading if not in cache (first time)
+            print(f"ℹ️  Reranker not found in local cache, downloading from Hugging Face...")
+            self.model = CrossEncoder(
+                self.model_name,
+                device=self._device,
+                max_length=512,
+                local_files_only=False
+            )
 
         print("✅ Reranker loaded")
 
