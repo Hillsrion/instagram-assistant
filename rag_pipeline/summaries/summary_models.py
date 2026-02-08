@@ -56,10 +56,8 @@ class PeriodSummary:
     def to_dict(self) -> dict:
         return asdict(self)
 
-        @classmethod
-
-        def from_dict(cls, data: dict) -> "PeriodSummary":
-
-            return cls(**data)
+    @classmethod
+    def from_dict(cls, data: dict) -> "PeriodSummary":
+        return cls(**data)
 
     

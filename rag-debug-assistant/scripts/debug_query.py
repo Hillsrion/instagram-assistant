@@ -7,11 +7,11 @@ from pathlib import Path
 # Add project root to path to import rag_pipeline
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from rag_pipeline.config import Config
-from rag_pipeline.query_analyzer import QueryAnalyzer
-from rag_pipeline.advanced_retriever import create_advanced_retriever
-from rag_pipeline.chat import ChatBot
-from rag_pipeline.agent import AgentRunner
+from rag_pipeline.core.config import Config
+from rag_pipeline.query.query_analyzer import QueryAnalyzer
+from rag_pipeline.query.advanced_retriever import create_advanced_retriever
+from rag_pipeline.chat.chat import ChatBot
+from rag_pipeline.chat.agent import AgentRunner
 from api.routing import should_use_agent
 
 def debug_query(query, history=None):

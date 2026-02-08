@@ -88,23 +88,36 @@ function ChatRoute() {
   // Filter Logic
   const filteredMessages = useMemo(() => {
     return messages.filter(msg => {
+      // User messages are always shown
+      if (msg.role === 'user') return true;
+
       // Participant Filter
       if (filterParticipant) {
-        if (msg.role === 'assistant') {
-          const hasParticipantInSources = msg.sources?.some(s => 
-            s.participants.some(p => p.toLowerCase().includes(filterParticipant.toLowerCase()))
-          )
-          const hasParticipantInSummarySources = msg.summary_sources?.some(s => 
-            s.participants.some(p => p.toLowerCase().includes(filterParticipant.toLowerCase()))
-          )
-          
-          if (!hasParticipantInSources && !hasParticipantInSummarySources) {
-            return false
-          }
+        // If it's an assistant message, we show it if:
+        // 1. It has NO sources (likely a "not found" or general message)
+        // 2. OR one of its sources contains the filtered participant
+        
+        const hasSources = (msg.sources && msg.sources.length > 0) || (msg.summary_sources && msg.summary_sources.length > 0);
+        
+        if (!hasSources) {
+          return true; // Show "not found" or error messages
         }
+
+        const normalizedFilter = filterParticipant.toLowerCase();
+        
+        const hasParticipantInSources = msg.sources?.some(s => 
+          s.participants.some(p => p.toLowerCase().includes(normalizedFilter))
+        );
+        
+        const hasParticipantInSummarySources = msg.summary_sources?.some(s => 
+          s.participants.some(p => p.toLowerCase().includes(normalizedFilter))
+        );
+        
+        return !!(hasParticipantInSources || hasParticipantInSummarySources);
       }
-      return true
-    })
+      
+      return true;
+    });
   }, [messages, filterParticipant])
 
   // Auto-scroll

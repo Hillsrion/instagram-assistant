@@ -50,7 +50,7 @@ class QueryAnalyzer:
         system_prompt = QUERY_ANALYSIS_PROMPT.format(
             today_str=today_str,
             iso_str=iso_str
-        )
+        ) + "\nIMPORTANT: Do NOT use placeholders like 'XX' in dates. If a day or month is unknown, use '01' or provide a range covering the suspected period. If the year is unknown, omit the date range (set to null)."
 
         user_content = f"HISTORIQUE :\n{formatted_history}\n\nDERNIÈRE QUESTION : {query}"
 
@@ -85,9 +85,9 @@ class QueryAnalyzer:
             # Validation: ignore vague or auto-detected dates if suspicious
             # (If query doesn't mention specific period, do not filter)
             # Simple detection: if date_start = "YYYY-01-01" it's likely "since beginning of year"
-            if date_start and "-01-01" in date_start:
-                # Not a specific date, it's a fuzzy detection → ignore
-                logger.debug(f"  Ignoring vague date detection: {date_start}")
+            if date_start and ("-01-01" in date_start or "XX" in date_start.upper()):
+                # Not a specific date, it's a fuzzy detection or placeholder → ignore
+                logger.debug(f"  Ignoring vague or invalid date detection: {date_start}")
                 date_start = None
                 date_end = None
 
