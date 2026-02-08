@@ -53,7 +53,7 @@ class AgentRunner:
         config: Config = None,
         retriever: Retriever = None,
         analytics=None,
-        max_steps: int = 5,
+        max_steps: int = 10,
         provider_type: str = "ollama"
     ):
         self.config = config or default_config

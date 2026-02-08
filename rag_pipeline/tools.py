@@ -43,6 +43,7 @@ class ToolBox:
             "get_contact_stats": self.get_contact_stats,
             "get_participants": self.get_participants,
             "get_todays_date": self.get_todays_date,
+            "explore_topic_timeline": self.explore_topic_timeline,
         }
 
     def set_analysis(self, analysis):
@@ -101,7 +102,8 @@ class ToolBox:
         return """1. search_conversations(query: str): Recherche sémantique dans l'historique des discussions. Utilise le pipeline complet (reranking, filtres, fallback). Renvoie les passages les plus pertinents.
 2. get_contact_stats(contact_name: str): Statistiques détaillées pour un contact: nombre de messages, conversations, période d'activité.
 3. get_participants(): Liste tous les participants avec leurs statistiques (messages, conversations).
-4. get_todays_date(): Renvoie la date d'aujourd'hui au format YYYY-MM-DD."""
+4. get_todays_date(): Renvoie la date d'aujourd'hui au format YYYY-MM-DD.
+5. explore_topic_timeline(query: str): Analyse chronologique d'un sujet via les résumés et les messages. Idéal pour répondre à "Combien de fois" ou "Quand"."""
 
     def get_tool_names(self) -> List[str]:
         """Returns list of tool names."""
@@ -277,3 +279,62 @@ class ToolBox:
             f"Date actuelle: {now.strftime('%A %d %B %Y')} "
             f"(ISO: {now.strftime('%Y-%m-%d')})"
         )
+
+    def explore_topic_timeline(self, query: str) -> str:
+        """
+        Analyse chronologique d'un sujet en croisant les résumés hiérarchiques et les chunks.
+        Utile pour identifier des 'épisodes' ou compter des événements.
+        """
+        if not self.retriever:
+            return "Erreur: Retriever non initialisé."
+
+        query = query.strip().strip('"\'')
+        logger.info(f"⏳ Exploring timeline for: '{query}'")
+
+        # 1. Search in hierarchical summaries (Conversation and Period)
+        summary_results = []
+        if self.retriever.summary_store:
+            summary_results = self.retriever.summary_store.search(
+                query, level="all", top_k=5, min_score=0.3
+            )
+
+        # 2. Search in detailed chunks (limited to get an overview)
+        context = self.retriever.retrieve(
+            query, top_k=10, use_reranking=True, expand_context=False
+        )
+
+        if not summary_results and not context.has_results:
+            return f"Aucun épisode ou mention trouvé pour le sujet: '{query}'"
+
+        timeline = [f"Chronologie pour '{query}':\n"]
+
+        # 3. Format Summaries (Episodes)
+        if summary_results:
+            timeline.append("**Épisodes identifiés (via résumés):**")
+            for r in summary_results:
+                s = r.summary
+                # Handling both ConversationSummary and PeriodSummary
+                period = getattr(s, 'period', f"{s.date_start[:10]} à {s.date_end[:10]}")
+                topics = getattr(s, 'topics', getattr(s, 'main_topics', []))
+                
+                line = f"- [{period}] {', '.join(s.participants)}: {s.summary[:150]}... (Sujets: {', '.join(topics[:3])})"
+                timeline.append(line)
+            timeline.append("")
+
+        # 4. Format detailed mentions
+        if context.has_results:
+            timeline.append("**Mentions détaillées:**")
+            # Group by date to see frequency
+            mentions_by_date = {}
+            for r in context.results:
+                date = r.chunk.date_start[:10]
+                if date not in mentions_by_date:
+                    mentions_by_date[date] = []
+                mentions_by_date[date].append(r.chunk.summary or r.chunk.content[:100])
+
+            # Sort dates
+            for date in sorted(mentions_by_date.keys()):
+                summaries = mentions_by_date[date]
+                timeline.append(f"- {date}: {len(summaries)} mention(s) - Ex: {summaries[0][:100]}...")
+
+        return "\n".join(timeline)

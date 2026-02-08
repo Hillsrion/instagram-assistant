@@ -21,8 +21,7 @@ def debug_query(query, history=None):
     
     # 1. Analyze
     analyzer = QueryAnalyzer(config)
-    print("
-[STEP 1] Query Analysis...")
+    print("\n[STEP 1] Query Analysis...")
     analysis = analyzer.analyze(query, history)
     print(f"  Mode: {analysis.mode}")
     print(f"  Intent: {analysis.intent}")
@@ -31,8 +30,7 @@ def debug_query(query, history=None):
     print(f"  Dates: {analysis.date_start} -> {analysis.date_end}")
     
     # 2. Retrieve
-    print("
-[STEP 2] Retrieval...")
+    print("\n[STEP 2] Retrieval...")
     retriever, _ = create_advanced_retriever(config)
     context = retriever.retrieve(
         analysis.rewritten_query,
@@ -48,23 +46,19 @@ def debug_query(query, history=None):
     print(f"  Low confidence: {context.low_confidence}")
     
     for i, res in enumerate(context.results[:3]):
-        print(f"
-  Result {i+1} [Score {res.final_score:.4f}]:")
+        print(f"\n  Result {i+1} [Score {res.final_score:.4f}]:")
         print(f"    Source: {res.chunk.file_source}")
         print(f"    Date: {res.chunk.date_start[:10]}")
         print(f"    Content (preview): {res.chunk.content[:200]}...")
     
     # 3. Chat (optional)
-    print("
-[STEP 3] LLM Generation...")
+    print("\n[STEP 3] LLM Generation...")
     bot = ChatBot(retriever, config)
     bot.conversation_history = history
     
     # Non-streaming call
     response = bot.chat(query, stream=False, use_rewriting=False) # Already analyzed
-    print(f"
-  Final Answer:
-{response.answer}")
+    print(f"\n  Final Answer:\n{response.answer}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

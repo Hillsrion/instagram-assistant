@@ -184,7 +184,9 @@ Outils disponibles:
 
 RÈGLES IMPORTANTES:
 - Ne devine JAMAIS des informations. Utilise search_conversations pour tout fait.
-- Pour les statistiques ou comptages, utilise TOUJOURS get_contact_stats.
+- Pour identifier des événements dans le temps ou compter des occurrences (ex: "Combien de fois", "Quand"), commence par explore_topic_timeline.
+- DISTINCTION CRITIQUE : Faire la différence entre "parler d'un projet" et "confirmer sa réalisation" (cherche des indices comme des partages de frais, des photos, ou des "merci pour hier").
+- Pour les statistiques ou comptages de messages bruts, utilise TOUJOURS get_contact_stats.
 - Pour lister les contacts, utilise get_participants.
 - Si tu peux répondre directement (salutation, question sur toi), va directement à Final Answer.
 - Maximum {max_steps} étapes de raisonnement.
