@@ -6,16 +6,31 @@
 
 The default execution path for complex queries. Uses the Thought -> Action -> Observation loop to decompose questions and call tools.
 
-## Routing
+## Routing & Strategy
 
-A deterministic binary router (`api/routing.py`) decides between two paths:
+A deterministic binary router (`api/routing.py`) decides between two paths based on the `QueryAnalyzer` signals.
 
 | Path | Condition | Description |
 |------|-----------|-------------|
-| **Fast-path** | `mode=retrieval` + `intent=specific_fact` | Direct retrieval pipeline, no agent overhead |
-| **Agent** | Everything else | ReAct loop with tool use |
+| **Fast-path** | `mode=retrieval` + `intent=specific_fact` | Direct retrieval pipeline, no agent overhead. |
+| **Agent** | Everything else | ReAct loop with multi-step reasoning. |
 
-The router uses signals from the Analyzer agent (mode, intent) — no additional LLM call.
+### Why keep both? (Strategic Reasoning)
+
+Maintaining a "Fast-path" alongside the ReAct agent is a deliberate architectural choice based on three pillars:
+
+1.  **Latency (User Experience)**:
+    *   **Fast-path**: Minimal steps (Analyzer -> Retrieval -> Generator). Ideal for immediate answers like "What is X's address?".
+    *   **Agent**: Inherently slower due to sequential LLM calls (Thought -> Action -> Observation).
+    *   **Goal**: Provide sub-5s responses for simple facts while reserving 10s+ reasoning for complex queries.
+
+2.  **Resources & Cost (Token Efficiency)**:
+    *   The ReAct loop is "token-hungry". Each iteration sends the entire "scratchpad" (reasoning history) back to the model.
+    *   Using the Fast-path for simple queries significantly reduces GPU/CPU load on local Ollama instances and lowers costs for API-based models.
+
+3.  **Reliability (Occam's Razor)**:
+    *   **Simplicity = Robustness**. For a specific fact, a well-tuned retrieval engine (Dense + BM25) is more reliable than an agent that might "over-think" or hallucinate a complex tool chain for a simple fetch task.
+    *   The Agent is the **Detective** (investigative), while the Fast-path is the **Sniper** (precise and fast).
 
 ## Tools (ToolBox)
 
