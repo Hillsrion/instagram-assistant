@@ -87,6 +87,8 @@ def run(config: Config, reset: bool = False, only: str = None) -> bool:
     Returns:
         True if success, False otherwise
     """
+    chunker = ConversationChunker(config)
+    
     # Load chunks (from specialized indexed path if it exists, otherwise default)
     indexed_chunks_path = Path("rag_data/chunks_indexed.json")
     if indexed_chunks_path.exists():

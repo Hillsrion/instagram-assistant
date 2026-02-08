@@ -128,11 +128,17 @@ class MetadataStore:
             # Insert entities
             if chunk.entities:
                 for category, values in chunk.entities.items():
-                    for value in values:
-                        self.conn.execute("""
-                            INSERT OR IGNORE INTO chunk_entities (chunk_idx, category, value)
-                            VALUES (?, ?, ?)
-                        """, (idx, category.lower(), value.lower()))
+                    # Ensure values is a list or similar iterable
+                    if isinstance(values, str):
+                        values = [values]
+                    
+                    if isinstance(values, (list, tuple)):
+                        for value in values:
+                            if value and isinstance(value, str):
+                                self.conn.execute("""
+                                    INSERT OR IGNORE INTO chunk_entities (chunk_idx, category, value)
+                                    VALUES (?, ?, ?)
+                                """, (idx, category.lower(), value.lower()))
 
         self.conn.commit()
         print(f"✅ Metadata index built")
