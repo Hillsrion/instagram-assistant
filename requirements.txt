@@ -3,7 +3,7 @@
 
 # Embeddings de qualité (bge-m3 multilingue)
 sentence-transformers>=2.2.0
-torch>=2.0.0
+torch>=2.6.0
 
 # Vector Store
 faiss-cpu>=1.7.4

@@ -477,3 +477,78 @@ def parse_enrichment_data(data: dict) -> Tuple:
 
     return (summary, questions, speaker_intents, temporal_context, cleaned_entities, 
             emotions, interaction_pattern, initiative, emotional_shift, open_loops)
+
+def parse_summary_data(data: dict, summary_type: str = "conversation") -> Dict[str, Any]:
+    """Robustly parse the JSON data for conversation or period summaries."""
+    
+    # Helper to ensure string lists
+    def ensure_str_list(lst):
+        if isinstance(lst, list):
+            return [str(x) if not isinstance(x, str) else x for x in lst]
+        if isinstance(lst, str) and lst.strip():
+            return [lst.strip()]
+        return []
+
+    result = {}
+    
+    # Common field: summary
+    summary = data.get("summary", "")
+    if isinstance(summary, list):
+        summary = " ".join(ensure_str_list(summary))
+    result["summary"] = str(summary)
+
+    if summary_type == "conversation":
+        result["main_topics"] = ensure_str_list(data.get("main_topics", []))
+        result["relationship_dynamic"] = str(data.get("relationship_dynamic", ""))
+        
+        # Notable events can be complex objects (date, event) - flatten to strings
+        events = data.get("notable_events", [])
+        if isinstance(events, list):
+            flattened_events = []
+            for e in events:
+                if isinstance(e, dict):
+                    # Try to combine date and event fields
+                    date = e.get("date", "")
+                    event_text = e.get("event", e.get("description", ""))
+                    if date and event_text:
+                        flattened_events.append(f"{date}: {event_text}")
+                    elif event_text:
+                        flattened_events.append(str(event_text))
+                else:
+                    flattened_events.append(str(e))
+            result["notable_events"] = flattened_events
+        else:
+            result["notable_events"] = ensure_str_list(events)
+    else:  # period
+        # Topics can also be complex objects - flatten to strings
+        topics = data.get("topics", [])
+        if isinstance(topics, list):
+            flattened_topics = []
+            for t in topics:
+                if isinstance(t, dict):
+                    # Handle topic objects: {"topic": "...", "details": ...}
+                    topic_text = t.get("topic", t.get("name", ""))
+                    details = t.get("details", "")
+                    if topic_text and details:
+                        if isinstance(details, (dict, list)):
+                            import json as json_lib
+                            details_str = json_lib.dumps(details, ensure_ascii=False)
+                            flattened_topics.append(f"{topic_text} ({details_str})")
+                        else:
+                            flattened_topics.append(f"{topic_text}: {details}")
+                    elif topic_text:
+                        flattened_topics.append(str(topic_text))
+                    else:
+                        # Generic dict flattening
+                        flattened_topics.append(", ".join(f"{k}: {v}" for k, v in t.items()))
+                else:
+                    flattened_topics.append(str(t))
+            result["topics"] = flattened_topics
+        else:
+            result["topics"] = ensure_str_list(topics)
+            
+        result["mood"] = str(data.get("mood", ""))
+        
+    return result
+
+    
