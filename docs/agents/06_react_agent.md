@@ -49,27 +49,27 @@ The ToolBox implements the ReAct agent's capabilities. Tools support both simple
 
 ## Tool Selection Strategy
 
-L'agent ReAct ne se contente pas de chercher, il choisit l'outil le plus adapté selon la nature de la question pour maximiser la précision et minimiser les hallucinations :
+The ReAct agent does more than just search; it chooses the most suitable tool based on the nature of the question to maximize precision and minimize hallucinations:
 
-*   **`search_conversations` (Le Généraliste)** :
-    *   **Pourquoi ?** C'est le point d'entrée pour toute recherche de faits précis.
-    *   **Usage Stratégique** : Utilisé avec des filtres JSON pour corriger l'analyseur si les premiers résultats sont trop larges ou concernent le mauvais participant.
-*   **`get_thread_context` (L'Enquêteur)** :
-    *   **Pourquoi ?** Le RAG classique tronque souvent les conversations au moment le plus intéressant.
-    *   **Usage Stratégique** : Si l'agent trouve un message qui semble être le début d'une explication ("Je t'explique :"), il utilise cet outil pour "dérouler le fil" et obtenir la suite (+/- 5 messages) de manière ciblée.
-*   **`check_entity_presence` (Le Garde-Fou)** :
-    *   **Pourquoi ?** La recherche sémantique (vecteurs) peut parfois renvoyer des résultats "proches" mais qui ne contiennent pas le mot exact (ex: parle d'argent au lieu de Bitcoin).
-    *   **Usage Stratégique** : Pour répondre avec certitude à "Ai-je déjà mentionné X ?", l'agent effectue une vérification stricte via BM25. Si cet outil ne trouve rien, l'agent peut affirmer l'absence du sujet.
-*   **`explore_topic_timeline` (L'Historien)** :
-    *   **Pourquoi ?** Répondre à "Combien de fois" ou "Comment ça a évolué" nécessite une vue macro.
-    *   **Usage Stratégique** : Combine les résumés de périodes (épisodes) et les stats d'analytics pour construire une narration chronologique sans lire chaque message individuellement.
-*   **`get_summaries_for_contact` (Le Profiler)** :
-    *   **Pourquoi ?** Pour comprendre une relation longue, lire des chunks atomiques est inefficace.
-    *   **Usage Stratégique** : Permet d'avoir une vue d'ensemble (dynamique relationnelle, thèmes récurrents) avant de plonger dans des recherches de détails.
+*   **`search_conversations` (The Generalist)**:
+    *   **Why?** It's the entry point for any specific fact-finding.
+    *   **Strategic Usage**: Used with JSON filters to correct the analyzer if initial results are too broad or target the wrong participant.
+*   **`get_thread_context` (The Investigator)**:
+    *   **Why?** Classic RAG often truncates conversations at the most interesting moments.
+    *   **Strategic Usage**: If the agent finds a message that appears to be the start of an explanation ("Let me explain:"), it uses this tool to "unroll the thread" and get the following context (+/- 5 messages) in a targeted manner.
+*   **`check_entity_presence` (The Safeguard)**:
+    *   **Why?** Semantic search (vectors) can sometimes return "close" results that don't contain the exact word (e.g., talking about money instead of Bitcoin).
+    *   **Strategic Usage**: To answer with certainty "Have I ever mentioned X?", the agent performs a strict verification via BM25. If this tool finds nothing, the agent can confirm the subject's absence.
+*   **`explore_topic_timeline` (The Historian)**:
+    *   **Why?** Answering "How many times" or "How has it evolved" requires a macro view.
+    *   **Strategic Usage**: Combines period summaries (episodes) and analytics stats to build a chronological narrative without reading every message individually.
+*   **`get_summaries_for_contact` (The Profiler)**:
+    *   **Why?** To understand a long-term relationship, reading atomic chunks is inefficient.
+    *   **Strategic Usage**: Provides an overview (relational dynamic, recurring themes) before diving into detailed searches.
 
 ## Pipeline Integration
 
-- **Multi-argument Support:** Tools can be called with JSON inputs, permettant à l'agent d'effectuer des recherches filtrées complexes.
+- **Multi-argument Support:** Tools can be called with JSON inputs, allowing the agent to perform complex filtered searches.
 - **Analysis injection:** The `AnalysisResult` from the Analyzer is passed to the ToolBox so tools use the correct defaults, which can be overridden by the agent.
 - **Identity Awareness:** The agent is aware of the user's name. It understands that messages from this person are from the user.
 - **Smart fallback:** If the rewritten query yields low-confidence results, the original user query is tried automatically.
