@@ -237,10 +237,13 @@ class AdvancedRetriever:
             # Keep top_k
             candidates = candidates[:top_k]
 
+        # Filter by min_score BEFORE expansion to avoid expanding irrelevant chunks
+        candidates = [c for c in candidates if c[3] >= min_score]
+
         # ========================================
         # Step 4: Context expansion (optional)
         # ========================================
-        if expand_context and self.metadata_store:
+        if expand_context and self.metadata_store and candidates:
             candidates = self._expand_context(candidates)
 
         # ========================================
@@ -257,8 +260,10 @@ class AdvancedRetriever:
                 continue
             seen_chunk_ids.add(chunk.chunk_id)
 
-            # Filter by minimum score (except for expanded)
-            if not is_expanded and final_score < min_score:
+            # Filter by minimum score (expanded chunks have a lower threshold: min_score * 0.5)
+            # This ensures we don't pass completely irrelevant 0.00 chunks to the LLM
+            threshold = min_score if not is_expanded else max(0.1, min_score * 0.5)
+            if final_score < threshold:
                 continue
 
             results.append(AdvancedSearchResult(
