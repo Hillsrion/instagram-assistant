@@ -1,6 +1,6 @@
 # Analyzer Agent ("The Dispatcher")
 
-**Component:** `rag_pipeline/query_analyzer.py`
+**Component:** `rag_pipeline/query/query_analyzer.py`
 **Trigger:** Start of every user query
 **Default Model:** `ministral-8b`
 

@@ -2,7 +2,7 @@
 Binary router: fast-path (direct retrieval) vs agent.
 Deterministic, no LLM call.
 """
-from rag_pipeline.query_analyzer import AnalysisResult
+from rag_pipeline.query.query_analyzer import AnalysisResult
 
 
 def should_use_agent(analysis: AnalysisResult) -> bool:

@@ -119,7 +119,7 @@ This compact format is used for:
 
 ### 1.5 How Enrichment Works
 
-Module: `rag_pipeline/enricher.py`
+Module: `rag_pipeline/enrichment/enricher.py`
 
 ```python
 from rag_pipeline.enricher import ChunkEnricher
@@ -194,7 +194,7 @@ Summary: [narrative summary]
 ### 1.8 Configuration
 
 ```python
-# In rag_pipeline/config.py or .env
+# In rag_pipeline/core/config.py or .env
 LLM_MODEL=ministral-3:8b    # Ollama model for enrichment (default)
 OLLAMA_URL=http://localhost:11434
 MAX_QUESTIONS=5             # Max hypothetical questions per chunk
@@ -267,7 +267,7 @@ graph TB
 
 ### 2.2 Data Models
 
-Module: `rag_pipeline/summary_models.py`
+Module: `rag_pipeline/summaries/summary_models.py`
 
 #### ConversationSummary
 
@@ -402,7 +402,7 @@ for result in results:
 ### 2.5 Configuration
 
 ```python
-# In rag_pipeline/config.py or .env
+# In rag_pipeline/core/config.py or .env
 
 # Retrieval settings
 top_k: int = 12  # Number of chunks to retrieve (default)
@@ -568,7 +568,7 @@ The system can refuse to answer if confidence is too low.
 #### Configuration
 
 ```python
-# In rag_pipeline/config.py
+# In rag_pipeline/core/config.py
 confidence_threshold: float = 0.25  # Minimum required score
 ```
 
@@ -596,7 +596,7 @@ STRICT TRUTH RULES:
 
 ### 4.3 PII Filtering
 
-Module: `rag_pipeline/pii_filter.py`
+Module: `rag_pipeline/chat/pii_filter.py`
 
 Detects and masks personal information in responses.
 
@@ -631,7 +631,7 @@ has_pii = filter.has_pii(text)
 #### Enable/Disable
 
 ```python
-# In rag_pipeline/config.py
+# In rag_pipeline/core/config.py
 enable_pii_filter: bool = True
 ```
 
@@ -641,7 +641,7 @@ enable_pii_filter: bool = True
 
 ### 5.1 Delta Tracker
 
-Module: `rag_pipeline/delta_tracker.py`
+Module: `rag_pipeline/indexing/delta_tracker.py`
 
 Tracks file changes using SHA256 hashing.
 
@@ -675,7 +675,7 @@ State saved in `rag_data/file_state.json`:
 
 ### 5.2 Incremental Vector Store
 
-Module: `rag_pipeline/vector_store.py`
+Module: `rag_pipeline/indexing/vector_store.py`
 
 New methods for incremental updates:
 

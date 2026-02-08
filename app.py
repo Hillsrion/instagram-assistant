@@ -6,7 +6,7 @@ FastAPI backend with modern chat interface.
 This is the main entry point. The actual API logic is now in the 'api/' package.
 """
 from api import app
-from rag_pipeline.logger import initialize_logging
+from rag_pipeline.core.logger import initialize_logging
 
 
 if __name__ == "__main__":

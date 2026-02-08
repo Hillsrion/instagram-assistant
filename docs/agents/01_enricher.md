@@ -1,6 +1,6 @@
 # Enricher Agent ("The Indexer")
 
-**Component:** `rag_pipeline/enricher.py`
+**Component:** `rag_pipeline/enrichment/enricher.py`
 **Trigger:** Data ingestion (`scripts/setup/setup_rag.py`)
 **Default Model:** `ministral-8b`
 

@@ -356,7 +356,7 @@ grep -i error enrichment_shard*.log                   # Find errors
 ## Files Modified/Created
 
 ### Core Implementation
-- **`rag_pipeline/chunker.py`** - Added `shard_index` parameter to `save_chunks()`
+- **`rag_pipeline/indexing/chunker.py`** - Added `shard_index` parameter to `save_chunks()`
 - **`setup_enrich.py`** - Integrated shard mode with memory optimization and log files
 
 ### New Scripts

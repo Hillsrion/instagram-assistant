@@ -464,7 +464,7 @@ Probabilité: (0.05)^40 ≈ 0% (impossible statistiquement)
 
 2. **Tester en production** :
    ```bash
-   # Modifier rag_pipeline/query_analyzer.py
+   # Modifier rag_pipeline/query/query_analyzer.py
    # Redémarrer l'app
    python app.py
 

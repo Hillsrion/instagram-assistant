@@ -26,7 +26,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Edit `rag_pipeline/config.py` if needed:
+Edit `rag_pipeline/core/config.py` if needed:
 
 ```python
 # Paths

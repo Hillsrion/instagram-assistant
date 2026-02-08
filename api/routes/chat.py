@@ -20,7 +20,7 @@ from api.dependencies import (
     get_agent_runner
 )
 from api.routing import should_use_agent
-from rag_pipeline.logger import get_logger
+from rag_pipeline.core.logger import get_logger
 
 logger = get_logger()
 router = APIRouter()

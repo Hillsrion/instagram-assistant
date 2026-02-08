@@ -39,5 +39,5 @@ python3 rag-debug-assistant/scripts/debug_query.py "QUESTION" --history '[{"role
 
 - **Analyzer Issues**: Update `QUERY_ANALYSIS_PROMPT` or improve `repair_and_load_json` logic.
 - **Retrieval Issues**: Adjust `top_k` values in `QueryAnalyzer._get_params_for_intent`.
-- **Agent Loops**: Check `rag_pipeline/agent.py` parser or add "nudge" messages to the scratchpad.
+- **Agent Loops**: Check `rag_pipeline/chat/agent.py` parser or add "nudge" messages to the scratchpad.
 - **Routing Issues**: Update `api/routing.py` logic.

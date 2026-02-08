@@ -6,13 +6,13 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
-from rag_pipeline.config import Config
-from rag_pipeline.advanced_retriever import create_advanced_retriever
-from rag_pipeline.chat import ChatBot
-from rag_pipeline.analytics import ConversationAnalytics
-from rag_pipeline.query_analyzer import QueryAnalyzer
-from rag_pipeline.agent import AgentRunner
-from rag_pipeline.logger import get_logger
+from rag_pipeline.core.config import Config
+from rag_pipeline.query.advanced_retriever import create_advanced_retriever
+from rag_pipeline.chat.chat import ChatBot
+from rag_pipeline.utils.analytics import ConversationAnalytics
+from rag_pipeline.query.query_analyzer import QueryAnalyzer
+from rag_pipeline.chat.agent import AgentRunner
+from rag_pipeline.core.logger import get_logger
 
 logger = get_logger()
 

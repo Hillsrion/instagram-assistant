@@ -55,6 +55,6 @@ Ismaël: Mdrrr t'sais que je me faisais la remarque
 
 ## Implementation Reference
 
-See `rag_pipeline/chunker.py::Chunk.get_compact_content()`.
+See `rag_pipeline/indexing/chunker.py::Chunk.get_compact_content()`.
 
 Used by `get_embedding_text()` as the raw content layer (Level 8 in [EMBEDDING_STRATEGY.md](EMBEDDING_STRATEGY.md)).

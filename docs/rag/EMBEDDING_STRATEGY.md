@@ -264,7 +264,7 @@ This strategy is based on design reasoning, not empirical benchmarks. Key assump
 
 ## Implementation Reference
 
-See `rag_pipeline/chunker.py::Chunk.get_embedding_text()` for the implementation.
+See `rag_pipeline/indexing/chunker.py::Chunk.get_embedding_text()` for the implementation.
 
 The method builds the embedding text by:
 1. Hypothetical questions with budget normalization

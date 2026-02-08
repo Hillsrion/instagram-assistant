@@ -2,16 +2,16 @@
 
 ## Core Modules
 
-- **`rag_pipeline/config.py`**
+- **`rag_pipeline/core/config.py`**
   Centralized `Config` dataclass. All settings flow from environment variables via `.env`. The singleton `default_config` is used throughout the application.
 
-- **`rag_pipeline/query_analyzer.py`**
+- **`rag_pipeline/query/query_analyzer.py`**
   The "Omni-prompt" agent. Performs routing, rewriting, intent classification, and date extraction in a single LLM call to optimize latency.
 
-- **`rag_pipeline/advanced_retriever.py`**
+- **`rag_pipeline/query/advanced_retriever.py`**
   Implements hybrid search combining FAISS dense vectors and BM25 lexical search with configurable weights. Handles cross-encoder reranking and context expansion.
 
-- **`rag_pipeline/agent.py` + `rag_pipeline/tools.py`**
+- **`rag_pipeline/chat/agent.py` + `rag_pipeline/chat/tools.py`**
   ReAct agent implementing the Thought -> Action -> Observation loop. The ToolBox wraps the full retrieval pipeline and analytics module as callable tools. Default execution path for non-trivial queries (analytics, broad summaries, complex reasoning).
 
 - **`api/routing.py`**

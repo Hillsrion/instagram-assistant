@@ -137,12 +137,12 @@ Chunks → ChunkComplexityAnalyzer → Score: 0-1
 ### Files to Create/Modify
 
 **Phase 1:**
-- Create: `rag_pipeline/complexity_analyzer.py` (200 lines)
-- Modify: `rag_pipeline/enricher.py` (add 100 lines)
-- Modify: `rag_pipeline/config.py` (add 20 parameters)
+- Create: `rag_pipeline/enrichment/complexity_analyzer.py` (200 lines)
+- Modify: `rag_pipeline/enrichment/enricher.py` (add 100 lines)
+- Modify: `rag_pipeline/core/config.py` (add 20 parameters)
 
 **Phase 2:**
-- Create: `rag_pipeline/enrichment_log.py` (150 lines)
+- Create: `rag_pipeline/enrichment/enrichment_log.py` (150 lines)
 - Modify: `setup_rag.py` (add logging integration)
 
 **Phase 3:**
@@ -271,8 +271,8 @@ Document findings and explore alternatives:
 | `scripts/benchmark_models.py` | Run benchmarks | ✅ Ready |
 | `scripts/analyze_benchmark.py` | Analyze results | ✅ Ready |
 | `docs/PHASE_0_VALIDATION.md` | Detailed guide | ✅ Ready |
-| `rag_pipeline/complexity_analyzer.py` | Complexity scoring | ✅ Implemented |
-| `rag_pipeline/enrichment_log.py` | Logging system | ✅ Implemented |
+| `rag_pipeline/enrichment/complexity_analyzer.py` | Complexity scoring | ✅ Implemented |
+| `rag_pipeline/enrichment/enrichment_log.py` | Logging system | ✅ Implemented |
 | Tests | Unit tests | ✅ Implemented |
 
 ## Quick FAQ

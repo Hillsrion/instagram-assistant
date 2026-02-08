@@ -139,7 +139,7 @@ The problem is that the QueryAnalyzer prompt is ambiguous or inconsistent.
 
 ## Recommended Solution
 
-1. **Improve QueryAnalyzer prompt** (rag_pipeline/query_analyzer.py):
+1. **Improve QueryAnalyzer prompt** (rag_pipeline/query/query_analyzer.py):
    - Clarify what is "analytics" vs "retrieval"
    - Add more examples for "who is..." questions
 
@@ -182,7 +182,7 @@ python scripts/utils/view_logs.py debug 20
 
 ## Logging Configuration
 
-To modify log levels, edit `rag_pipeline/logger.py`:
+To modify log levels, edit `rag_pipeline/core/logger.py`:
 
 ```python
 logging.basicConfig(

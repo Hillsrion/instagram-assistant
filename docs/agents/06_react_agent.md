@@ -1,6 +1,6 @@
 # ReAct Agent ("The Reasoner")
 
-**Components:** `rag_pipeline/agent.py`, `rag_pipeline/tools.py`
+**Components:** `rag_pipeline/chat/agent.py`, `rag_pipeline/chat/tools.py`
 **Trigger:** Binary router (`api/routing.py`) sends non-trivial queries here
 **Default Model:** `ministral-8b`
 

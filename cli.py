@@ -8,11 +8,11 @@ import readline  # For command history
 import argparse
 from pathlib import Path
 
-from rag_pipeline.config import Config
-from rag_pipeline.advanced_retriever import create_advanced_retriever
-from rag_pipeline.chat import ChatBot
-from rag_pipeline.query_analyzer import QueryAnalyzer
-from rag_pipeline.logger import initialize_logging
+from rag_pipeline.core.config import Config
+from rag_pipeline.query.advanced_retriever import create_advanced_retriever
+from rag_pipeline.chat.chat import ChatBot
+from rag_pipeline.query.query_analyzer import QueryAnalyzer
+from rag_pipeline.core.logger import initialize_logging
 
 
 # ANSI colors for terminal

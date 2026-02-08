@@ -39,7 +39,7 @@ graph LR
     *   Sends them to the local server (Port 8001).
     *   Saves results to `rag_data/audio_cache.json` (or configured path).
 
-3.  **Audio Cache (`rag_pipeline/audio_cache.py`)**
+3.  **Audio Cache (`rag_pipeline/audio/audio_cache.py`)**
     *   A persistent JSON Key-Value store (`Hash(FileContent) -> Transcription`).
     *   Ensures we never transcribe the same file twice.
 

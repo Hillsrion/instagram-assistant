@@ -1,6 +1,6 @@
 # Summarizer Agent ("The Archivist")
 
-**Component:** `rag_pipeline/summary_generator.py`
+**Component:** `rag_pipeline/summaries/summary_generator.py`
 **Trigger:** Post-indexing (`setup_summaries.py`)
 **Default Model:** `ministral-8b`
 

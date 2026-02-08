@@ -295,7 +295,7 @@ if chunk.content has few entity mentions:
     # This is expected, score is appropriate
 
 # If LLM is too conservative:
-# Adjust ENRICH_PROMPT in rag_pipeline/enricher.py
+# Adjust ENRICH_PROMPT in rag_pipeline/enrichment/enricher.py
 # Add example with more entities
 ```
 

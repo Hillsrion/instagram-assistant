@@ -93,7 +93,7 @@ python setup_embeddings.py
 - `docs/DISTRIBUTED_ENRICHMENT.md` - Detailed guide
 
 **Modified:**
-- `rag_pipeline/chunker.py` - Added shard support
+- `rag_pipeline/indexing/chunker.py` - Added shard support
 - `setup_enrich.py` - Integrated distributed mode
 - `scripts/check_enrichment_status.py` - Added `--show-shards`
 - `docs/COMMANDS.md` - Updated with new commands

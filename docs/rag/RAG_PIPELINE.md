@@ -8,7 +8,7 @@ This document provides a concise end-to-end overview of the RAG pipeline. For de
 
 Orchestrated by `scripts/setup/setup_rag.py`, runs sequentially:
 
-### Step 1 — Chunking (`rag_pipeline/chunker.py`)
+### Step 1 — Chunking (`rag_pipeline/indexing/chunker.py`)
 
 Splits raw `.txt` conversation files into `Chunk` objects using adaptive rules:
 - **Temporal gap**: a silence of >6 hours forces a new chunk
@@ -17,7 +17,7 @@ Splits raw `.txt` conversation files into `Chunk` objects using adaptive rules:
 
 Each chunk stores: participants, timestamps, message count, file source, and empty enrichment slots.
 
-### Step 2 — LLM Enrichment (`rag_pipeline/enricher.py`)
+### Step 2 — LLM Enrichment (`rag_pipeline/enrichment/enricher.py`)
 
 The **Enricher agent** (default: Ollama, `ministral-8b`) processes each chunk with a strict JSON prompt.
 
@@ -54,7 +54,7 @@ To maximize throughput on local hardware with limited VRAM (e.g. dual-model stra
 5. Reorder results to original sequence and save to disk.
 This ensures **data integrity** (perfectly sequential output file) while reducing model loaded/unloading overhead by up to 20x.
 
-### Step 3 — Embedding (`rag_pipeline/embeddings.py`)
+### Step 3 — Embedding (`rag_pipeline/indexing/embeddings.py`)
 
 Each chunk's `get_embedding_text()` method builds a composite string prioritized as:
 1. Hypothetical questions (dominant signal, budget-normalized)
@@ -89,7 +89,7 @@ Three parallel indexes are built from the enriched chunks:
 | Lexical | `bm25_index.py` | BM25Okapi | Keyword/exact-match search |
 | Metadata | `metadata_store.py` | SQLite | Filtering by participant, date, conversation |
 
-### Steps 7–8 — Hierarchical Summaries (`rag_pipeline/summary_generator.py` + `summary_store.py`)
+### Steps 7–8 — Hierarchical Summaries (`rag_pipeline/summaries/summary_generator.py` + `summary_store.py`)
 
 The **Summarizer agent** generates two levels of summaries from the enriched chunk narratives:
 
@@ -102,7 +102,7 @@ Both levels are embedded and stored in dedicated FAISS indexes for fallback retr
 
 ## Stage 2: Query Processing (Online)
 
-### Step 1 — Query Analysis (`rag_pipeline/query_analyzer.py`)
+### Step 1 — Query Analysis (`rag_pipeline/query/query_analyzer.py`)
 
 The **Analyzer agent** performs 4 tasks in a single LLM call ("omni-prompt"):
 
@@ -126,7 +126,7 @@ Analyzer output
        └─→ ReAct Agent with ToolBox
 ```
 
-### Step 3a — Fast-Path: Hybrid Retrieval (`rag_pipeline/advanced_retriever.py`)
+### Step 3a — Fast-Path: Hybrid Retrieval (`rag_pipeline/query/advanced_retriever.py`)
 
 For simple factual queries, the existing 5-stage pipeline runs directly:
 
@@ -139,11 +139,11 @@ For simple factual queries, the existing 5-stage pipeline runs directly:
 5. Fallback       → If max score < 0.35, search hierarchical summaries
 ```
 
-The **Reranker** (`rag_pipeline/reranker.py`) feeds the cross-encoder a rich document constructed from all enrichment fields (hypothetical questions, temporal context, intents, emotions, summary, content excerpt).
+The **Reranker** (`rag_pipeline/query/reranker.py`) feeds the cross-encoder a rich document constructed from all enrichment fields (hypothetical questions, temporal context, intents, emotions, summary, content excerpt).
 
-### Step 3b — Agent Path: ReAct Agent (`rag_pipeline/agent.py`)
+### Step 3b — Agent Path: ReAct Agent (`rag_pipeline/chat/agent.py`)
 
-For complex queries, the **ReAct Agent** runs a multi-step Thought -> Action -> Observation loop. Its tools (`rag_pipeline/tools.py`) wrap the same retrieval pipeline and analytics module:
+For complex queries, the **ReAct Agent** runs a multi-step Thought -> Action -> Observation loop. Its tools (`rag_pipeline/chat/tools.py`) wrap the same retrieval pipeline and analytics module:
 
 | Tool | Wraps |
 |------|-------|
@@ -154,12 +154,12 @@ For complex queries, the **ReAct Agent** runs a multi-step Thought -> Action -> 
 
 The agent receives the Analyzer's parameters (top_k, reranking, dates) and conversation history (last 4 turns). There is no divergent retrieval logic — agent tools call the same pipeline as the fast-path.
 
-### Step 4 — Answer Generation (`rag_pipeline/chat.py`)
+### Step 4 — Answer Generation (`rag_pipeline/chat/chat.py`)
 
 On the fast-path, the **Chat Assistant agent** receives the formatted context (detailed chunks + summary fallback if triggered) and generates a response under strict anti-hallucination rules:
 - Answer only from provided documents
 - Refuse explicitly if information is absent
-- Filter PII from output (`rag_pipeline/pii_filter.py`)
+- Filter PII from output (`rag_pipeline/chat/pii_filter.py`)
 
 On the agent path, the ReAct Agent generates its own answer via `Final Answer:`. PII filtering and follow-up generation are applied identically to both paths.
 
