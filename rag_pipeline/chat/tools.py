@@ -373,27 +373,65 @@ class ToolBox:
         return "\n---\n".join(output)
 
     def check_entity_presence(self, keyword: str, participant: str = None) -> str:
-        """Vérification stricte par mot-clé."""
+        """
+        Vérification stricte et comptage par mot-clé (Anti-hallucination + Stats).
+        """
         if not self.retriever or not self.retriever.bm25_index:
-            return "Erreur: BM25 non prêt."
+            return "Erreur: Le moteur de recherche textuelle n'est pas prêt."
 
-        results = self.retriever.bm25_index.search(keyword, top_k=50)
+        keyword = keyword.strip().strip('"\'')
         
+        # 1. Récupérer TOUS les matches potentiels via BM25 (plus que 50 pour le compte)
+        results = self.retriever.bm25_index.search(keyword, top_k=500)
+        
+        if not results:
+            return f"Confirmation: Le terme '{keyword}' n'apparaît dans aucune conversation."
+
+        # 2. Filtrage et validation exacte
         matches = []
         for idx, _ in results:
             chunk = self.retriever.vector_store.chunks[idx]
-            if participant and not any(participant.lower() in p.lower() for p in chunk.participants):
-                continue
-            if keyword.lower() in chunk.content.lower():
-                matches.append(chunk)
+            
+            # Filtre participant
+            if participant:
+                if not any(participant.lower() in p.lower() for p in chunk.participants):
+                    continue
+            
+            # Vérification exacte (case insensitive)
+            count_in_chunk = chunk.content.lower().count(keyword.lower())
+            if count_in_chunk > 0:
+                matches.append((chunk, count_in_chunk))
 
         if not matches:
-            return f"Le terme '{keyword}' n'a pas été trouvé."
+            return f"Le terme '{keyword}' n'a pas été trouvé avec les filtres demandés."
 
-        # Accumuler les matches comme sources
-        self._register_chunks(matches)
+        # 3. Calcul des statistiques
+        total_mentions = sum(count for _, count in matches)
+        unique_chunks = len(matches)
+        dates = sorted(list(set(c.date_start[:10] for c, _ in matches)))
         
-        return f"Confirmé: '{keyword}' trouvé dans {len(matches)} segments. Ex: \"{matches[0].content[:150]}...\""
+        # Distribution par année pour le contexte
+        years = {}
+        for c, _ in matches:
+            yr = c.date_start[:4]
+            years[yr] = years.get(yr, 0) + 1
+
+        stats_str = ", ".join([f"{y} ({count} segments)" for y, count in sorted(years.items())])
+
+        # Accumuler les top matches comme sources (limité à 10 pour ne pas saturer)
+        self._register_chunks([c for c, _ in matches[:10]])
+        
+        res = [
+            f"Résultats pour '{keyword}':",
+            f"- Total d'occurrences trouvées: {total_mentions}",
+            f"- Nombre de segments de conversation impactés: {unique_chunks}",
+            f"- Répartition temporelle: {stats_str}",
+            f"- Première mention: {dates[0]}",
+            f"- Dernière mention: {dates[-1]}",
+            f"\nExtrait représentatif: \"...{matches[0][0].content[:200]}...\""
+        ]
+        
+        return "\n".join(res)
 
     def get_summaries_for_contact(self, contact: str, limit: int = 5) -> str:
         """Récupère les résumés globaux pour un contact."""
