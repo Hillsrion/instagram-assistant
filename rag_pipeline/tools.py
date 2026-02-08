@@ -330,11 +330,17 @@ class ToolBox:
                 date = r.chunk.date_start[:10]
                 if date not in mentions_by_date:
                     mentions_by_date[date] = []
-                mentions_by_date[date].append(r.chunk.summary or r.chunk.content[:100])
+                # Use narrative_summary if available, otherwise truncated content
+                summary_text = r.chunk.narrative_summary or r.chunk.content[:100]
+                mentions_by_date[date].append(summary_text)
 
             # Sort dates
             for date in sorted(mentions_by_date.keys()):
                 summaries = mentions_by_date[date]
-                timeline.append(f"- {date}: {len(summaries)} mention(s) - Ex: {summaries[0][:100]}...")
+                # Filter out None or empty
+                valid_summaries = [s for s in summaries if s]
+                if not valid_summaries:
+                    continue
+                timeline.append(f"- {date}: {len(valid_summaries)} mention(s) - Ex: {valid_summaries[0][:100]}...")
 
         return "\n".join(timeline)

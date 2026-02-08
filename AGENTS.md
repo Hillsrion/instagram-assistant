@@ -15,7 +15,7 @@ This project uses a multi-agent architecture where specialized LLMs handle speci
 | **[Analyzer](docs/agents/03_analyzer.md)** | **Query:** Interprets intent, rewrites queries, and routes logic. | [Docs](docs/agents/03_analyzer.md) |
 | **[Chat Assistant](docs/agents/04_chat_assistant.md)** | **Query:** Generates the final answer based on retrieved context (fast-path). | [Docs](docs/agents/04_chat_assistant.md) |
 | **[Evaluator](docs/agents/05_evaluator.md)** | **Evaluation:** Judges the quality of retrieval and generation. | [Docs](docs/agents/05_evaluator.md) |
-| **[ReAct Agent](docs/agents/06_react_agent.md)** | **Query:** Multi-step reasoning with tool use for complex queries. | [Docs](docs/agents/06_react_agent.md) |
+| **[ReAct Agent](docs/agents/06_react_agent.md)** | **Query:** Multi-step reasoning with tool use, chronological timeline exploration, and evidence-based verification. | [Docs](docs/agents/06_react_agent.md) |
 
 ## Documentation Structure
 
