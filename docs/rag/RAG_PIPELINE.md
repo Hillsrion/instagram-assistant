@@ -8,6 +8,12 @@ This document provides a concise end-to-end overview of the RAG pipeline. For de
 
 Orchestrated by `scripts/setup/setup_rag.py`, runs sequentially:
 
+### Step 0 — Audio Transcription (Optional) (`scripts/setup/setup_transcriptions.py`)
+
+If enabled (`--with-transcribe`), transcribes all audio files in the export using a local MLX model (Voxtral). Results are cached in `rag_data/audio_cache.json` and later embedded into the text files during conversion.
+
+For post-hoc injection into existing chunks, use `setup_inject_audio.py`. See [AUDIO.md](AUDIO.md) for details.
+
 ### Step 1 — Chunking (`rag_pipeline/indexing/chunker.py`)
 
 Splits raw `.txt` conversation files into `Chunk` objects using adaptive rules:

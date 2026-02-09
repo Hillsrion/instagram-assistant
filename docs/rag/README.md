@@ -10,8 +10,8 @@ This directory contains detailed specific documentation for the Retrieval-Augmen
 - **[ENRICHMENT_STRATEGY.md](ENRICHMENT_STRATEGY.md)**: Details the model selection strategy (3B vs 8B) and complexity routing logic for chunk enrichment.
 - **[COMPACT_STRATEGY.md](COMPACT_STRATEGY.md)**: Details the strategy for creating "compact" chunks to optimize context window usage while preserving semantic meaning.
 
-## Audio Integration (Experimental / Postponed)
-- **[AUDIO.md](AUDIO.md)**: Strategy for transcribing and indexing audio files (currently postponed due to server dependencies).
+## Audio Transcription
+- **[AUDIO.md](AUDIO.md)**: Integration of audio transcription via local MLX model (Voxtral). Includes batch transcription and post-hoc injection into existing chunks.
 
 ## Distributed Enrichment (Performance)
 - **[PARALLEL_ENRICHMENT_QUICKSTART.md](PARALLEL_ENRICHMENT_QUICKSTART.md)**: A quick guide for running the enrichment process in parallel to speed up indexing.

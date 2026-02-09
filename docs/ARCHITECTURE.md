@@ -26,6 +26,9 @@
 - **`eval/`**
   Evaluation pipeline using RAGAS-style metrics. Uses a separate "judge" LLM (default: `qwen3:14b`) to score performance.
 
+- **`rag_pipeline/audio/`**
+  Audio transcription module using local MLX model (Voxtral). Includes transcriber, cache, and provider classes for offline batch transcription.
+
 ## Data Flow & Storage
 
 - **`rag_data/`** (Gitignored)
