@@ -98,6 +98,10 @@ class Config:
     llm_model: str = field(default_factory=lambda: os.getenv('LLM_MODEL', 'ministral-3:8b'))
     # Ollama server URL
     ollama_url: str = field(default_factory=lambda: os.getenv('OLLAMA_URL', 'http://localhost:11434'))
+    # Multiple Ollama endpoints for load balancing (comma-separated)
+    ollama_endpoints: List[str] = field(default=None)
+    # Enable load balancing across endpoints
+    use_load_balancing: bool = field(default_factory=lambda: os.getenv('USE_LOAD_BALANCING', 'false').lower() == 'true')
     # Temperature (low = more factual)
     temperature: float = 0.1
     # Top-p sampling
@@ -166,6 +170,14 @@ class Config:
 
         if not hasattr(self, 'audio_cache_path') or self.audio_cache_path is None:
              self.audio_cache_path = self.index_dir / "audio_cache.json"
+
+        # Initialize ollama_endpoints from env or fallback to single url
+        if self.ollama_endpoints is None:
+            endpoints_str = os.getenv('OLLAMA_ENDPOINTS', '')
+            if endpoints_str:
+                self.ollama_endpoints = [ep.strip() for ep in endpoints_str.split(',') if ep.strip()]
+            else:
+                self.ollama_endpoints = [self.ollama_url]
 
         # Create necessary directories
         self.index_dir.mkdir(exist_ok=True)

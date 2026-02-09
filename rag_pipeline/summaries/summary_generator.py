@@ -62,25 +62,45 @@ class SummaryGenerator:
                 print(f"⚠️ Failed to load {model_name}: {e}")
 
     def _call_ollama(self, prompt: str, model: str) -> str:
-        """Call Ollama chat API."""
-        payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "options": {
-                "temperature": 0.0,  # Deterministic for JSON
-                "num_ctx": self.config.num_ctx,
-                "num_predict": 1024,
+        """Call Ollama chat API, using multi-endpoint if configured."""
+        # Use multi-endpoint provider if load balancing is enabled
+        use_lb = getattr(self.config, 'use_load_balancing', False)
+        endpoints = getattr(self.config, 'ollama_endpoints', [self.config.ollama_url])
+        if use_lb and len(endpoints) > 1:
+            # Use MultiOllamaProvider for load balancing
+            if not hasattr(self, '_multi_provider') or self._multi_provider is None:
+                from rag_pipeline.core.multi_ollama_provider import MultiOllamaProvider
+                self._multi_provider = MultiOllamaProvider(self.config, model, endpoints)
+            elif self._multi_provider.model != model:
+                self._multi_provider.model = model
+            
+            messages = [{"role": "user", "content": prompt}]
+            return self._multi_provider.generate(
+                messages,
+                temperature=0.0,
+                num_ctx=self.config.num_ctx,
+                max_tokens=1024
+            )
+        else:
+            # Single endpoint - use direct request
+            payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "options": {
+                    "temperature": 0.0,  # Deterministic for JSON
+                    "num_ctx": self.config.num_ctx,
+                    "num_predict": 1024,
+                }
             }
-        }
 
-        response = requests.post(
-            f"{self.config.ollama_url}/api/chat",
-            json=payload,
-            timeout=180
-        )
-        response.raise_for_status()
-        return response.json()["message"]["content"]
+            response = requests.post(
+                f"{self.config.ollama_url}/api/chat",
+                json=payload,
+                timeout=180
+            )
+            response.raise_for_status()
+            return response.json()["message"]["content"]
 
     def _is_corrupted_output(self, raw: str) -> bool:
         """Detect corrupted LLM outputs (repetition loops, truncation)."""

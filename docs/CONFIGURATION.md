@@ -59,6 +59,25 @@ Example command for stable embedding on M1 Pro 16GB:
 |----------|-------------|---------|
 | `LLM_MODEL` | Ollama model | `qwen3:latest` |
 | `OLLAMA_URL` | Ollama server URL | `http://localhost:11434` |
+| `OLLAMA_ENDPOINTS` | Multiple Ollama endpoints (comma-separated) | Uses `OLLAMA_URL` |
+| `USE_LOAD_BALANCING` | Enable load balancing across endpoints | `false` |
+
+#### Multi-Endpoint Setup (Distributed Processing)
+
+To parallelize LLM work across multiple machines:
+
+```bash
+# In .env
+OLLAMA_ENDPOINTS=http://localhost:11434,http://192.168.1.16:11434
+USE_LOAD_BALANCING=true
+```
+
+On the remote machine, ensure Ollama is listening on all interfaces:
+```bash
+OLLAMA_HOST=0.0.0.0 ollama serve
+```
+
+The system will automatically load-balance requests across all healthy endpoints.
 
 ### Embeddings Configuration
 

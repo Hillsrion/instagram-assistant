@@ -90,4 +90,10 @@ def create_provider(config: Config, model: str, provider_type: str = "ollama") -
     if provider_type == "mlx":
         return MLXProviderWrapper(config, model)
     else:
+        # Use multi-endpoint provider if load balancing is enabled
+        use_lb = getattr(config, 'use_load_balancing', False)
+        endpoints = getattr(config, 'ollama_endpoints', [config.ollama_url])
+        if use_lb and len(endpoints) > 1:
+            from rag_pipeline.core.multi_ollama_provider import MultiOllamaProvider
+            return MultiOllamaProvider(config, model, endpoints)
         return OllamaProvider(config, model)
