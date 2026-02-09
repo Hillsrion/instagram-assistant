@@ -26,34 +26,13 @@ class MlxAudioProvider:
         self._ensure_model_loaded()
 
     def _ensure_model_loaded(self):
-        """Loads the model into the registry if not already present."""
-        if self.model_path in MlxAudioProvider._registry:
-            self.model, self.processor = MlxAudioProvider._registry[self.model_path]
-            return
-
-        try:
-            from mlx_voxtral import VoxtralForConditionalGeneration, VoxtralProcessor
-            
-            logger.info(f"Loading MLX Audio model (voxtral): {self.model_path}...")
-            
-            # Using class method which usually handles full model loading (encoder+decoder)
-            self.model = VoxtralForConditionalGeneration.from_pretrained(self.model_path)
-            self.processor = VoxtralProcessor.from_pretrained(self.model_path)
-            
-            MlxAudioProvider._registry[self.model_path] = (self.model, self.processor)
-            logger.info("MLX Audio model loaded successfully.")
-            
-        except ImportError:
-            logger.error("mlx-voxtral not installed. Please run `pip install mlx-voxtral`")
-            raise
-        except Exception as e:
-            logger.error(f"Failed to load MLX Audio model '{self.model_path}': {e}")
-            logger.error("This may be due to an incompatibility between the mlx-voxtral package and the model checkpoint.")
-            raise
+        """voxmlx handles loading internally during the first call."""
+        pass
 
     def transcribe(self, audio_path: Path, language: str = "fr") -> Optional[str]:
         """
-        Transcribes an audio file using the local Voxtral model.
+        Transcribes an audio file using the local MLX model via voxmlx.
+        Handles format conversion via ffmpeg if necessary.
         
         Args:
             audio_path: Path to the audio file (supports .mp4, .m4a, .aac, etc.)
@@ -62,40 +41,71 @@ class MlxAudioProvider:
         Returns:
             Transcription text if successful, None otherwise.
         """
-        if self.model is None:
-            self._ensure_model_loaded()
-            
+        import subprocess
+        import tempfile
+        import os
+        import shlex
+        
         try:
-            from mlx_voxtral import process_audio_for_voxtral
-            
             if not audio_path.exists():
                 logger.warning(f"Audio file not found: {audio_path}")
                 return None
             
-            # 1. Process Audio
-            # Assuming process_audio_for_voxtral takes path and processor
-            # Verify signature via trial or assumption. 
-            # If it fails, capturing exception.
-            audio_features = process_audio_for_voxtral(str(audio_path), self.processor)
-            
-            # 2. Generate
-            # Prompt construction might be needed?
-            # Voxtral is speech-to-text, usually prompted with language token or direct audio.
-            # We'll try direct generation.
-            
-            # Check if model has generate method
-            if hasattr(self.model, 'generate'):
-                text = self.model.generate(audio_features, max_tokens=256)
-            else:
-                # If no generate method, we might need a utility from mlx_voxtral
-                # defaulting to trying a generate function from the package if existing?
-                # But based on class name VoxtralForConditionalGeneration, it likely has generate.
-                # If not, we fall back to a generic generation loop which is complex to implement blindly.
-                # Let's assume generate exists or we simply fail here and log.
-                logger.error(f"Model {type(self.model)} has no generate method.")
+            # Standardizing all audio to WAV via FFmpeg for voxmlx compatibility
+            temp_wav = None
+            try:
+                fd, temp_wav = tempfile.mkstemp(suffix='.wav')
+                os.close(fd)
+                
+                print(f"   🔄 Standardizing {audio_path.name}...")
+                # Convert to wav (16kHz mono is safe for most speech models)
+                cmd = [
+                    'ffmpeg', '-y', '-i', str(audio_path),
+                    '-ar', '16000', '-ac', '1',
+                    temp_wav
+                ]
+                
+                # Use subprocess with a timeout to avoid hanging
+                subprocess.run(
+                    cmd, 
+                    stdout=subprocess.DEVNULL, 
+                    stderr=subprocess.DEVNULL,
+                    check=True,
+                    timeout=30
+                )
+                process_path = temp_wav
+            except subprocess.TimeoutExpired:
+                logger.error(f"FFmpeg timed out for {audio_path.name}")
+                if temp_wav and os.path.exists(temp_wav):
+                    os.remove(temp_wav)
                 return None
-            
-            return text.strip() if text else None
+            except Exception as e:
+                logger.error(f"FFmpeg processing failed for {audio_path.name}: {e}")
+                if temp_wav and os.path.exists(temp_wav):
+                    os.remove(temp_wav)
+                return None
+
+            try:
+                from voxmlx import transcribe
+                print(f"   🎙️  Transcribing {audio_path.name}...")
+                text = transcribe(
+                    process_path,
+                    model_path=self.model_path
+                )
+                return text.strip() if text else None
+            except Exception as e:
+                logger.error(f"VoxMLX failed for {audio_path.name}: {e}")
+                return None
+            finally:
+                if temp_wav and os.path.exists(temp_wav):
+                    try:
+                        os.remove(temp_wav)
+                    except:
+                        pass
+                    
+        except Exception as e:
+            logger.error(f"Transcription failed for {audio_path.name}: {e}")
+            return None
 
         except Exception as e:
             logger.error(f"Transcription failed for {audio_path.name}: {e}")

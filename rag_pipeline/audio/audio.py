@@ -64,6 +64,7 @@ class AudioTranscriber:
                 # 3. Save to Cache
                 self.cache.set(audio_path, content, model=default_config.mlx_audio_model)
                 self.cache.save()
+                print(f"   ✅ Transcribed: {audio_path.name} ({len(content)} chars)")
                 return content
             else:
                 return None

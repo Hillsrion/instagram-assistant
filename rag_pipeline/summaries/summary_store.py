@@ -3,8 +3,6 @@ Storage and search for hierarchical summaries via FAISS.
 Manages two separate indexes: one for ConversationSummary, one for PeriodSummary.
 """
 import json
-import faiss
-import numpy as np
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 from dataclasses import dataclass
@@ -13,6 +11,13 @@ from rag_pipeline.core.config import Config, default_config
 from rag_pipeline.summaries.summary_models import ConversationSummary, PeriodSummary
 from rag_pipeline.indexing.embeddings import EmbeddingModel, get_summary_embedding_text
 
+def _get_faiss():
+    import faiss
+    return faiss
+
+def _get_np():
+    import numpy as np
+    return np
 
 @dataclass
 class SummarySearchResult:
@@ -30,8 +35,8 @@ class SummaryStore:
         self.embedding_model = embedding_model
 
         # FAISS Indexes
-        self.conversation_index: Optional[faiss.Index] = None
-        self.period_index: Optional[faiss.Index] = None
+        self.conversation_index = None
+        self.period_index = None
 
         # Data
         self.conversation_summaries: List[ConversationSummary] = []
@@ -47,6 +52,7 @@ class SummaryStore:
         show_progress: bool = True
     ):
         """Builds the two FAISS indexes for summaries."""
+        faiss = _get_faiss()
         self.conversation_summaries = conversation_summaries
         self.period_summaries = period_summaries
 
@@ -108,6 +114,8 @@ class SummaryStore:
         Returns:
             List of SummarySearchResult sorted by score
         """
+        faiss = _get_faiss()
+        np = _get_np()
         if not self.embedding_model:
             raise ValueError("EmbeddingModel required for search")
 
@@ -151,7 +159,7 @@ class SummaryStore:
 
     def search_by_embedding(
         self,
-        query_embedding: np.ndarray,
+        query_embedding, # np.ndarray
         level: str = "all",
         top_k: int = 3,
         min_score: float = 0.0
@@ -168,6 +176,8 @@ class SummaryStore:
         Returns:
             List of SummarySearchResult
         """
+        faiss = _get_faiss()
+        np = _get_np()
         query_embedding = query_embedding.reshape(1, -1).astype(np.float32)
         faiss.normalize_L2(query_embedding)
 
@@ -202,6 +212,7 @@ class SummaryStore:
 
     def save(self):
         """Saves indexes and data."""
+        faiss = _get_faiss()
         self.index_path.mkdir(parents=True, exist_ok=True)
 
         # Save FAISS indexes
@@ -240,6 +251,7 @@ class SummaryStore:
 
     def load(self) -> bool:
         """Loads indexes and data."""
+        faiss = _get_faiss()
         conv_index_path = self.index_path / "conversation_index.faiss"
         period_index_path = self.index_path / "period_index.faiss"
         conv_data_path = self.config.index_dir / "conversation_summaries.json"

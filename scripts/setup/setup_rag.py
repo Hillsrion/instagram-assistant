@@ -3,6 +3,7 @@
 RAG Pipeline Orchestrator - Main Entry Point.
 
 This script orchestrates the execution of all RAG pipeline steps:
+0. [Optional] Audio Transcription (scripts/setup/setup_transcriptions.py)
 1. Loading/Generating chunks (scripts/setup/setup_chunks.py)
 2. LLM Enrichment (scripts/setup/setup_enrich.py)
 3. Generating embeddings (scripts/setup/setup_embeddings.py)
@@ -14,6 +15,7 @@ Usage:
     python scripts/setup/setup_rag.py --status         # Shows status of all components
     python scripts/setup/setup_rag.py --reset          # Full reset and restart
     python scripts/setup/setup_rag.py --only chunks    # Runs a single step
+    python scripts/setup/setup_rag.py --with-transcribe  # Include audio transcription
     python scripts/setup/setup_rag.py --skip-enrich    # Skips enrichment
     python scripts/setup/setup_rag.py --limit 10       # Limits to 10 conversations
 """
@@ -42,6 +44,7 @@ import setup_enrich
 import setup_embeddings
 import setup_indexes
 import setup_summaries
+import setup_transcriptions
 
 
 def show_status(config: Config):
@@ -92,6 +95,16 @@ def show_status(config: Config):
         print(f"[Metadata Index] Created ({metadata_path})")
     else:
         print(f"[Metadata Index] Not created")
+
+    # Audio Transcriptions
+    audio_cache_path = config.audio_cache_path
+    if audio_cache_path.exists():
+        import json
+        with open(audio_cache_path, 'r', encoding='utf-8') as f:
+            audio_data = json.load(f)
+        print(f"\n[Audio Transcriptions] {len(audio_data)} cached")
+    else:
+        print(f"\n[Audio Transcriptions] Not generated")
 
     # Summaries
     conv_summaries_path = config.index_dir / "conversation_summaries.json"
@@ -192,8 +205,12 @@ Examples:
                         help="Full reset and restart")
 
     # Selective execution
-    parser.add_argument("--only", choices=['chunks', 'enrich', 'embed', 'indexes', 'summaries'],
+    parser.add_argument("--only", choices=['transcribe', 'chunks', 'enrich', 'embed', 'indexes', 'summaries'],
                         help="Execute a single step")
+
+    # Transcription option
+    parser.add_argument("--with-transcribe", action="store_true",
+                        help="Include audio transcription step (long-running, ~12h for full dataset)")
 
     # Skip options
     parser.add_argument("--skip-enrich", action="store_true",
@@ -256,7 +273,9 @@ Examples:
 
     # Selective execution
     if args.only:
-        if args.only == 'chunks':
+        if args.only == 'transcribe':
+            setup_transcriptions.run(config)
+        elif args.only == 'chunks':
             setup_chunks.run(config, reset=args.reset, limit=args.limit, import_test=args.import_test)
         elif args.only == 'enrich':
             setup_enrich.run(config, reset=args.reset, model=args.model)
@@ -269,6 +288,12 @@ Examples:
         return
 
     # Full pipeline execution
+    # Step 0: Audio Transcription (optional)
+    if args.with_transcribe:
+        print("Step 0: Audio Transcription")
+        print("⚠️  This step is long-running (~12h for full dataset)")
+        setup_transcriptions.run(config)
+    
     # Step 1: Chunks
     if not setup_chunks.run(config, reset=args.reset, limit=args.limit, import_test=args.import_test):
         print("Error at step 1 (chunks)")
