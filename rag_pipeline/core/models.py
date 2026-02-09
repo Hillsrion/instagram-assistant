@@ -44,6 +44,9 @@ class Chunk:
     # Generic metadata for auxiliary info (e.g. complexity scores)
     metadata: Optional[Dict[str, Any]] = None
     
+    # Audio injection tracking
+    needs_reenrichment: bool = False  # Set when audio transcription is injected
+    
     # Enrichment failure tracking
     enrichment_failed: bool = False
     enrichment_error: Optional[str] = None

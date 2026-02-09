@@ -45,6 +45,7 @@ import setup_embeddings
 import setup_indexes
 import setup_summaries
 import setup_transcriptions
+import setup_inject_audio
 
 
 def show_status(config: Config):
@@ -205,7 +206,7 @@ Examples:
                         help="Full reset and restart")
 
     # Selective execution
-    parser.add_argument("--only", choices=['transcribe', 'chunks', 'enrich', 'embed', 'indexes', 'summaries'],
+    parser.add_argument("--only", choices=['transcribe', 'inject_audio', 'chunks', 'enrich', 'embed', 'indexes', 'summaries'],
                         help="Execute a single step")
 
     # Transcription option
@@ -275,6 +276,8 @@ Examples:
     if args.only:
         if args.only == 'transcribe':
             setup_transcriptions.run(config)
+        elif args.only == 'inject_audio':
+            setup_inject_audio.run(config)
         elif args.only == 'chunks':
             setup_chunks.run(config, reset=args.reset, limit=args.limit, import_test=args.import_test)
         elif args.only == 'enrich':

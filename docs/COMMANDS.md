@@ -59,6 +59,15 @@ python scripts/setup/setup_rag.py --status     # Show indexing progress
 python scripts/setup/setup_rag.py --reset      # Full reindex from scratch
 python scripts/setup/setup_rag.py --only chunks  # Run a single step (chunks, embeddings, etc.)
 
+# Audio Transcription (optional, long-running ~12h for full dataset)
+python scripts/setup/setup_rag.py --only transcribe        # Batch transcribe all audio files
+python scripts/setup/setup_rag.py --with-transcribe        # Include in full pipeline run
+
+# Audio Injection (post-transcription)
+python scripts/setup/setup_rag.py --only inject_audio     # Inject transcriptions into existing chunks
+python scripts/setup/setup_inject_audio.py --dry-run      # Preview without saving
+python scripts/setup/setup_inject_audio.py --reenrich     # Inject + re-enrich modified chunks
+
 # Partial Indexing (Test with enriched data only)
 python scripts/setup/setup_embeddings.py --enriched-only  # Only vectorise fully enriched chunks
 python scripts/setup/setup_indexes.py                     # Will auto-detect partial index

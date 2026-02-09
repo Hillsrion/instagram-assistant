@@ -24,7 +24,7 @@ from rag_pipeline.enrichment.enricher import ChunkEnricher
 from rag_pipeline.utils.cli_utils import print_header, format_duration
 
 
-def run(config: Config, reset: bool = False, model: str = None, total_shards: int = 1, shard_index: int = 0, provider: str = "ollama", enable_local_sharding: bool = None) -> bool:
+def run(config: Config, reset: bool = False, model: str = None, total_shards: int = 1, shard_index: int = 0, provider: str = "ollama", enable_local_sharding: bool = None, only_needs_reenrichment: bool = False) -> bool:
     """Entry point callable by the orchestrator.
 
     Args:
@@ -35,6 +35,7 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
         shard_index: Index of this process (0 to total_shards-1)
         provider: "ollama" or "mlx"
         enable_local_sharding: If set, override config.use_local_sharding
+        only_needs_reenrichment: If True, only enrich chunks with needs_reenrichment=True
 
     Returns:
         True if success, False otherwise
@@ -67,7 +68,15 @@ def run(config: Config, reset: bool = False, model: str = None, total_shards: in
     print(f"{len(chunks)} chunks loaded")
 
     # Determine which chunks to enrich
-    if reset:
+    if only_needs_reenrichment:
+        to_enrich_all = [c for c in chunks if c.needs_reenrichment]
+        print(f"Re-enriching {len(to_enrich_all)} chunks marked with needs_reenrichment")
+        # Reset enrichment fields and clear flag
+        for c in to_enrich_all:
+            c.narrative_summary = None
+            c.hypothetical_questions = []
+            c.needs_reenrichment = False
+    elif reset:
         to_enrich_all = chunks
         print(f"Reset requested: re-enriching all {len(chunks)} chunks")
         # Reset enrichment fields
