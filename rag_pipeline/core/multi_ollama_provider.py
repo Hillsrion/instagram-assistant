@@ -103,6 +103,11 @@ class MultiOllamaProvider:
                 "num_ctx": kwargs.get("num_ctx", self.config.num_ctx)
             }
         }
+        
+        # Add format if specified (string or dict schema)
+        if kwargs.get("format"):
+            payload["format"] = kwargs.get("format")
+            
         timeout = kwargs.get("timeout", 300)
 
         response = requests.post(

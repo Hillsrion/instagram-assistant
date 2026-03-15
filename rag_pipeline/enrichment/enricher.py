@@ -20,6 +20,7 @@ from rag_pipeline.enrichment.enrichment_validator import is_corrupted_output, is
 from rag_pipeline.enrichment.model_manager import EnrichmentModelManager
 from rag_pipeline.enrichment.enrichment_batcher import EnrichmentBatcher
 from rag_pipeline.indexing.embeddings import get_compact_content
+from rag_pipeline.core.schemas import ENRICHMENT_SCHEMA
 
 class ChunkEnricher:
     """Uses an LLM (via Ollama or MLX) to enrich chunk metadata.
@@ -126,7 +127,7 @@ class ChunkEnricher:
                     if self.provider == "mlx":
                         result = self._call_mlx(prompt)
                     else:
-                        result = self.model_manager.call_ollama(prompt, model=selected_model)
+                        result = self.model_manager.call_ollama(prompt, model=selected_model, response_format=ENRICHMENT_SCHEMA)
 
                     data = repair_and_load_json(result)
                     parsed_data = parse_enrichment_data(data)
@@ -186,13 +187,13 @@ class ChunkEnricher:
                 if self.provider == "mlx":
                     result = self._call_mlx(prompt)
                 else:
-                    result = self.model_manager.call_ollama(prompt, model=current_model)
+                    result = self.model_manager.call_ollama(prompt, model=current_model, response_format=ENRICHMENT_SCHEMA)
 
                 if is_corrupted_output(result):
                     if current_model == self.light_model and self.provider != "mlx":
                         print(f"⚠️ Corruption detected for {chunk.chunk_id}, retrying with {self.model}...")
                         current_model = self.model
-                        result = self.model_manager.call_ollama(prompt, model=current_model)
+                        result = self.model_manager.call_ollama(prompt, model=current_model, response_format=ENRICHMENT_SCHEMA)
                         if is_corrupted_output(result):
                             raise ValueError(f"Corrupted output even with {self.model}")
                     else:
@@ -205,7 +206,7 @@ class ChunkEnricher:
                     if is_low_quality_enrichment(enrichment_data):
                         print(f"⚠️ Low-quality output for {chunk.chunk_id}, retrying with {self.model}...")
                         current_model = self.model
-                        result = self.model_manager.call_ollama(prompt, model=current_model)
+                        result = self.model_manager.call_ollama(prompt, model=current_model, response_format=ENRICHMENT_SCHEMA)
                         data = repair_and_load_json(result)
                         enrichment_data = parse_enrichment_data(data)
                 

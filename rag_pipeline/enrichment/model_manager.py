@@ -6,7 +6,7 @@ switching, and routing statistics.
 import time
 import psutil
 import requests
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, Union
 
 class EnrichmentModelManager:
     """Manages LLM models for enrichment routing."""
@@ -77,8 +77,14 @@ class EnrichmentModelManager:
             except Exception as e:
                 print(f"⚠️ Failed to load {model_name}: {e}")
 
-    def call_ollama(self, prompt: str, model: str) -> str:
-        """Call Ollama chat API, using multi-endpoint if configured."""
+    def call_ollama(self, prompt: str, model: str, response_format: Optional[Union[str, Dict[str, Any]]] = None) -> str:
+        """Call Ollama chat API, using multi-endpoint if configured.
+        
+        Args:
+            prompt: User prompt
+            model: Model name
+            response_format: Optional format (e.g., "json" or a JSON schema dict)
+        """
         try:
             # Use multi-endpoint provider if load balancing is enabled
             use_lb = getattr(self.config, 'use_load_balancing', False)
@@ -96,7 +102,8 @@ class EnrichmentModelManager:
                 return self._multi_provider.generate(
                     messages,
                     temperature=0.0,
-                    num_ctx=self.config.num_ctx
+                    num_ctx=self.config.num_ctx,
+                    format=response_format
                 )
             else:
                 # Single endpoint - use direct request
@@ -112,6 +119,10 @@ class EnrichmentModelManager:
                         "num_ctx": num_ctx
                     }
                 }
+                
+                if response_format:
+                    payload["format"] = response_format
+                    
                 response = requests.post(url, json=payload, timeout=300)
                 response.raise_for_status()
                 return response.json()["message"]["content"]

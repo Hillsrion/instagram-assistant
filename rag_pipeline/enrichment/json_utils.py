@@ -70,11 +70,6 @@ from typing import Any, Dict, List, Tuple, Optional
 def clean_llm_json(json_str: str) -> str:
     """
     Cleans JSON string with high robustness using a state-machine parser.
-    Handles:
-    - Unescaped internal quotes (e.g., "He said "hello" to me")
-    - Missing commas between properties
-    - // comments from LLM
-    - Trailing commas
     """
     if not json_str:
         return ""

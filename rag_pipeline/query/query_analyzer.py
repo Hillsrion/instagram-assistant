@@ -9,6 +9,7 @@ from rag_pipeline.core.llm_provider import create_provider
 from rag_pipeline.core.logger import get_logger
 from rag_pipeline.enrichment.json_utils import repair_and_load_json
 from rag_pipeline.core.prompts import QUERY_ANALYSIS_PROMPT
+from rag_pipeline.core.schemas import QUERY_ANALYSIS_SCHEMA
 
 logger = get_logger()
 
@@ -66,7 +67,8 @@ class QueryAnalyzer:
             content = self.provider.generate(
                 messages,
                 temperature=0.0,
-                max_tokens=256
+                max_tokens=256,
+                format=QUERY_ANALYSIS_SCHEMA
             )
             logger.debug(f"LLM raw response: {content}")
             

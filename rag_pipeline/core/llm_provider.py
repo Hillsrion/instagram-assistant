@@ -49,6 +49,11 @@ class OllamaProvider(LLMProvider):
                 "num_predict": kwargs.get("max_tokens", 1024)
             }
         }
+        
+        # Add format if specified (string or dict schema)
+        if kwargs.get("format"):
+            payload["format"] = kwargs.get("format")
+            
         timeout = kwargs.get("timeout", 180)
 
         response = requests.post(

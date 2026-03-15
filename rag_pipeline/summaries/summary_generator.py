@@ -17,6 +17,7 @@ from rag_pipeline.core.models import Chunk
 from rag_pipeline.summaries.summary_models import ConversationSummary, PeriodSummary
 from rag_pipeline.core.prompts import CONVERSATION_SUMMARY_PROMPT, PERIOD_SUMMARY_PROMPT
 from rag_pipeline.enrichment.json_utils import repair_and_load_json, parse_summary_data
+from rag_pipeline.core.schemas import CONVERSATION_SUMMARY_SCHEMA, PERIOD_SUMMARY_SCHEMA
 
 
 class SummaryGenerator:
@@ -61,7 +62,7 @@ class SummaryGenerator:
             except Exception as e:
                 print(f"⚠️ Failed to load {model_name}: {e}")
 
-    def _call_ollama(self, prompt: str, model: str) -> str:
+    def _call_ollama(self, prompt: str, model: str, response_format: Optional[str] = None) -> str:
         """Call Ollama chat API, using multi-endpoint if configured."""
         # Use multi-endpoint provider if load balancing is enabled
         use_lb = getattr(self.config, 'use_load_balancing', False)
@@ -79,7 +80,8 @@ class SummaryGenerator:
                 messages,
                 temperature=0.0,
                 num_ctx=self.config.num_ctx,
-                max_tokens=1024
+                max_tokens=1024,
+                format=response_format
             )
         else:
             # Single endpoint - use direct request
@@ -93,6 +95,9 @@ class SummaryGenerator:
                     "num_predict": 1024,
                 }
             }
+            
+            if response_format == "json":
+                payload["format"] = "json"
 
             response = requests.post(
                 f"{self.config.ollama_url}/api/chat",
@@ -157,7 +162,8 @@ class SummaryGenerator:
             result = None
             try:
                 self._ensure_model_loaded(current_model)
-                result = self._call_ollama(prompt, model=current_model)
+                schema = CONVERSATION_SUMMARY_SCHEMA if summary_type == "conversation" else PERIOD_SUMMARY_SCHEMA
+                result = self._call_ollama(prompt, model=current_model, response_format=schema)
 
                 # 1. Corruption Check (Repetition loops, truncation)
                 if self._is_corrupted_output(result):
@@ -165,7 +171,8 @@ class SummaryGenerator:
                         print(f"⚠️ Corruption in summary ({current_model}), falling back to {self.model}...")
                         current_model = self.model
                         used_fallback = True
-                        result = self._call_ollama(prompt, model=current_model)
+                        schema = CONVERSATION_SUMMARY_SCHEMA if summary_type == "conversation" else PERIOD_SUMMARY_SCHEMA
+                        result = self._call_ollama(prompt, model=current_model, response_format=schema)
                         if self._is_corrupted_output(result):
                             raise ValueError("Corrupted output even with strong model")
                     else:
@@ -181,7 +188,8 @@ class SummaryGenerator:
                         print(f"⚠️ Low-quality summary ({current_model}), retrying with {self.model}...")
                         current_model = self.model
                         used_fallback = True
-                        result = self._call_ollama(prompt, model=current_model)
+                        schema = CONVERSATION_SUMMARY_SCHEMA if summary_type == "conversation" else PERIOD_SUMMARY_SCHEMA
+                        result = self._call_ollama(prompt, model=current_model, response_format=schema)
                         data = repair_and_load_json(result)
                         parsed = parse_summary_data(data, summary_type)
                 
