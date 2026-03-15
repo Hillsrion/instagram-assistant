@@ -49,7 +49,7 @@ export function Sidebar() {
 
   return (
     <div className={cn(
-      "flex flex-col h-full bg-background transition-all duration-300 ease-in-out",
+      "flex flex-col h-full bg-gray-50 transition-all duration-300 ease-in-out border-r border-gray-200",
       isCollapsed ? "w-[60px]" : "w-64"
     )}>
       {/* New Top Header */}
@@ -68,7 +68,7 @@ export function Sidebar() {
               onClick={() => setIsCollapsed(true)}
               className="h-8 w-8"
             >
-              <PanelLeftClose className="h-5 w-5" />
+              <PanelLeftClose className="h-6 w-6" />
             </Button>
           </>
         ) : (
@@ -157,7 +157,7 @@ export function Sidebar() {
       {!isCollapsed ? (
         <ScrollArea className="flex-1">
           <div className="p-2">
-            <div className="px-2 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <div className="px-2 py-2 text-xs font-medium text-muted-foreground">
               Chat
             </div>
             {isLoading ? (
