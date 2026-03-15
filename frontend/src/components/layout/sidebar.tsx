@@ -157,6 +157,9 @@ export function Sidebar() {
       {!isCollapsed ? (
         <ScrollArea className="flex-1">
           <div className="p-2">
+            <div className="px-2 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Chat
+            </div>
             {isLoading ? (
               <div className="p-4 text-sm text-muted-foreground text-center">Loading...</div>
             ) : conversations?.length === 0 ? (
