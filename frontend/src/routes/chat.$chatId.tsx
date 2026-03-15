@@ -149,7 +149,7 @@ function ChatRoute() {
   return (
     <div className="flex h-full flex-col relative bg-background">
        {/* Header - SIMPLIFIED */}
-       <div className="border-b p-4 flex items-center justify-between bg-background/95 backdrop-blur z-10 w-full h-14">
+       <div className="p-4 flex items-center justify-between bg-background/95 backdrop-blur z-10 w-full h-14">
          <div className="flex items-center gap-2">
            <h2 className="font-semibold text-lg truncate max-w-[500px]">{conversation?.title || 'Chat'}</h2>
            {isLoading && <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>}
@@ -228,7 +228,7 @@ function ChatRoute() {
        </ScrollArea>
 
        {/* Input Area & Toolbar */}
-       <div className="p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t">
+       <div className="p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
          <div className="max-w-3xl mx-auto space-y-3">
            
            {/* Input */}

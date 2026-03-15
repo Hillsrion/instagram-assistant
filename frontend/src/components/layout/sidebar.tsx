@@ -49,8 +49,8 @@ export function Sidebar() {
   })
 
   return (
-    <div className="w-64 border-r bg-muted/10 flex flex-col h-full bg-background">
-      <div className="p-3 border-b space-y-3">
+    <div className="w-64 bg-muted/10 flex flex-col h-full bg-background">
+      <div className="p-3 space-y-3">
         {/* Navigation Items */}
         <div className="space-y-1">
           <Button
@@ -155,7 +155,7 @@ export function Sidebar() {
         </div>
       </ScrollArea>
 
-      <div className="p-3 border-t">
+      <div className="p-3">
         <Dialog>
           <DialogTrigger asChild>
             <Button
