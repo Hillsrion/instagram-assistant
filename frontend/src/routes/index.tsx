@@ -1,22 +1,22 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { Button } from '@/components/ui/button'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { createConversation } from '@/lib/api'
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { createConversation } from "@/lib/api";
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute("/")({
   component: Index,
-})
+});
 
 function Index() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   const createMutation = useMutation({
     mutationFn: () => createConversation(),
     onSuccess: (newConv) => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
-      window.location.href = `/chat/${newConv.id}`
-    }
-  })
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      window.location.href = `/chat/${newConv.id}`;
+    },
+  });
 
   return (
     <div className="p-8 flex flex-col items-center justify-center min-h-[50vh] gap-6">
@@ -66,5 +66,5 @@ function Index() {
         </ul>
       </div>
     </div>
-  )
+  );
 }

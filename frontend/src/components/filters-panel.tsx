@@ -1,64 +1,69 @@
-import { useState } from 'react'
-import { Card } from './ui/card'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  Filter, 
-  X, 
+import {
   Calendar,
-  Users
-} from 'lucide-react'
+  ChevronDown,
+  ChevronRight,
+  Filter,
+  Users,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+import { Input } from "./ui/input";
 
 interface FiltersPanelProps {
-  onParticipantChange?: (participant: string) => void
-  onDateRangeChange?: (start: string, end: string) => void
-  onBroadSearchChange?: (isBroad: boolean) => void
-  participants?: string[]
+  onParticipantChange?: (participant: string) => void;
+  onDateRangeChange?: (start: string, end: string) => void;
+  onBroadSearchChange?: (isBroad: boolean) => void;
+  participants?: string[];
 }
 
-export function FiltersPanel({ onParticipantChange, onDateRangeChange, onBroadSearchChange, participants = [] }: FiltersPanelProps) {
-  const [selectedParticipant, setSelectedParticipant] = useState<string>('')
-  const [startDate, setStartDate] = useState<string>('')
-  const [endDate, setEndDate] = useState<string>('')
-  const [isBroad, setIsBroad] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
+export function FiltersPanel({
+  onParticipantChange,
+  onDateRangeChange,
+  onBroadSearchChange,
+  participants = [],
+}: FiltersPanelProps) {
+  const [selectedParticipant, setSelectedParticipant] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [isBroad, setIsBroad] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleParticipantChange = (participant: string) => {
-    setSelectedParticipant(participant)
-    onParticipantChange?.(participant)
-  }
+    setSelectedParticipant(participant);
+    onParticipantChange?.(participant);
+  };
 
   const handleBroadSearchChange = (checked: boolean) => {
-    setIsBroad(checked)
-    onBroadSearchChange?.(checked)
-  }
+    setIsBroad(checked);
+    onBroadSearchChange?.(checked);
+  };
 
   const handleDateRangeChange = () => {
-    onDateRangeChange?.(startDate, endDate)
-  }
+    onDateRangeChange?.(startDate, endDate);
+  };
 
   const resetFilters = () => {
-    setSelectedParticipant('')
-    setStartDate('')
-    setEndDate('')
-    setIsBroad(false)
-    onParticipantChange?.('')
-    onDateRangeChange?.('', '')
-    onBroadSearchChange?.(false)
-  }
+    setSelectedParticipant("");
+    setStartDate("");
+    setEndDate("");
+    setIsBroad(false);
+    onParticipantChange?.("");
+    onDateRangeChange?.("", "");
+    onBroadSearchChange?.(false);
+  };
 
   const activeFiltersCount = [
     selectedParticipant,
     startDate,
     endDate,
-    isBroad ? 'broad' : null
-  ].filter(Boolean).length
+    isBroad ? "broad" : null,
+  ].filter(Boolean).length;
 
   return (
     <div className="w-full">
-      <div 
+      <div
         className="flex items-center justify-between cursor-pointer hover:bg-muted/50 p-2 rounded-lg transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -71,7 +76,11 @@ export function FiltersPanel({ onParticipantChange, onDateRangeChange, onBroadSe
             </span>
           )}
         </div>
-        {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        {isOpen ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        )}
       </div>
 
       {isOpen && (
@@ -88,9 +97,15 @@ export function FiltersPanel({ onParticipantChange, onDateRangeChange, onBroadSe
                 onChange={(e) => handleParticipantChange(e.target.value)}
                 className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="" className="bg-background text-foreground">All Participants</option>
+                <option value="" className="bg-background text-foreground">
+                  All Participants
+                </option>
                 {participants.map((p) => (
-                  <option key={p} value={p} className="bg-background text-foreground">
+                  <option
+                    key={p}
+                    value={p}
+                    className="bg-background text-foreground"
+                  >
                     {p.charAt(0).toUpperCase() + p.slice(1)}
                   </option>
                 ))}
@@ -106,7 +121,10 @@ export function FiltersPanel({ onParticipantChange, onDateRangeChange, onBroadSe
                     onChange={(e) => handleBroadSearchChange(e.target.checked)}
                     className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
                   />
-                  <label htmlFor="broad-search" className="text-[11px] text-muted-foreground cursor-pointer select-none">
+                  <label
+                    htmlFor="broad-search"
+                    className="text-[11px] text-muted-foreground cursor-pointer select-none"
+                  >
                     Include mentions (group chats, etc.)
                   </label>
                 </div>
@@ -121,7 +139,9 @@ export function FiltersPanel({ onParticipantChange, onDateRangeChange, onBroadSe
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <span className="text-[10px] text-muted-foreground">From</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    From
+                  </span>
                   <Input
                     type="date"
                     value={startDate}
@@ -167,7 +187,10 @@ export function FiltersPanel({ onParticipantChange, onDateRangeChange, onBroadSe
                   {selectedParticipant && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground text-[10px] font-medium border border-border">
                       {selectedParticipant}
-                      <X className="h-2.5 w-2.5 cursor-pointer hover:text-destructive" onClick={() => handleParticipantChange('')} />
+                      <X
+                        className="h-2.5 w-2.5 cursor-pointer hover:text-destructive"
+                        onClick={() => handleParticipantChange("")}
+                      />
                     </span>
                   )}
                   {startDate && (
@@ -187,5 +210,5 @@ export function FiltersPanel({ onParticipantChange, onDateRangeChange, onBroadSe
         </Card>
       )}
     </div>
-  )
+  );
 }

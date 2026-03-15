@@ -1,34 +1,35 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useQueries } from "@tanstack/react-query"
-import { ChevronDown, AlertCircle, MessageCircle, BarChart3 } from "lucide-react"
+import { useQueries } from "@tanstack/react-query";
 import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { cn } from "@/lib/utils"
-import { getChunkContent } from "@/lib/api"
-import type { Source, SummarySource } from "@/lib/types"
+  AlertCircle,
+  BarChart3,
+  ChevronDown,
+  MessageCircle,
+} from "lucide-react";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { getChunkContent } from "@/lib/api";
+import type { Source, SummarySource } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface SourcesModalProps {
-  sources: Source[]
-  summaryources: SummarySource[]
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  sources: Source[];
+  summarySources: SummarySource[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export function SourcesModal({
   sources,
-  summaryources,
+  summarySources,
   open,
   onOpenChange,
 }: SourcesModalProps) {
-  const [expandedChunks, setExpandedChunks] = useState<Set<string>>(new Set())
+  const [expandedChunks, setExpandedChunks] = useState<Set<string>>(new Set());
   console.log(sources);
-  
+
   // Fetch all chunk content in parallel
   const chunkQueries = useQueries({
     queries: sources.map((source) => ({
@@ -36,27 +37,27 @@ export function SourcesModal({
       queryFn: () => getChunkContent(source.chunk_id),
       enabled: open && sources.length > 0,
     })),
-  })
+  });
 
   const toggleExpanded = (chunkId: string) => {
-    const newExpanded = new Set(expandedChunks)
+    const newExpanded = new Set(expandedChunks);
     if (newExpanded.has(chunkId)) {
-      newExpanded.delete(chunkId)
+      newExpanded.delete(chunkId);
     } else {
-      newExpanded.add(chunkId)
+      newExpanded.add(chunkId);
     }
-    setExpandedChunks(newExpanded)
-  }
+    setExpandedChunks(newExpanded);
+  };
 
   const handleOpenChange = (newOpen: boolean) => {
-    onOpenChange(newOpen)
+    onOpenChange(newOpen);
     if (!newOpen) {
-      setExpandedChunks(new Set())
+      setExpandedChunks(new Set());
     }
-  }
+  };
 
-  const hasConversationSources = sources.length > 0
-  const hasSummarySources = summaryources.length > 0
+  const hasConversationSources = sources.length > 0;
+  const hasSummarySources = summarySources.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -82,10 +83,10 @@ export function SourcesModal({
 
                 <div className="space-y-2">
                   {sources.map((source, idx) => {
-                    const chunkData = chunkQueries[idx]?.data
-                    const isExpanded = expandedChunks.has(source.chunk_id)
-                    const isLoading = chunkQueries[idx]?.isLoading
-                    const isError = chunkQueries[idx]?.isError
+                    const chunkData = chunkQueries[idx]?.data;
+                    const isExpanded = expandedChunks.has(source.chunk_id);
+                    const isLoading = chunkQueries[idx]?.isLoading;
+                    const isError = chunkQueries[idx]?.isError;
 
                     return (
                       <div
@@ -93,14 +94,15 @@ export function SourcesModal({
                         className="border border-slate-200 rounded-lg overflow-hidden hover:border-slate-300 transition-colors"
                       >
                         <button
+                          type="button"
                           onClick={() => toggleExpanded(source.chunk_id)}
                           className="w-full p-3 text-left hover:bg-slate-50 transition-colors"
                         >
                           <div className="flex items-start gap-3">
                             <ChevronDown
                               className={cn(
-                                "h-4 w-4 mt-0.5 flex-shrink-0 transition-transform",
-                                isExpanded && "rotate-180"
+                                "h-4 w-4 mt-0.5 shrink-0 transition-transform",
+                                isExpanded && "rotate-180",
                               )}
                             />
                             <div className="flex-1 min-w-0">
@@ -159,12 +161,10 @@ export function SourcesModal({
                                             key={i}
                                             className="text-foreground flex gap-2"
                                           >
-                                            <span className="flex-shrink-0">
-                                              •
-                                            </span>
+                                            <span className="shrink-0">•</span>
                                             <span>{q}</span>
                                           </li>
-                                        )
+                                        ),
                                       )}
                                     </ul>
                                   </div>
@@ -174,7 +174,7 @@ export function SourcesModal({
                           </div>
                         )}
                       </div>
-                    )
+                    );
                   })}
                 </div>
               </div>
@@ -189,12 +189,12 @@ export function SourcesModal({
                     Résumés
                   </h3>
                   <span className="text-xs text-muted-foreground ml-auto">
-                    {summaryources.length}
+                    {summarySources.length}
                   </span>
                 </div>
 
                 <div className="space-y-2">
-                  {summaryources.map((summary) => (
+                  {summarySources.map((summary) => (
                     <div
                       key={summary.summary_id}
                       className="border border-amber-200 bg-amber-50 rounded-lg p-3 hover:border-amber-300 transition-colors"
@@ -232,5 +232,5 @@ export function SourcesModal({
         </ScrollArea>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

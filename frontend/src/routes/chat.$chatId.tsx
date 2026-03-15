@@ -177,9 +177,10 @@ function ChatRoute() {
       {/* Messages Area */}
       <ScrollArea className="flex-1 p-4">
         <div className="max-w-3xl mx-auto space-y-6 pb-4">
-          {filteredMessages.map((msg, i) => (
-            <div
-              key={msg.timestamp || i}
+            {/* biome-ignore lint/suspicious/noArrayIndexKey: order is stable */}
+            {filteredMessages.map((msg, i) => (
+              <div
+                key={`${msg.role}-${msg.timestamp || i}`}
               className={cn(
                 "flex",
                 msg.role === "user" ? "justify-end" : "justify-start",
