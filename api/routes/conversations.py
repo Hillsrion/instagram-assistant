@@ -2,12 +2,14 @@
 Conversation CRUD routes.
 """
 import uuid
+from typing import List
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 
 from api.models import (
     ConversationUpdate, 
+    ConversationListResponse,
     TitleEvaluationRequest
 )
 from api.storage import (
@@ -21,7 +23,7 @@ from api.dependencies import get_chatbot
 router = APIRouter()
 
 
-@router.get("/conversations")
+@router.get("/conversations", response_model=List[ConversationListResponse])
 async def list_conversations():
     """List all conversations."""
     conversations = load_conversations()

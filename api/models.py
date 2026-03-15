@@ -40,6 +40,16 @@ class ChatRequest(BaseModel):
     expand_context: bool = True
 
 
+class ConversationListResponse(BaseModel):
+    """Simplified conversation info for listing."""
+    id: str
+    title: str
+    created_at: str
+    updated_at: str
+    is_favorite: bool = False
+    message_count: int
+
+
 class ConversationUpdate(BaseModel):
     """Request body for updating conversations."""
     title: Optional[str] = None
