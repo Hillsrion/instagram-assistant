@@ -21,7 +21,6 @@ import {
   CommandItem,
 } from "@/components/ui/command"
 import { cn } from '@/lib/utils'
-import { formatDistanceToNow } from 'date-fns'
 
 export function Sidebar() {
   const queryClient = useQueryClient()
@@ -150,9 +149,6 @@ export function Sidebar() {
                 className="flex flex-col items-start gap-1 p-3"
               >
                 <div className="font-medium">{conv.title || "Nouvelle conversation"}</div>
-                <div className="text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true })}
-                </div>
               </CommandItem>
             ))}
           </CommandList>

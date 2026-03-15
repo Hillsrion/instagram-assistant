@@ -187,7 +187,7 @@ function ChatRoute() {
                      : "bg-card border"
                  )}>
                     {msg.role === 'assistant' ? (
-                       <div className="prose dark:prose-invert prose-sm max-w-none break-words leading-relaxed">
+                       <div className="prose dark:prose-invert prose-sm max-w-none wrap-break-word leading-relaxed">
                          <ReactMarkdown>{msg.content}</ReactMarkdown>
                        </div>
                     ) : (
@@ -228,7 +228,7 @@ function ChatRoute() {
        </ScrollArea>
 
        {/* Input Area & Toolbar */}
-       <div className="p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+       <div className="p-4 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
          <div className="max-w-3xl mx-auto space-y-3">
            
            {/* Input */}
