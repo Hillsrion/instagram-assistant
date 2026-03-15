@@ -181,20 +181,22 @@ function ChatRoute() {
             >
               <div
                 className={cn(
-                  "flex flex-col gap-2 max-w-[80%]",
-                  msg.role === "user" ? "items-end" : "items-start",
+                  "flex flex-col gap-2",
+                  msg.role === "user"
+                    ? "max-w-[85%] items-end"
+                    : "w-full items-start",
                 )}
               >
                 <div
                   className={cn(
-                    "rounded-lg px-4 py-3 text-sm shadow-sm",
+                    "text-[15px] leading-relaxed",
                     msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card border",
+                      ? "rounded-2xl px-4 py-2 bg-primary text-primary-foreground shadow-sm text-sm"
+                      : "py-1 text-foreground",
                   )}
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose dark:prose-invert prose-sm max-w-none wrap-break-word leading-relaxed">
+                    <div className="prose dark:prose-invert max-w-none wrap-break-word">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
