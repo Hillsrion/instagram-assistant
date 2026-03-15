@@ -61,7 +61,6 @@ export function Sidebar() {
           <>
             <div className="flex items-center gap-2 overflow-hidden">
               <Instagram className="h-6 w-6 text-primary shrink-0" />
-              <span className="font-bold text-lg tracking-tight truncate">ASSISTANT</span>
             </div>
             <Button
               variant="ghost"
@@ -155,7 +154,7 @@ export function Sidebar() {
         </CommandDialog>
       </div>
       
-      {!isCollapsed && (
+      {!isCollapsed ? (
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
             {isLoading ? (
@@ -198,6 +197,8 @@ export function Sidebar() {
             )}
           </div>
         </ScrollArea>
+      ) : (
+        <div className="flex-1" />
       )}
 
       <div className="p-3">
