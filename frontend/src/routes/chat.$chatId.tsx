@@ -328,10 +328,6 @@ function ChatRoute() {
                   </Select>
                 )}
               </div>
-              
-              <div className="text-[10px] text-muted-foreground/60 hidden sm:block">
-                 Enter pour envoyer, Shift+Enter pour sauter une ligne
-              </div>
            </div>
 
          </div>
