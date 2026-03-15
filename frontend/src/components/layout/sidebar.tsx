@@ -221,6 +221,7 @@ export function Sidebar() {
                           <Link
                             to="/chat/$chatId"
                             params={{ chatId: conv.id }}
+                            search={{ q: undefined }}
                             className="flex-1 basis-0 min-w-0 overflow-hidden p-1.5 rounded-md text-sm flex items-center gap-2"
                           >
                             <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400 shrink-0" />
@@ -336,6 +337,7 @@ export function Sidebar() {
                       <Link
                         to="/chat/$chatId"
                         params={{ chatId: conv.id }}
+                        search={{ q: undefined }}
                         className="flex-1 basis-0 min-w-0 overflow-hidden p-1.5 rounded-md text-sm"
                       >
                         <div className="font-medium truncate block w-full">

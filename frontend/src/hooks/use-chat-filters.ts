@@ -1,0 +1,63 @@
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { getOllamaModels, getParticipants } from "@/lib/api";
+
+interface UseChatFiltersOptions {
+  initialParticipant?: string;
+  initialGroup?: string;
+  initialBroad?: boolean;
+}
+
+export function useChatFilters(options: UseChatFiltersOptions = {}) {
+  // Load available models
+  const { data: modelsData } = useQuery({
+    queryKey: ["ollama-models"],
+    queryFn: () => getOllamaModels(),
+    refetchOnWindowFocus: false,
+  });
+
+  // Load participants for filter
+  const { data: participantsData } = useQuery({
+    queryKey: ["participants"],
+    queryFn: () => getParticipants(),
+    refetchOnWindowFocus: false,
+  });
+
+  const participantNames = useMemo(() => {
+    return participantsData?.map((p) => p.name) || [];
+  }, [participantsData]);
+
+  // Filters State
+  const [filterParticipant, setFilterParticipant] = useState<string>(
+    options.initialParticipant || "",
+  );
+  const [filterGroup, setFilterGroup] = useState<string>(
+    options.initialGroup || "",
+  );
+  const [filterBroad, setFilterBroad] = useState<boolean>(
+    !!options.initialBroad,
+  );
+
+  // Model State
+  const [selectedModel, setSelectedModel] = useState<string>("");
+
+  // Set default model when models are loaded
+  useEffect(() => {
+    if (modelsData?.default_model && !selectedModel) {
+      setSelectedModel(modelsData.default_model);
+    }
+  }, [modelsData, selectedModel]);
+
+  return {
+    modelsData,
+    participantNames,
+    filterParticipant,
+    setFilterParticipant,
+    filterGroup,
+    setFilterGroup,
+    filterBroad,
+    setFilterBroad,
+    selectedModel,
+    setSelectedModel,
+  };
+}

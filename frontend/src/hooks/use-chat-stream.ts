@@ -14,14 +14,18 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamStatus, setStreamStatus] = useState<string>("");
-  const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const abortController = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(
     async (
       content: string,
-      filters?: { participant?: string; group?: string; broadSearch?: boolean },
+      filters?: {
+        participant?: string;
+        group?: string;
+        broadSearch?: boolean;
+        model?: string;
+      },
     ) => {
       if (!content.trim()) return;
 
@@ -56,7 +60,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
           body: JSON.stringify({
             message: content,
             conversation_id: chatId,
-            model: selectedModel,
+            model: filters?.model || undefined,
             participant_filter: filters?.participant || undefined,
             use_about_person: filters?.broadSearch || false,
             group_filter: filters?.group || undefined,
@@ -102,9 +106,9 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
                 try {
                   const { title } = await evaluateTitle(
                     content,
-                    selectedModel || undefined,
+                    filters?.model || undefined,
                   );
-                  await updateConversation(chatId, title);
+                  await updateConversation(chatId, { title });
                 } catch (err) {
                   console.error("Failed to auto-update title:", err);
                 }
@@ -131,7 +135,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
         setIsStreaming(false);
       }
     },
-    [chatId, queryClient, onFinish, selectedModel, messages],
+    [chatId, queryClient, onFinish, messages],
   );
 
   const stopStream = useCallback(() => {
@@ -150,7 +154,5 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
     isStreaming,
     streamStatus,
     stopStream,
-    selectedModel,
-    setSelectedModel,
   };
 }

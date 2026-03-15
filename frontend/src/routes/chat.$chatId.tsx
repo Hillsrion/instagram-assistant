@@ -1,40 +1,35 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  FileText,
-  Send,
-  SlidersHorizontal,
-  Sparkles,
-  StopCircle,
-} from "lucide-react";
+import { FileText } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { SearchPopover } from "@/components/SearchPopover"; // NEW IMPORT
+import { ChatInput } from "@/components/ChatInput";
 import { SourcesModal } from "@/components/SourcesModal";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useChatFilters } from "@/hooks/use-chat-filters";
 import { useChatStream } from "@/hooks/use-chat-stream";
-import { getConversation, getOllamaModels, getParticipants } from "@/lib/api";
+import { getConversation } from "@/lib/api";
 import type { Source, SummarySource } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/chat/$chatId")({
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      b: search.b === "true" || search.b === true || undefined,
+    } as { q?: string; p?: string; g?: string; b?: boolean };
+  },
   component: ChatRoute,
 });
 
 function ChatRoute() {
   const { chatId } = Route.useParams();
+  const {
+    q: initialMessage,
+    p: initialParticipant,
+    g: initialGroup,
+    b: initialBroad,
+  } = Route.useSearch();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: conversation, isLoading } = useQuery({
     queryKey: ["conversation", chatId],
@@ -42,23 +37,23 @@ function ChatRoute() {
     refetchOnWindowFocus: false,
   });
 
-  // Load available models
-  const { data: modelsData } = useQuery({
-    queryKey: ["ollama-models"],
-    queryFn: () => getOllamaModels(),
-    refetchOnWindowFocus: false,
+  // Filters & Models Hook
+  const {
+    modelsData,
+    participantNames,
+    filterParticipant,
+    setFilterParticipant,
+    filterGroup,
+    setFilterGroup,
+    filterBroad,
+    setFilterBroad,
+    selectedModel,
+    setSelectedModel,
+  } = useChatFilters({
+    initialParticipant,
+    initialGroup,
+    initialBroad,
   });
-
-  // Load participants for filter
-  const { data: participantsData } = useQuery({
-    queryKey: ["participants"],
-    queryFn: () => getParticipants(),
-    refetchOnWindowFocus: false,
-  });
-
-  const participantNames = useMemo(() => {
-    return participantsData?.map((p) => p.name) || [];
-  }, [participantsData]);
 
   // Chat hook
   const {
@@ -68,8 +63,6 @@ function ChatRoute() {
     isStreaming,
     streamStatus,
     stopStream,
-    selectedModel,
-    setSelectedModel,
   } = useChatStream({ chatId });
 
   // Sync with initial loaded messages
@@ -78,18 +71,6 @@ function ChatRoute() {
       setMessages(conversation.messages);
     }
   }, [conversation, setMessages]);
-
-  // Set default model when models are loaded
-  useEffect(() => {
-    if (modelsData?.default_model && !selectedModel) {
-      setSelectedModel(modelsData.default_model);
-    }
-  }, [modelsData, selectedModel, setSelectedModel]);
-
-  // Filters State
-  const [filterParticipant, setFilterParticipant] = useState<string>("");
-  const [filterGroup, setFilterGroup] = useState<string>("");
-  const [filterBroad, setFilterBroad] = useState<boolean>(false); // NEW
 
   // Filter Logic
   const filteredMessages = useMemo(() => {
@@ -140,22 +121,34 @@ function ChatRoute() {
     }
   }, []);
 
+  // Handle initial message from query param
+  const initialProcessed = useRef(false);
+  useEffect(() => {
+    if (initialMessage && !initialProcessed.current && conversation) {
+      initialProcessed.current = true;
+      sendMessage(initialMessage, {
+        participant: filterParticipant,
+        group: filterGroup,
+        broadSearch: filterBroad,
+      });
+    }
+  }, [
+    initialMessage,
+    conversation,
+    sendMessage,
+    filterParticipant,
+    filterGroup,
+    filterBroad,
+  ]);
+
   const [sourcesModalOpen, setSourcesModalOpen] = useState(false);
   const [selectedMessageSources, setSelectedMessageSources] = useState<{
     sources: Source[];
     summary_sources: SummarySource[];
   } | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputRef.current?.value) {
-      sendMessage(inputRef.current.value, {
-        participant: filterParticipant,
-        group: filterGroup,
-        broadSearch: filterBroad, // NEW
-      });
-      inputRef.current.value = "";
-    }
+  const handleSendMessage = (content: string, options: any) => {
+    sendMessage(content, { ...options, model: selectedModel });
   };
 
   return (
@@ -177,10 +170,10 @@ function ChatRoute() {
       {/* Messages Area */}
       <ScrollArea className="flex-1 p-4">
         <div className="max-w-3xl mx-auto space-y-6 pb-4">
-            {/* biome-ignore lint/suspicious/noArrayIndexKey: order is stable */}
-            {filteredMessages.map((msg, i) => (
-              <div
-                key={`${msg.role}-${msg.timestamp || i}`}
+          {/* biome-ignore lint/suspicious/noArrayIndexKey: order is stable */}
+          {filteredMessages.map((msg, i) => (
+            <div
+              key={`${msg.role}-${msg.timestamp || i}`}
               className={cn(
                 "flex",
                 msg.role === "user" ? "justify-end" : "justify-start",
@@ -247,140 +240,24 @@ function ChatRoute() {
 
       {/* Input Area & Toolbar */}
       <div className="p-4 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <div className="max-w-3xl mx-auto space-y-3">
-          {/* Input */}
-          <div className="flex gap-2 relative">
-            <Input
-              ref={inputRef}
-              placeholder={
-                filterParticipant
-                  ? `Ask a question about ${filterParticipant}...`
-                  : filterGroup
-                    ? `Ask a question about group ${filterGroup}...`
-                    : "Poser une question sur vos conversations..."
-              }
-              className="flex-1 pr-12 min-h-[50px] text-base shadow-sm"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e);
-                }
-              }}
-              disabled={isStreaming}
-            />
-
-            <div className="absolute right-1.5 top-1.5">
-              {isStreaming ? (
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  onClick={stopStream}
-                  className="h-9 w-9 rounded-full"
-                >
-                  <StopCircle className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button
-                  size="icon"
-                  onClick={handleSubmit}
-                  disabled={isLoading}
-                  className="h-9 w-9 rounded-full"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Toolbar: Filters & Model Selection */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {/* 1. FILTER POPOVER */}
-              <SearchPopover
-                participantNames={participantNames}
-                selectedParticipant={filterParticipant}
-                onSelectParticipant={(p) => {
-                  setFilterParticipant(p);
-                  if (p) setFilterGroup("");
-                  if (!p) setFilterBroad(false); // Reset broad if no participant
-                }}
-                isBroadSearch={filterBroad} // NEW
-                onBroadSearchChange={setFilterBroad} // NEW
-                selectedGroup={filterGroup}
-                onSelectGroup={(g) => {
-                  setFilterGroup(g);
-                  if (g) {
-                    setFilterParticipant("");
-                    setFilterBroad(false);
-                  }
-                }}
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "gap-2 h-8 text-xs font-medium border-dashed",
-                    (filterParticipant || filterGroup) &&
-                      "bg-primary/5 border-primary/20 text-primary border-solid",
-                  )}
-                >
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  {filterParticipant ? (
-                    <span>
-                      Personne:{" "}
-                      <span className="font-semibold">{filterParticipant}</span>
-                      {filterBroad && (
-                        <span className="text-[10px] ml-1 opacity-70">
-                          (Large)
-                        </span>
-                      )}
-                    </span>
-                  ) : filterGroup ? (
-                    <span>
-                      Groupe:{" "}
-                      <span className="font-semibold">{filterGroup}</span>
-                    </span>
-                  ) : (
-                    "Filtres"
-                  )}
-                  {(filterParticipant || filterGroup) && (
-                    <Badge
-                      variant="secondary"
-                      className="ml-1 h-5 px-1 rounded-sm bg-primary/10 text-primary hover:bg-primary/20"
-                    >
-                      1
-                    </Badge>
-                  )}
-                </Button>
-              </SearchPopover>
-
-              {/* 2. MODEL SELECTOR (Moved here) */}
-              {modelsData?.models && modelsData.models.length > 0 && (
-                <Select
-                  value={selectedModel || modelsData.default_model || ""}
-                  onValueChange={setSelectedModel}
-                >
-                  <SelectTrigger className="h-8 w-auto gap-2 text-xs border-0 bg-transparent hover:bg-muted/50 focus:ring-0 px-2 text-muted-foreground hover:text-foreground transition-colors">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <SelectValue placeholder="Model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {modelsData.models.map((model) => (
-                      <SelectItem
-                        key={model.name}
-                        value={model.name}
-                        className="text-xs"
-                      >
-                        {model.name.includes(":")
-                          ? model.name
-                          : `${model.name}:latest`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          </div>
+        <div className="max-w-3xl mx-auto">
+          <ChatInput
+            onSendMessage={handleSendMessage}
+            isStreaming={isStreaming}
+            stopStream={stopStream}
+            selectedModel={selectedModel || ""}
+            setSelectedModel={setSelectedModel}
+            modelsData={modelsData}
+            filterParticipant={filterParticipant}
+            setFilterParticipant={setFilterParticipant}
+            filterGroup={filterGroup}
+            setFilterGroup={setFilterGroup}
+            filterBroad={filterBroad}
+            setFilterBroad={setFilterBroad}
+            participantNames={participantNames}
+            isLoading={isLoading}
+            autoFocus
+          />
         </div>
       </div>
 
