@@ -99,7 +99,7 @@ export function AnalyticsDashboard() {
 
   if (loading && !analytics) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-full">
         <div className="text-gray-500">Chargement des analyses...</div>
       </div>
     )
@@ -107,7 +107,7 @@ export function AnalyticsDashboard() {
 
   if (error || !analytics) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-full">
         <div className="text-red-500">{error || 'Erreur lors du chargement des données'}</div>
       </div>
     )
@@ -134,7 +134,7 @@ export function AnalyticsDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="h-full overflow-y-auto bg-linear-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
