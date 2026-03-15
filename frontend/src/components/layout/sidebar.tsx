@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useMatchRoute } from "@tanstack/react-router";
 import {
   BarChart3,
   Instagram,
+  MoreVertical,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -27,7 +28,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   createConversation,
   deleteConversation,
@@ -47,24 +53,26 @@ export function Sidebar() {
 
   const createMutation = useMutation({
     mutationFn: () => createConversation(),
-    onSuccess: (newConv) => {
+    onSuccess: (newConv: any) => {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       window.location.href = `/chat/${newConv.id}`;
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteConversation,
+    mutationFn: (id: string) => deleteConversation(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
   });
 
+  const matchRoute = useMatchRoute();
+
   return (
     <div
       className={cn(
-        "flex flex-col h-full bg-gray-50 transition-all duration-300 ease-in-out border-r border-gray-200",
-        isCollapsed ? "w-[60px]" : "w-64",
+        "flex flex-col h-full bg-gray-50 transition-all duration-300 ease-in-out border-r border-gray-200 shrink-0 overflow-hidden",
+        isCollapsed ? "w-[60px]" : "w-64 min-w-0 max-w-64",
       )}
     >
       {/* New Top Header */}
@@ -171,9 +179,9 @@ export function Sidebar() {
       </div>
 
       {!isCollapsed ? (
-        <ScrollArea className="flex-1">
-          <div className="p-2">
-            <div className="px-2 py-2 text-xs font-medium text-muted-foreground">
+        <div className="flex-1 w-full min-w-0 overflow-y-auto">
+          <div className="p-2 w-full min-w-0 flex flex-col">
+            <div className="px-2 py-2 text-xs font-medium text-muted-foreground shrink-0">
               Chat
             </div>
             {isLoading ? (
@@ -185,44 +193,61 @@ export function Sidebar() {
                 No conversations yet
               </div>
             ) : (
-              conversations?.map((conv) => (
-                <div
-                  key={conv.id}
-                  className="group flex items-center gap-2 rounded-lg hover:bg-muted/50 transition-colors p-1 min-w-0"
-                >
-                  <Link
-                    to="/chat/$chatId"
-                    params={{ chatId: conv.id }}
+              conversations?.map((conv) => {
+                const isActive = matchRoute({
+                  to: "/chat/$chatId",
+                  params: { chatId: conv.id },
+                  fuzzy: false,
+                });
+
+                return (
+                  <div
+                    key={conv.id}
                     className={cn(
-                      "flex-1 flex flex-col gap-1 p-1.5 rounded-md text-sm min-w-0",
-                      "data-[status=active]:bg-muted",
+                      "group flex items-center gap-1 rounded-lg hover:bg-muted/50 transition-colors p-1 min-w-0 w-full overflow-hidden shrink-0",
+                      isActive && "bg-muted",
                     )}
-                    activeProps={{
-                      className: "bg-muted",
-                    }}
                   >
-                    <span className="font-medium truncate">
-                      {conv.title || "New Conversation"}
-                    </span>
-                  </Link>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 shrink-0"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (confirm("Delete this conversation?")) {
-                        deleteMutation.mutate(conv.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                  </Button>
-                </div>
-              ))
+                    <Link
+                      to="/chat/$chatId"
+                      params={{ chatId: conv.id }}
+                      className="flex-1 basis-0 min-w-0 overflow-hidden p-1.5 rounded-md text-sm"
+                    >
+                      <div className="font-medium truncate block w-full">
+                        {conv.title || "New Conversation"}
+                      </div>
+                    </Link>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 shrink-0 data-[state=open]:opacity-100"
+                        >
+                          <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive gap-2"
+                          onClick={() => {
+                            if (confirm("Supprimer cette conversation ?")) {
+                              deleteMutation.mutate(conv.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Supprimer</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                );
+              })
             )}
           </div>
-        </ScrollArea>
+        </div>
       ) : (
         <div className="flex-1" />
       )}
