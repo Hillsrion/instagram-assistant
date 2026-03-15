@@ -41,6 +41,7 @@ interface ChatInputProps {
   className?: string;
   isLoading?: boolean;
   autoFocus?: boolean;
+  isHome?: boolean;
 }
 
 export function ChatInput({
@@ -60,6 +61,7 @@ export function ChatInput({
   className,
   isLoading,
   autoFocus = false,
+  isHome = false,
 }: ChatInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -77,7 +79,18 @@ export function ChatInput({
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div
+      className={cn(
+        "space-y-3 w-full transition-all duration-700 ease-in-out",
+        isHome
+          ? "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-card border rounded-xl p-4 shadow-2xl max-w-2xl animate-in fade-in zoom-in-95 duration-700"
+          : "relative bg-transparent p-0 border-0 shadow-none",
+        className,
+      )}
+      style={{
+        viewTransitionName: "chat-input",
+      }}
+    >
       {/* Input */}
       <div className="flex gap-2 relative">
         <Input

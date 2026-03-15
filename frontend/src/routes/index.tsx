@@ -73,7 +73,7 @@ function Index() {
         </div>
 
         {/* Centered Chat Input */}
-        <div className="bg-card border rounded-xl p-2 shadow-xl">
+        <div className="h-[60px] w-full flex items-center justify-center">
           <ChatInput
             onSendMessage={handleSendMessage}
             isStreaming={createMutation.isPending}
@@ -90,6 +90,7 @@ function Index() {
             participantNames={participantNames}
             isLoading={createMutation.isPending}
             autoFocus
+            isHome
           />
         </div>
 

@@ -87,3 +87,20 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* View Transitions */
+::view-transition-old(chat-input),
+::view-transition-new(chat-input) {
+  height: 100%;
+  width: 100%;
+}
+
+::view-transition-group(chat-input) {
+  animation-duration: 0.6s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.4s;
+}
