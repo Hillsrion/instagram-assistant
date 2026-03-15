@@ -19,6 +19,7 @@ class Conversation(BaseModel):
     title: str
     created_at: str
     updated_at: str
+    is_favorite: bool = False
     messages: List[Message] = []
 
 
@@ -39,9 +40,10 @@ class ChatRequest(BaseModel):
     expand_context: bool = True
 
 
-class ConversationCreate(BaseModel):
-    """Request body for creating/updating conversations."""
+class ConversationUpdate(BaseModel):
+    """Request body for updating conversations."""
     title: Optional[str] = None
+    is_favorite: Optional[bool] = None
 
 
 class TitleEvaluationRequest(BaseModel):

@@ -6,7 +6,10 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 
-from api.models import ConversationCreate, TitleEvaluationRequest
+from api.models import (
+    ConversationUpdate, 
+    TitleEvaluationRequest
+)
 from api.storage import (
     load_conversations, 
     get_conversation, 
@@ -35,6 +38,7 @@ async def list_conversations():
             "title": c['title'],
             "created_at": c['created_at'],
             "updated_at": c['updated_at'],
+            "is_favorite": c.get('is_favorite', False),
             "message_count": len(c.get('messages', []))
         }
         for c in sorted_convs
@@ -42,7 +46,7 @@ async def list_conversations():
 
 
 @router.post("/conversations")
-async def create_conversation(data: ConversationCreate):
+async def create_conversation(data: ConversationUpdate):
     """Create a new conversation."""
     conv_id = str(uuid.uuid4())[:8]
     now = datetime.now().isoformat()
@@ -52,6 +56,7 @@ async def create_conversation(data: ConversationCreate):
         "title": data.title or "New Conversation",
         "created_at": now,
         "updated_at": now,
+        "is_favorite": data.is_favorite if data.is_favorite is not None else False,
         "messages": []
     }
 
@@ -77,16 +82,20 @@ async def delete_conversation_endpoint(conv_id: str):
 
 
 @router.patch("/conversations/{conv_id}")
-async def update_conversation(conv_id: str, data: ConversationCreate):
+async def update_conversation_endpoint(conv_id: str, data: ConversationUpdate):
     """Update conversation title."""
     conv = get_conversation(conv_id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    if data.title:
+    if data.title is not None:
         conv['title'] = data.title
-        conv['updated_at'] = datetime.now().isoformat()
-        save_conversation(conv)
+        
+    if data.is_favorite is not None:
+        conv['is_favorite'] = data.is_favorite
+
+    conv['updated_at'] = datetime.now().isoformat()
+    save_conversation(conv)
 
     return conv
 
