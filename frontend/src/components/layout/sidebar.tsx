@@ -49,7 +49,7 @@ export function Sidebar() {
 
   return (
     <div className={cn(
-      "bg-muted/10 flex flex-col h-full bg-background transition-all duration-300 ease-in-out",
+      "flex flex-col h-full bg-background transition-all duration-300 ease-in-out",
       isCollapsed ? "w-[60px]" : "w-64"
     )}>
       {/* New Top Header */}
@@ -60,7 +60,7 @@ export function Sidebar() {
         {!isCollapsed ? (
           <>
             <div className="flex items-center gap-2 overflow-hidden">
-              <Instagram className="h-6 w-6 text-primary shrink-0" />
+              <Instagram className="h-5 w-5 text-primary shrink-0" />
             </div>
             <Button
               variant="ghost"
@@ -86,12 +86,12 @@ export function Sidebar() {
         )}
       </div>
 
-      <div className="p-3 space-y-3">
+      <div className="p-2 space-y-2">
         {/* Navigation Items */}
         <div className="space-y-1">
           <Button
             className={cn(
-              "w-full justify-start gap-3",
+              "w-full justify-start gap-3 text-sm",
               isCollapsed && "justify-center px-0"
             )}
             variant="ghost"
@@ -156,7 +156,7 @@ export function Sidebar() {
       
       {!isCollapsed ? (
         <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
+          <div className="p-2">
             {isLoading ? (
               <div className="p-4 text-sm text-muted-foreground text-center">Loading...</div>
             ) : conversations?.length === 0 ? (
@@ -170,7 +170,7 @@ export function Sidebar() {
                     to="/chat/$chatId"
                     params={{ chatId: conv.id }}
                     className={cn(
-                      "flex-1 flex flex-col gap-1 p-2 rounded-md text-sm",
+                      "flex-1 flex flex-col gap-1 p-1.5  rounded-md text-sm",
                       "data-[status=active]:bg-muted"
                     )}
                     activeProps={{
