@@ -281,7 +281,7 @@ export function Sidebar() {
                                 </span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                className="text-destructive focus:text-destructive focus:bg-muted/80 gap-2 cursor-pointer transition-colors"
+                                className="focus:bg-muted/80 gap-2 cursor-pointer transition-colors"
                                 onClick={() => {
                                   if (
                                     confirm("Supprimer cette conversation ?")
@@ -314,7 +314,9 @@ export function Sidebar() {
               </div>
             ) : (
               conversations
-                ?.filter((c) => !c.is_favorite)
+                ?.filter(
+                  (c) => c.is_favorite === false || c.is_favorite === undefined,
+                )
                 ?.map((conv) => {
                   const isActive = matchRoute({
                     to: "/chat/$chatId",
@@ -383,7 +385,7 @@ export function Sidebar() {
                             <span>Mettre en favoris</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            className="text-destructive focus:text-destructive focus:bg-muted/80 gap-2 cursor-pointer transition-colors"
+                            className="focus:bg-muted/80 gap-2 cursor-pointer transition-colors"
                             onClick={() => {
                               if (confirm("Supprimer cette conversation ?")) {
                                 deleteMutation.mutate(conv.id);
