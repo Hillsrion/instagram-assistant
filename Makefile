@@ -16,6 +16,7 @@ help:
 	@echo ""
 	@echo "Running:"
 	@echo "  run            Start the FastAPI backend"
+	@echo "  dev            Start the FastAPI backend with hot reload"
 	@echo "  cli            Start the CLI chat"
 	@echo "  cli-query Q=x  Run a single CLI query (make cli-query Q='your query')"
 	@echo ""
@@ -47,6 +48,10 @@ setup-env:
 .PHONY: run
 run:
 	$(PYTHON) app.py
+
+.PHONY: dev
+dev:
+	$(PYTHON) app.py --reload
 
 .PHONY: cli
 cli:

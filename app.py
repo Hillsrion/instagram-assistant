@@ -31,9 +31,18 @@ if __name__ == "__main__":
         help='Port number'
     )
 
+    parser.add_argument(
+        '--reload',
+        action='store_true',
+        help='Enable hot reload'
+    )
+
     args = parser.parse_args()
 
     # Initialize logging according to flag
     initialize_logging(args.log_verbose)
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    if args.reload:
+        uvicorn.run("api:app", host=args.host, port=args.port, reload=True)
+    else:
+        uvicorn.run(app, host=args.host, port=args.port)
