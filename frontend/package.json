@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "lint:ox": "oxlint",
+    "lint:biome": "biome check .",
+    "preview": "vite preview",
+    "prepare": "cd .. && husky .husky"
   },
   "dependencies": {
     "@microsoft/fetch-event-source": "^2.0.1",
@@ -37,6 +40,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.7",
     "@eslint/js": "^9.39.1",
     "@tanstack/router-devtools": "^1.157.16",
     "@types/node": "^24.10.1",
@@ -47,6 +51,9 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "oxlint": "^1.55.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "npm:rolldown-vite@7.2.5"
@@ -55,5 +62,11 @@
     "overrides": {
       "vite": "npm:rolldown-vite@7.2.5"
     }
+  },
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx}": [
+      "oxlint -D correctness -D suspicious --quiet",
+      "biome check --write --no-errors-on-unmatched"
+    ]
   }
 }

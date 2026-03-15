@@ -1,10 +1,24 @@
-import { useState } from 'react'
-import { Link } from '@tanstack/react-router'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, BarChart3, Search, Settings, Instagram, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import { getConversations, createConversation, deleteConversation } from '@/lib/api'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import {
+  BarChart3,
+  Instagram,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Search,
+  Settings,
+  Trash2,
+} from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -12,51 +26,54 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  CommandDialog,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandItem,
-} from "@/components/ui/command"
-import { cn } from '@/lib/utils'
+  createConversation,
+  deleteConversation,
+  getConversations,
+} from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export function Sidebar() {
-  const queryClient = useQueryClient()
-  const [open, setOpen] = useState(false) // Command dialog state
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false); // Command dialog state
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const { data: conversations, isLoading } = useQuery({
-    queryKey: ['conversations'],
-    queryFn: getConversations
-  })
+    queryKey: ["conversations"],
+    queryFn: getConversations,
+  });
 
   const createMutation = useMutation({
     mutationFn: () => createConversation(),
     onSuccess: (newConv) => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
-      window.location.href = `/chat/${newConv.id}`
-    }
-  })
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      window.location.href = `/chat/${newConv.id}`;
+    },
+  });
 
   const deleteMutation = useMutation({
     mutationFn: deleteConversation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
-    }
-  })
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    },
+  });
 
   return (
-    <div className={cn(
-      "flex flex-col h-full bg-gray-50 transition-all duration-300 ease-in-out border-r border-gray-200",
-      isCollapsed ? "w-[60px]" : "w-64"
-    )}>
+    <div
+      className={cn(
+        "flex flex-col h-full bg-gray-50 transition-all duration-300 ease-in-out border-r border-gray-200",
+        isCollapsed ? "w-[60px]" : "w-64",
+      )}
+    >
       {/* New Top Header */}
-      <div className={cn(
-        "p-4 flex items-center justify-between",
-        isCollapsed && "flex-col gap-4 px-0"
-      )}>
+      <div
+        className={cn(
+          "p-4 flex items-center justify-between",
+          isCollapsed && "flex-col gap-4 px-0",
+        )}
+      >
         {!isCollapsed ? (
           <>
             <div className="flex items-center gap-2 overflow-hidden">
@@ -92,7 +109,7 @@ export function Sidebar() {
           <Button
             className={cn(
               "w-full justify-start gap-3 text-sm",
-              isCollapsed && "justify-center px-0"
+              isCollapsed && "justify-center px-0",
             )}
             variant="ghost"
             onClick={() => createMutation.mutate()}
@@ -102,16 +119,13 @@ export function Sidebar() {
             <Plus className="h-5 w-5" />
             {!isCollapsed && <span>Nouvelle conversation</span>}
           </Button>
-          
-          <Link
-            to="/analytics"
-            className="block"
-          >
+
+          <Link to="/analytics" className="block">
             <Button
               variant="ghost"
               className={cn(
                 "w-full justify-start gap-3",
-                isCollapsed && "justify-center px-0"
+                isCollapsed && "justify-center px-0",
               )}
               title={isCollapsed ? "Analytics" : undefined}
             >
@@ -124,7 +138,7 @@ export function Sidebar() {
             variant="ghost"
             className={cn(
               "w-full justify-start gap-3",
-              isCollapsed && "justify-center px-0"
+              isCollapsed && "justify-center px-0",
             )}
             onClick={() => setOpen(true)}
             title={isCollapsed ? "Rechercher" : undefined}
@@ -142,18 +156,20 @@ export function Sidebar() {
               <CommandItem
                 key={conv.id}
                 onSelect={() => {
-                  setOpen(false)
-                  window.location.href = `/chat/${conv.id}`
+                  setOpen(false);
+                  window.location.href = `/chat/${conv.id}`;
                 }}
                 className="flex flex-col items-start gap-1 p-3"
               >
-                <div className="font-medium">{conv.title || "Nouvelle conversation"}</div>
+                <div className="font-medium truncate w-full text-left">
+                  {conv.title || "Nouvelle conversation"}
+                </div>
               </CommandItem>
             ))}
           </CommandList>
         </CommandDialog>
       </div>
-      
+
       {!isCollapsed ? (
         <ScrollArea className="flex-1">
           <div className="p-2">
@@ -161,35 +177,42 @@ export function Sidebar() {
               Chat
             </div>
             {isLoading ? (
-              <div className="p-4 text-sm text-muted-foreground text-center">Loading...</div>
+              <div className="p-4 text-sm text-muted-foreground text-center">
+                Loading...
+              </div>
             ) : conversations?.length === 0 ? (
               <div className="p-4 text-sm text-muted-foreground text-center">
                 No conversations yet
               </div>
             ) : (
               conversations?.map((conv) => (
-                <div key={conv.id} className="group flex items-center gap-2 rounded-lg hover:bg-muted/50 transition-colors p-1">
+                <div
+                  key={conv.id}
+                  className="group flex items-center gap-2 rounded-lg hover:bg-muted/50 transition-colors p-1 min-w-0"
+                >
                   <Link
                     to="/chat/$chatId"
                     params={{ chatId: conv.id }}
                     className={cn(
-                      "flex-1 flex flex-col gap-1 p-1.5  rounded-md text-sm",
-                      "data-[status=active]:bg-muted"
+                      "flex-1 flex flex-col gap-1 p-1.5 rounded-md text-sm min-w-0",
+                      "data-[status=active]:bg-muted",
                     )}
                     activeProps={{
-                       className: "bg-muted"
+                      className: "bg-muted",
                     }}
                   >
-                    <span className="font-medium truncate">{conv.title || "New Conversation"}</span>
+                    <span className="font-medium truncate">
+                      {conv.title || "New Conversation"}
+                    </span>
                   </Link>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100 shrink-0"
                     onClick={(e) => {
-                      e.preventDefault()
-                      if (confirm('Delete this conversation?')) {
-                        deleteMutation.mutate(conv.id)
+                      e.preventDefault();
+                      if (confirm("Delete this conversation?")) {
+                        deleteMutation.mutate(conv.id);
                       }
                     }}
                   >
@@ -211,7 +234,7 @@ export function Sidebar() {
               variant="ghost"
               className={cn(
                 "w-full justify-start gap-3",
-                isCollapsed && "justify-center px-0"
+                isCollapsed && "justify-center px-0",
               )}
               title={isCollapsed ? "Réglages" : undefined}
             >
@@ -227,11 +250,13 @@ export function Sidebar() {
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">
-              <p className="text-sm text-muted-foreground">Les options de configuration seront bientôt disponibles.</p>
+              <p className="text-sm text-muted-foreground">
+                Les options de configuration seront bientôt disponibles.
+              </p>
             </div>
           </DialogContent>
         </Dialog>
       </div>
     </div>
-  )
+  );
 }
