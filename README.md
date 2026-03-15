@@ -45,7 +45,7 @@ python scripts/setup/setup_rag.py```
 **Option A: Web Interface (Recommended)**
 ```bash
 # Terminal 1: Backend
-python app.py
+python app.py --reload
 
 # Terminal 2: Frontend
 cd frontend && pnpm install && pnpm dev --open

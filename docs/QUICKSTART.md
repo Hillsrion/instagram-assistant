@@ -95,7 +95,7 @@ This will:
 ### Web Interface
 
 ```bash
-python app.py
+python app.py --reload
 ```
 
 Open http://localhost:8000 in your browser.
@@ -143,6 +143,7 @@ python -m eval.config_comparison.compare_configs
 | Command | Description |
 |---------|-------------|
 | `python app.py` | Launch web server |
+| `make dev` | Launch web server with hot reload |
 | `python cli.py` | Command-line interface |
 | `python setup_rag_batch.py` | Full indexing |
 | `python scripts/maintenance/update_index.py` | Incremental update |

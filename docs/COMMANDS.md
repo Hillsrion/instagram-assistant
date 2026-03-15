@@ -29,6 +29,7 @@ The project includes a `Makefile` that handles virtual environment activation au
 ```bash
 make install       # Setup environment
 make run           # Start backend
+make dev           # Start backend with hot reload
 make cli           # Start CLI
 make index         # Run RAG indexing
 make status        # Check status
@@ -38,6 +39,7 @@ make status        # Check status
 
 ```bash
 python app.py                    # Start FastAPI server on port 8000
+python app.py --reload           # Start FastAPI server with hot reload
 python cli.py                    # Interactive CLI chat
 python cli.py --prompt "query"   # Single query mode
 ```
