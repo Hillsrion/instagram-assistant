@@ -194,7 +194,7 @@ export function Sidebar() {
           <div className="p-2 w-full min-w-0 flex flex-col">
             {" "}
             {/* Favorites Section */}
-            {conversations?.some((c) => c.is_favorite) && (
+            {conversations?.some((c) => c.is_favorite === true) && (
               <>
                 <div className="px-2 py-2 text-xs font-medium text-muted-foreground flex items-center gap-2 shrink-0">
                   <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
@@ -202,7 +202,7 @@ export function Sidebar() {
                 </div>
                 <div className="flex flex-col mb-4">
                   {conversations
-                    ?.filter((c) => c.is_favorite)
+                    ?.filter((c) => c.is_favorite === true)
                     .map((conv) => {
                       const isActive = matchRoute({
                         to: "/chat/$chatId",
@@ -234,17 +234,17 @@ export function Sidebar() {
                               setOpenMenuId(isOpen ? conv.id : null)
                             }
                           >
-                            <DropdownMenuTrigger asChild>
-                              <div
-                                className={cn(
-                                  "absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer",
-                                  isMenuOpen && "opacity-100",
-                                  "bg-linear-to-l from-70% to-transparent pl-8 rounded-r-lg",
-                                  isActive
-                                    ? "from-muted"
-                                    : "from-gray-50 group-hover:from-[#f2f2f3]",
-                                )}
-                              >
+                            <div
+                              className={cn(
+                                "absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer",
+                                isMenuOpen && "opacity-100",
+                                "bg-linear-to-l from-70% to-transparent pl-8 rounded-r-lg",
+                                isActive
+                                  ? "from-muted"
+                                  : "from-gray-50 group-hover:from-[#f2f2f3]",
+                              )}
+                            >
+                              <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -252,8 +252,8 @@ export function Sidebar() {
                                 >
                                   <MoreVertical className="h-4 w-4 text-muted-foreground" />
                                 </Button>
-                              </div>
-                            </DropdownMenuTrigger>
+                              </DropdownMenuTrigger>
+                            </div>
                             <DropdownMenuContent
                               align="end"
                               className="min-w-[180px]"
@@ -348,17 +348,17 @@ export function Sidebar() {
                           setOpenMenuId(isOpen ? conv.id : null)
                         }
                       >
-                        <DropdownMenuTrigger asChild>
-                          <div
-                            className={cn(
-                              "absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer",
-                              isMenuOpen && "opacity-100",
-                              "bg-linear-to-l from-70% to-transparent pl-8 rounded-r-lg",
-                              isActive
-                                ? "from-muted"
-                                : "from-gray-50 group-hover:from-[#f2f2f3]",
-                            )}
-                          >
+                        <div
+                          className={cn(
+                            "absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer",
+                            isMenuOpen && "opacity-100",
+                            "bg-linear-to-l from-70% to-transparent pl-8 rounded-r-lg",
+                            isActive
+                              ? "from-muted"
+                              : "from-gray-50 group-hover:from-[#f2f2f3]",
+                          )}
+                        >
+                          <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -366,8 +366,8 @@ export function Sidebar() {
                             >
                               <MoreVertical className="h-4 w-4 text-muted-foreground" />
                             </Button>
-                          </div>
-                        </DropdownMenuTrigger>
+                          </DropdownMenuTrigger>
+                        </div>
                         <DropdownMenuContent
                           align="end"
                           className="min-w-[180px]"
