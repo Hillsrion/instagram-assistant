@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import type { DateRange } from "react-day-picker";
 import { getOllamaModels, getParticipants } from "@/lib/api";
 
 interface UseChatFiltersOptions {
@@ -37,6 +38,9 @@ export function useChatFilters(options: UseChatFiltersOptions = {}) {
   const [filterBroad, setFilterBroad] = useState<boolean>(
     !!options.initialBroad,
   );
+  const [filterDate, setFilterDate] = useState<DateRange | undefined>(
+    undefined,
+  );
 
   // Model State
   const [selectedModel, setSelectedModel] = useState<string>("");
@@ -57,6 +61,8 @@ export function useChatFilters(options: UseChatFiltersOptions = {}) {
     setFilterGroup,
     filterBroad,
     setFilterBroad,
+    filterDate,
+    setFilterDate,
     selectedModel,
     setSelectedModel,
   };

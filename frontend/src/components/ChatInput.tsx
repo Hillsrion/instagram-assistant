@@ -1,9 +1,23 @@
-import { Send, SlidersHorizontal, Sparkles, StopCircle } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import {
+  CalendarDays,
+  Send,
+  SlidersHorizontal,
+  Sparkles,
+  StopCircle,
+} from "lucide-react";
 import { useRef } from "react";
+import type { DateRange } from "react-day-picker";
 import { SearchPopover } from "@/components/SearchPopover";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -21,6 +35,7 @@ interface ChatInputProps {
       group?: string;
       broadSearch?: boolean;
       model?: string;
+      date?: DateRange;
     },
   ) => void;
   isStreaming: boolean;
@@ -37,6 +52,8 @@ interface ChatInputProps {
   setFilterGroup: (g: string) => void;
   filterBroad: boolean;
   setFilterBroad: (b: boolean) => void;
+  filterDate?: DateRange;
+  setFilterDate: (date: DateRange | undefined) => void;
   participantNames: string[];
   className?: string;
   isLoading?: boolean;
@@ -57,6 +74,8 @@ export function ChatInput({
   setFilterGroup,
   filterBroad,
   setFilterBroad,
+  filterDate,
+  setFilterDate,
   participantNames,
   className,
   isLoading,
@@ -73,153 +92,182 @@ export function ChatInput({
         group: filterGroup,
         broadSearch: filterBroad,
         model: selectedModel,
+        date: filterDate,
       });
       inputRef.current.value = "";
     }
   };
 
+  const selectedCount = (filterParticipant ? 1 : 0) + (filterGroup ? 1 : 0);
+
   return (
     <div
       className={cn(
-        "space-y-3 w-full transition-all duration-700 ease-in-out",
+        "w-full transition-all duration-700 ease-in-out",
         isHome
-          ? "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-card border rounded-xl p-4 shadow-2xl max-w-2xl animate-in fade-in zoom-in-95 duration-700"
-          : "relative bg-transparent p-0 border-0 shadow-none",
+          ? "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-4 max-w-2xl animate-in fade-in zoom-in-95 duration-700"
+          : "relative p-0",
         className,
       )}
       style={{
         viewTransitionName: "chat-input",
       }}
     >
-      {/* Input */}
-      <div className="flex gap-2 relative">
-        <Input
-          ref={inputRef}
-          autoFocus={autoFocus}
-          placeholder={
-            filterParticipant
-              ? `Ask a question about ${filterParticipant}...`
-              : filterGroup
-                ? `Ask a question about group ${filterGroup}...`
-                : "Poser une question sur vos conversations..."
-          }
-          className="flex-1 pr-12 min-h-[50px] text-base shadow-sm"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmit();
+      <div className="bg-card border rounded-2xl shadow-xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all duration-300">
+        {/* Unified Container Input Area */}
+        <div className="flex gap-2 relative p-2 px-3">
+          <Input
+            ref={inputRef}
+            autoFocus={autoFocus}
+            placeholder={
+              filterParticipant
+                ? `Demander quelque chose sur ${filterParticipant}...`
+                : filterGroup
+                  ? `Demander quelque chose sur le groupe ${filterGroup}...`
+                  : "Quels ont été les moments forts de mes conversations avec Marie ?"
             }
-          }}
-          disabled={isStreaming}
-        />
-
-        <div className="absolute right-1.5 top-1.5">
-          {isStreaming ? (
-            <Button
-              variant="destructive"
-              size="icon"
-              onClick={stopStream}
-              className="h-9 w-9 rounded-full"
-            >
-              <StopCircle className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              size="icon"
-              onClick={() => handleSubmit()}
-              disabled={isLoading}
-              className="h-9 w-9 rounded-full"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Toolbar: Filters & Model Selection */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {/* 1. FILTER POPOVER */}
-          <SearchPopover
-            participantNames={participantNames}
-            selectedParticipant={filterParticipant}
-            onSelectParticipant={(p) => {
-              setFilterParticipant(p);
-              if (p) setFilterGroup("");
-              if (!p) setFilterBroad(false);
-            }}
-            isBroadSearch={filterBroad}
-            onBroadSearchChange={setFilterBroad}
-            selectedGroup={filterGroup}
-            onSelectGroup={(g) => {
-              setFilterGroup(g);
-              if (g) {
-                setFilterParticipant("");
-                setFilterBroad(false);
+            className="flex-1 border-0 shadow-none focus-visible:ring-0 text-base min-h-[44px] bg-transparent"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
               }
             }}
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(
-                "gap-2 h-8 text-xs font-medium border-dashed",
-                (filterParticipant || filterGroup) &&
-                  "bg-primary/5 border-primary/20 text-primary border-solid",
-              )}
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              {filterParticipant ? (
-                <span>
-                  Personne:{" "}
-                  <span className="font-semibold">{filterParticipant}</span>
-                  {filterBroad && (
-                    <span className="text-[10px] ml-1 opacity-70">(Large)</span>
-                  )}
-                </span>
-              ) : filterGroup ? (
-                <span>
-                  Groupe: <span className="font-semibold">{filterGroup}</span>
-                </span>
-              ) : (
-                "Filtres"
-              )}
-              {(filterParticipant || filterGroup) && (
-                <Badge
-                  variant="secondary"
-                  className="ml-1 h-5 px-1 rounded-sm bg-primary/10 text-primary hover:bg-primary/20"
-                >
-                  1
-                </Badge>
-              )}
-            </Button>
-          </SearchPopover>
+            disabled={isStreaming}
+          />
 
-          {/* 2. MODEL SELECTOR */}
-          {modelsData?.models && modelsData.models.length > 0 && (
-            <Select
-              value={selectedModel || modelsData.default_model || ""}
-              onValueChange={setSelectedModel}
+          <div className="flex items-center">
+            {isStreaming ? (
+              <Button
+                variant="destructive"
+                size="icon"
+                onClick={stopStream}
+                className="h-8 w-8 rounded-full"
+              >
+                <StopCircle className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                onClick={() => handleSubmit()}
+                disabled={isLoading}
+                className="h-8 w-8 rounded-full"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Toolbar: Inside the rounded container */}
+        <div className="flex items-center justify-between px-3 pb-2 border-t border-muted/30 pt-2 bg-muted/5">
+          <div className="flex items-center gap-1.5">
+            {/* 1. COMPTES POPOVER (Renamed from Filters) */}
+            <SearchPopover
+              participantNames={participantNames}
+              selectedParticipant={filterParticipant}
+              onSelectParticipant={(p) => {
+                setFilterParticipant(p);
+                if (p) setFilterGroup("");
+                if (!p) setFilterBroad(false);
+              }}
+              isBroadSearch={filterBroad}
+              onBroadSearchChange={setFilterBroad}
+              selectedGroup={filterGroup}
+              onSelectGroup={(g) => {
+                setFilterGroup(g);
+                if (g) {
+                  setFilterParticipant("");
+                  setFilterBroad(false);
+                }
+              }}
             >
-              <SelectTrigger className="h-8 w-auto gap-2 text-xs border-0 bg-transparent hover:bg-muted/50 focus:ring-0 px-2 text-muted-foreground hover:text-foreground transition-all duration-300">
-                <Sparkles className="h-3.5 w-3.5" />
-                <SelectValue placeholder="Model" />
-              </SelectTrigger>
-              <SelectContent>
-                {modelsData.models.map((model) => (
-                  <SelectItem
-                    key={model.name}
-                    value={model.name}
-                    className="text-xs"
-                  >
-                    {model.name.includes(":")
-                      ? model.name
-                      : `${model.name}:latest`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "gap-1.5 h-7 text-xs font-medium hover:bg-muted transition-colors rounded-lg",
+                  selectedCount > 0 &&
+                    "bg-primary/5 text-primary hover:bg-primary/10",
+                )}
+              >
+                <SlidersHorizontal className="h-3 w-3" />
+                <span>
+                  {selectedCount > 0
+                    ? `${selectedCount} compte${selectedCount > 1 ? "s" : ""}`
+                    : "Comptes"}
+                </span>
+              </Button>
+            </SearchPopover>
+
+            {/* 2. DATEPICKER */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "gap-1.5 h-7 text-xs font-medium hover:bg-muted transition-colors rounded-lg",
+                    filterDate?.from &&
+                      "bg-primary/5 text-primary hover:bg-primary/10",
+                  )}
+                >
+                  <CalendarDays className="h-3 w-3" />
+                  <span>
+                    {filterDate?.from ? (
+                      filterDate.to ? (
+                        <>
+                          {format(filterDate.from, "d MMM", { locale: fr })} -{" "}
+                          {format(filterDate.to, "d MMM yyyy", { locale: fr })}
+                        </>
+                      ) : (
+                        format(filterDate.from, "d MMM yyyy", { locale: fr })
+                      )
+                    ) : (
+                      "Date"
+                    )}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={filterDate}
+                  onSelect={setFilterDate}
+                  initialFocus
+                  locale={fr}
+                  numberOfMonths={2}
+                  className="p-4"
+                />
+              </PopoverContent>
+            </Popover>
+
+            {/* 3. MODEL SELECTOR */}
+            {modelsData?.models && modelsData.models.length > 0 && (
+              <Select
+                value={selectedModel || modelsData.default_model || ""}
+                onValueChange={setSelectedModel}
+              >
+                <SelectTrigger className="h-7 w-auto gap-1.5 text-xs border-0 bg-transparent hover:bg-muted focus:ring-0 px-2 text-muted-foreground hover:text-foreground transition-all duration-300 rounded-lg">
+                  <Sparkles className="h-3 w-3" />
+                  <SelectValue placeholder="Modèle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {modelsData.models.map((model) => (
+                    <SelectItem
+                      key={model.name}
+                      value={model.name}
+                      className="text-xs"
+                    >
+                      {model.name.includes(":")
+                        ? model.name
+                        : `${model.name}:latest`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
       </div>
     </div>

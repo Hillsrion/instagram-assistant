@@ -1,6 +1,7 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
+import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 import { evaluateTitle, updateConversation } from "@/lib/api";
 import type { Message } from "@/lib/types";
@@ -25,6 +26,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
         group?: string;
         broadSearch?: boolean;
         model?: string;
+        date?: DateRange;
       },
     ) => {
       if (!content.trim()) return;
@@ -64,6 +66,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
             participant_filter: filters?.participant || undefined,
             use_about_person: filters?.broadSearch || false,
             group_filter: filters?.group || undefined,
+            date_filter: filters?.date || undefined,
           }),
           signal: abortController.current.signal,
           async onmessage(ev) {

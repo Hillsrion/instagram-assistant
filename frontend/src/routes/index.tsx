@@ -23,6 +23,8 @@ function Index() {
     setFilterGroup,
     filterBroad,
     setFilterBroad,
+    filterDate,
+    setFilterDate,
     selectedModel,
     setSelectedModel,
   } = useChatFilters();
@@ -58,17 +60,9 @@ function Index() {
     <div className="flex h-full flex-col items-center justify-center bg-gray-50/50 px-4">
       <div className="w-full max-w-2xl space-y-8 -translate-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* Logo/Branding */}
-        <div className="flex flex-col items-center gap-4 text-center">
+        <div className="flex flex-col items-center gap-12 text-center">
           <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm">
             <Instagram className="h-10 w-10 text-primary" />
-          </div>
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">
-              Instagram Assistant
-            </h1>
-            <p className="text-muted-foreground">
-              Analysez vos conversations Instagram avec l'IA locale.
-            </p>
           </div>
         </div>
 
@@ -87,6 +81,8 @@ function Index() {
             setFilterGroup={setFilterGroup}
             filterBroad={filterBroad}
             setFilterBroad={setFilterBroad}
+            filterDate={filterDate}
+            setFilterDate={setFilterDate}
             participantNames={participantNames}
             isLoading={createMutation.isPending}
             autoFocus

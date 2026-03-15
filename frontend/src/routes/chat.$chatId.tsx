@@ -47,6 +47,8 @@ function ChatRoute() {
     setFilterGroup,
     filterBroad,
     setFilterBroad,
+    filterDate,
+    setFilterDate,
     selectedModel,
     setSelectedModel,
   } = useChatFilters({
@@ -148,7 +150,11 @@ function ChatRoute() {
   } | null>(null);
 
   const handleSendMessage = (content: string, options: any) => {
-    sendMessage(content, { ...options, model: selectedModel });
+    sendMessage(content, {
+      ...options,
+      model: selectedModel,
+      date: filterDate,
+    });
   };
 
   return (
@@ -256,6 +262,8 @@ function ChatRoute() {
             setFilterGroup={setFilterGroup}
             filterBroad={filterBroad}
             setFilterBroad={setFilterBroad}
+            filterDate={filterDate}
+            setFilterDate={setFilterDate}
             participantNames={participantNames}
             isLoading={isLoading}
             autoFocus
