@@ -22,14 +22,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -42,11 +34,13 @@ import {
   updateConversation,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { SettingsModal } from "@/components/SettingsModal";
 
 export function Sidebar() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false); // Command dialog state
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -417,34 +411,23 @@ export function Sidebar() {
       )}
 
       <div className="p-3">
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button
-              variant="ghost"
-              className={cn(
-                "w-full justify-start gap-3",
-                isCollapsed && "justify-center px-0",
-              )}
-              title={isCollapsed ? "Réglages" : undefined}
-            >
-              <Settings className="h-5 w-5" />
-              {!isCollapsed && <span>Réglages</span>}
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Réglages</DialogTitle>
-              <DialogDescription>
-                Configurez vos préférences ici.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <p className="text-sm text-muted-foreground">
-                Les options de configuration seront bientôt disponibles.
-              </p>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button
+          variant="ghost"
+          className={cn(
+            "w-full justify-start gap-3",
+            isCollapsed && "justify-center px-0",
+          )}
+          onClick={() => setIsSettingsOpen(true)}
+          title={isCollapsed ? "Réglages" : undefined}
+        >
+          <Settings className="h-5 w-5" />
+          {!isCollapsed && <span>Réglages</span>}
+        </Button>
+
+        <SettingsModal
+          open={isSettingsOpen}
+          onOpenChange={setIsSettingsOpen}
+        />
       </div>
     </div>
   );
