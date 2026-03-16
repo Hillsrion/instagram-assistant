@@ -4,12 +4,8 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 import {
-  Settings,
+  Settings as SettingsIcon,
   Shield,
   MessageSquare,
   Users,
@@ -18,7 +14,10 @@ import {
   Trash2,
   Instagram,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { FormRenderer, type FieldDefinition } from "@/components/ui/form/form-renderer";
+import { SettingsSchema, defaultSettings, type Settings } from "@/lib/settings-schema";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface SettingsModalProps {
   open: boolean;
@@ -27,6 +26,60 @@ interface SettingsModalProps {
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState("general");
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+
+  const handleSave = async (values: Settings) => {
+    // Simulate API call
+    console.log("Saving settings:", values);
+    setSettings(values);
+    toast.success("Réglages enregistrés avec succès");
+  };
+
+  const generalFields: FieldDefinition[] = [
+    {
+      name: "developerMode",
+      label: "Mode développeur",
+      description: "Active les outils de diagnostic et les logs détaillés dans l'interface pour le débogage.",
+      type: "switch",
+    },
+  ];
+
+  const agentFields: FieldDefinition[] = [
+    {
+      name: "agentTone",
+      label: "Ton de l'agent",
+      description: "Personnalisez le comportement et les réponses de votre assistant.",
+      type: "select",
+      options: [
+        { label: "Professionnel", value: "Professionnel" },
+        { label: "Amical", value: "Amical" },
+        { label: "Concise", value: "Concise" },
+      ],
+      placeholder: "Choisir un ton",
+    },
+    {
+      name: "globalInstructions",
+      label: "Instructions globales",
+      description: "Ces instructions seront injectées dans le système pour influencer chaque réponse de l'agent.",
+      type: "textarea",
+      placeholder: "Ex: Réponds toujours de manière polie et utilise le vouvoiement...",
+    },
+  ];
+
+  const preferenceFields: FieldDefinition[] = [
+    {
+      name: "interfaceTheme",
+      label: "Thème de l'interface",
+      description: "Ajustez l'apparence visuelle pour une expérience personnalisée.",
+      type: "select",
+      options: [
+        { label: "Clair", value: "Clair" },
+        { label: "Sombre", value: "Sombre" },
+        { label: "Système", value: "Système" },
+      ],
+      placeholder: "Choisir un thème",
+    },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -42,7 +95,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             {/* Sidebar Tabs */}
             <TabsList className="flex flex-col w-64 h-full bg-slate-50/50 border-r p-5 justify-start items-stretch gap-1 rounded-none">
               <div className="flex items-center gap-2 px-3 py-4 mb-2">
-                <Settings className="w-5 h-5 text-primary" />
+                <SettingsIcon className="w-5 h-5 text-primary" />
                 <span className="text-xl font-bold text-slate-800">Réglages</span>
               </div>
               
@@ -85,16 +138,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     Configurez les paramètres globaux de l'application.
                   </p>
                   
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-8 shadow-sm">
-                    <div className="flex items-center justify-between gap-8">
-                      <div className="space-y-1">
-                        <Label className="text-base font-semibold">Mode développeur</Label>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          Active les outils de diagnostic et les logs détaillés dans l'interface pour le débogage.
-                        </p>
-                      </div>
-                      <Switch />
-                    </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <FormRenderer
+                      schema={SettingsSchema}
+                      defaultValues={settings}
+                      onSubmit={handleSave}
+                      fields={generalFields}
+                    />
                   </div>
                 </div>
               </TabsContent>
@@ -106,32 +156,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     Personnalisez le comportement et les réponses de votre assistant.
                   </p>
 
-                  <div className="space-y-10">
-                    <div className="space-y-4">
-                      <Label className="text-sm font-bold uppercase tracking-wider opacity-70">Ton de l'agent</Label>
-                      <div className="grid grid-cols-3 gap-3">
-                        {["Professionnel", "Amical", "Concise"].map((tone) => (
-                          <Button
-                            key={tone}
-                            variant="outline"
-                            className="justify-center h-11 border-slate-200 hover:border-primary hover:text-primary transition-colors font-medium rounded-xl"
-                          >
-                            {tone}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <Label className="text-sm font-bold uppercase tracking-wider opacity-70">Instructions globales</Label>
-                      <Textarea
-                        placeholder="Ex: Réponds toujours de manière polie et utilise le vouvoiement..."
-                        className="min-h-[180px] resize-none border-slate-200 focus:border-primary focus:ring-primary rounded-xl p-4 text-sm"
-                      />
-                      <p className="text-xs text-muted-foreground italic">
-                        Ces instructions seront injectées dans le système pour influencer chaque réponse de l'agent.
-                      </p>
-                    </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <FormRenderer
+                      schema={SettingsSchema}
+                      defaultValues={settings}
+                      onSubmit={handleSave}
+                      fields={agentFields}
+                    />
                   </div>
                 </div>
               </TabsContent>
@@ -176,29 +207,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     Ajustez l'apparence visuelle pour une expérience personnalisée.
                   </p>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-8 shadow-sm">
-                    <div className="space-y-5">
-                      <Label className="text-sm font-bold uppercase tracking-wider opacity-70">Thème de l'interface</Label>
-                      <div className="grid grid-cols-3 gap-4">
-                        {["Clair", "Sombre", "Système"].map((theme) => (
-                          <div
-                            key={theme}
-                            className="flex flex-col gap-3 cursor-pointer group"
-                          >
-                            <div className={cn(
-                              "aspect-video rounded-xl border-2 flex items-center justify-center transition-all bg-slate-50 group-hover:scale-[1.02]",
-                              theme === "Clair" ? "bg-white border-primary ring-2 ring-primary/10" : "bg-slate-900 border-transparent shadow-md group-hover:border-slate-300"
-                            )}>
-                              <div className={cn(
-                                "w-14 h-2 rounded-full",
-                                theme === "Clair" ? "bg-slate-200" : "bg-slate-700"
-                              )} />
-                            </div>
-                            <span className="text-xs text-center font-bold text-slate-600 capitalize group-hover:text-primary transition-colors">{theme}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <FormRenderer
+                      schema={SettingsSchema}
+                      defaultValues={settings}
+                      onSubmit={handleSave}
+                      fields={preferenceFields}
+                    />
                   </div>
                 </div>
               </TabsContent>
