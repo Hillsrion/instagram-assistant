@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Instagram } from "lucide-react";
 import { ChatInput } from "@/components/ChatInput";
 import { useChatFilters } from "@/hooks/use-chat-filters";
 import { createConversation } from "@/lib/api";
@@ -59,13 +58,6 @@ function Index() {
   return (
     <div className="flex h-full flex-col items-center justify-center bg-gray-50/50 px-4">
       <div className="w-full max-w-2xl space-y-8 -translate-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        {/* Logo/Branding */}
-        <div className="flex flex-col items-center gap-12 text-center">
-          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm">
-            <Instagram className="h-10 w-10 text-primary" />
-          </div>
-        </div>
-
         {/* Centered Chat Input */}
         <div className="h-[60px] w-full flex items-center justify-center">
           <ChatInput

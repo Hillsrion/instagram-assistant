@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   CalendarDays,
+  Instagram,
   Send,
   SlidersHorizontal,
   Sparkles,
@@ -113,6 +114,13 @@ export function ChatInput({
         viewTransitionName: "chat-input",
       }}
     >
+      {isHome && (
+        <div className="flex flex-col items-center gap-12 mb-10 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out">
+          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm">
+            <Instagram className="h-10 w-10 text-primary" />
+          </div>
+        </div>
+      )}
       <div className="bg-card border rounded-2xl shadow-xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all duration-300">
         {/* Unified Container Input Area */}
         <div className="flex gap-2 relative p-2 px-3">
