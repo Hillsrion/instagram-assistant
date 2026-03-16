@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useMatchRoute } from "@tanstack/react-router";
+import { Link, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import {
   BarChart3,
   Instagram,
@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 
 export function Sidebar() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false); // Command dialog state
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -58,7 +59,10 @@ export function Sidebar() {
     mutationFn: () => createConversation(),
     onSuccess: (newConv: any) => {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      window.location.href = `/chat/${newConv.id}`;
+      navigate({
+        to: "/chat/$chatId",
+        params: { chatId: newConv.id },
+      });
     },
   });
 
@@ -176,7 +180,10 @@ export function Sidebar() {
                 key={conv.id}
                 onSelect={() => {
                   setOpen(false);
-                  window.location.href = `/chat/${conv.id}`;
+                  navigate({
+                    to: "/chat/$chatId",
+                    params: { chatId: conv.id },
+                  });
                 }}
                 className="flex flex-col items-start gap-1 p-3"
               >

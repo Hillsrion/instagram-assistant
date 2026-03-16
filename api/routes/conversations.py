@@ -111,8 +111,9 @@ async def evaluate_conversation_title(data: TitleEvaluationRequest):
     if not chatbot:
         raise HTTPException(status_code=503, detail="Chatbot not initialized")
     
+    from anyio.to_thread import run_sync
     try:
-        title = chatbot.evaluate_title(data.message, model=data.model)
+        title = await run_sync(chatbot.evaluate_title, data.message, data.model)
         return {"title": title}
     except Exception as e:
         print(f"Error in evaluate-title endpoint: {e}")

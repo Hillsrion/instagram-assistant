@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/chat/$chatId")({
   validateSearch: (search: Record<string, unknown>) => {
     return {
+      q: typeof search.q === "string" ? search.q : undefined,
+      p: typeof search.p === "string" ? search.p : undefined,
+      g: typeof search.g === "string" ? search.g : undefined,
       b: search.b === "true" || search.b === true || undefined,
     } as { q?: string; p?: string; g?: string; b?: boolean };
   },

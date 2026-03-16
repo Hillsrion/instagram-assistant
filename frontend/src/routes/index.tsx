@@ -37,7 +37,7 @@ function Index() {
       const newConv = await createMutation.mutateAsync(
         content.slice(0, 30) + (content.length > 30 ? "..." : ""),
       );
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      // Invalidation is delayed after navigation to avoid flickering during view transition
 
       // Navigate to chat with initial message and filters
       navigate({
@@ -50,6 +50,11 @@ function Index() {
           b: options.broadSearch || undefined,
         },
       });
+
+      // Delay invalidation to avoid flickering during the view transition
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      }, 500);
     } catch (error) {
       console.error("Failed to create conversation:", error);
     }

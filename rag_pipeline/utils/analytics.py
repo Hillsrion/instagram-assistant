@@ -25,7 +25,8 @@ class ConversationAnalytics:
     def _connect(self):
         """Connection to SQLite database."""
         if self.conn is None:
-            self.conn = sqlite3.connect(str(self.db_path))
+            # check_same_thread=False is needed for multi-threaded access in FastAPI
+            self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
             self.conn.row_factory = sqlite3.Row
 
     def count_messages(

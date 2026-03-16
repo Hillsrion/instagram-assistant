@@ -7,6 +7,7 @@ import uuid
 import asyncio
 from datetime import datetime
 from typing import AsyncGenerator
+from anyio.to_thread import run_sync
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -176,11 +177,11 @@ async def generate_agent_response(request: ChatRequest, analysis) -> AsyncGenera
 
     # Generate follow-up questions
     yield f"data: {json.dumps({'type': 'progress', 'step': 'followups', 'message': 'Preparing suggestions...'})}\n\n"
-
+    
     followups = []
     if response_text:
         try:
-            followups = chatbot.generate_followup_questions(request.message, response_text, model=request.model)
+            followups = await run_sync(chatbot.generate_followup_questions, request.message, response_text, request.model)
         except Exception as e:
             logger.warning(f"Followup generation error: {e}")
 
@@ -249,35 +250,38 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
     final_date_start = request.date_start or analysis.date_start
     final_date_end = request.date_end or analysis.date_end
 
-    context = retriever.retrieve(
-        query=search_query,
-        participant_filter=p_filter,
-        about_person=a_person,
-        conversation_filter=request.group_filter,
-        year_filter=request.year_filter,
-        date_start=final_date_start,
-        date_end=final_date_end,
-        top_k=dyn_top_k,
-        use_reranking=dyn_reranking,
-        use_hybrid=request.use_hybrid,
-        expand_context=dyn_expand
-    )    
+    context = await run_sync(
+        retriever.retrieve,
+        search_query,
+        p_filter,
+        a_person,
+        request.group_filter,
+        request.year_filter,
+        final_date_start,
+        final_date_end,
+        dyn_top_k,
+        dyn_reranking,
+        request.use_hybrid,
+        dyn_expand
+    )
+
     # Smart Fallback: If rewritten query yields poor results, try original query
     if (context.low_confidence or not context.has_results) and search_query != request.message:
         yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': 'Broadening search (Smart Fallback)...'})}\n\n"
 
-        fallback_context = retriever.retrieve(
-            query=request.message,
-            participant_filter=p_filter,
-            about_person=a_person,
-            conversation_filter=request.group_filter,
-            year_filter=request.year_filter,
-            date_start=final_date_start,
-            date_end=final_date_end,
-            top_k=dyn_top_k,
-            use_reranking=dyn_reranking,
-            use_hybrid=request.use_hybrid,
-            expand_context=dyn_expand
+        fallback_context = await run_sync(
+            retriever.retrieve,
+            request.message,
+            p_filter,
+            a_person,
+            request.group_filter,
+            request.year_filter,
+            final_date_start,
+            final_date_end,
+            dyn_top_k,
+            dyn_reranking,
+            request.use_hybrid,
+            dyn_expand
         )
         # If fallback is better, replace
         if fallback_context.max_confidence_score > context.max_confidence_score:
@@ -345,7 +349,7 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
     followups = []
     if response_text and not context.low_confidence:
         try:
-            followups = chatbot.generate_followup_questions(request.message, response_text, model=request.model)
+            followups = await run_sync(chatbot.generate_followup_questions, request.message, response_text, request.model)
         except Exception as e:
             logger.warning(f"Followup generation error: {e}")
 
@@ -384,7 +388,8 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=503, detail="RAG not initialized")
 
     # Omni-Analysis
-    analysis = query_analyzer.analyze(request.message, chatbot.conversation_history)
+    analysis = await run_sync(query_analyzer.analyze, request.message, chatbot.conversation_history)
+
 
     if should_use_agent(analysis) and agent:
         # Agent path
@@ -399,7 +404,7 @@ async def chat(request: ChatRequest):
             for m in conv['messages'][:-1]
         ]
 
-        result = agent.run(request.message, history=history, analysis=analysis)
+        result = await run_sync(agent.run, request.message, history, analysis)
         response_text = chatbot.filter_pii(result.answer)
 
         context = agent.tools.get_last_context()
@@ -431,34 +436,36 @@ async def chat(request: ChatRequest):
     final_date_start = request.date_start or analysis.date_start
     final_date_end = request.date_end or analysis.date_end
 
-    context = retriever.retrieve(
-        query=search_query,
-        participant_filter=request.participant_filter,
-        about_person=request.about_person,
-        conversation_filter=request.group_filter,
-        year_filter=request.year_filter,
-        date_start=final_date_start,
-        date_end=final_date_end,
-        top_k=dyn_top_k,
-        use_reranking=dyn_reranking,
-        use_hybrid=request.use_hybrid,
-        expand_context=dyn_expand
+    context = await run_sync(
+        retriever.retrieve,
+        search_query,
+        request.participant_filter,
+        request.about_person,
+        request.group_filter,
+        request.year_filter,
+        final_date_start,
+        final_date_end,
+        dyn_top_k,
+        dyn_reranking,
+        request.use_hybrid,
+        dyn_expand
     )
 
     # Smart Fallback
     if (context.low_confidence or not context.has_results) and search_query != request.message:
-        fallback_context = retriever.retrieve(
-            query=request.message,
-            participant_filter=request.participant_filter,
-            about_person=request.about_person,
-            conversation_filter=request.group_filter,
-            year_filter=request.year_filter,
-            date_start=final_date_start,
-            date_end=final_date_end,
-            top_k=dyn_top_k,
-            use_reranking=dyn_reranking,
-            use_hybrid=request.use_hybrid,
-            expand_context=dyn_expand
+        fallback_context = await run_sync(
+            retriever.retrieve,
+            request.message,
+            request.participant_filter,
+            request.about_person,
+            request.group_filter,
+            request.year_filter,
+            final_date_start,
+            final_date_end,
+            dyn_top_k,
+            dyn_reranking,
+            request.use_hybrid,
+            dyn_expand
         )
         if fallback_context.max_confidence_score > context.max_confidence_score:
             context = fallback_context
@@ -511,7 +518,8 @@ async def chat_stream(request: ChatRequest):
         logger.info(f"👥 Group filter received: '{request.group_filter}' (Not yet implemented in retrieval)")
 
     # Omni-Analysis
-    analysis = query_analyzer.analyze(request.message, chatbot.conversation_history)
+    analysis = await run_sync(query_analyzer.analyze, request.message, chatbot.conversation_history)
+
 
     logger.info(f"🎯 Analysis result: mode={analysis.mode}, intent={analysis.intent}")
 
