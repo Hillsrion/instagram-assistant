@@ -140,6 +140,26 @@ class Config:
     # === User ===
     user_name: str = field(default_factory=lambda: os.getenv('USER_NAME', 'Ismaël'))
     
+    # === AI Assistant Settings ===
+    agent_tone: str = "Professionnel"
+    global_instructions: str = ""
+    developer_mode: bool = False
+    
+    def load_settings(self):
+        """Loads settings from settings.json if it exists."""
+        settings_path = self.index_dir / "settings.json"
+        if settings_path.exists():
+            try:
+                import json
+                with open(settings_path, 'r') as f:
+                    settings = json.load(f)
+                    self.agent_tone = settings.get("agentTone", "Professionnel")
+                    self.global_instructions = settings.get("globalInstructions", "")
+                    self.developer_mode = settings.get("developerMode", False)
+                    print(f"⚙️ Settings loaded: tone={self.agent_tone}, instructions={len(self.global_instructions)} chars")
+            except Exception as e:
+                print(f"⚠️ Failed to load settings: {e}")
+
     def __post_init__(self):
         """Initializes derived paths and validates configuration."""
         # Convert base_dir to Path if string
@@ -181,6 +201,9 @@ class Config:
 
         # Create necessary directories
         self.index_dir.mkdir(exist_ok=True)
+
+        # Load dynamic settings
+        self.load_settings()
 
 
 # Default instance

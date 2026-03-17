@@ -6,6 +6,27 @@ from pathlib import Path
 
 CONVERSATIONS_FILE = Path("rag_data/conversations.json")
 PROJECTS_FILE = Path("rag_data/projects.json")
+SETTINGS_FILE = Path("rag_data/settings.json")
+
+
+def load_settings() -> dict:
+    """Load settings from file."""
+    if SETTINGS_FILE.exists():
+        with open(SETTINGS_FILE, 'r') as f:
+            return json.load(f)
+    return {
+        "developerMode": False,
+        "agentTone": "Professionnel",
+        "globalInstructions": "",
+        "interfaceTheme": "Système",
+    }
+
+
+def save_settings(settings: dict) -> None:
+    """Save settings to file."""
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(SETTINGS_FILE, 'w') as f:
+        json.dump(settings, f, indent=2)
 
 
 def load_conversations() -> dict:

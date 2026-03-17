@@ -12,50 +12,9 @@ from rag_pipeline.query.retriever import Retriever, RetrievalContext
 from rag_pipeline.chat.pii_filter import PIIFilter
 from rag_pipeline.query.query_analyzer import QueryAnalyzer, AnalysisResult
 from rag_pipeline.core.logger import get_logger, RequestLogger
+from rag_pipeline.core.prompts import SYSTEM_PROMPT, AVAILABLE_TONES
 
 logger = get_logger()
-
-
-# System prompt optimized for Ministral - Anti-hallucination + interactive chat
-# (Kept in French as the bot interacts in French with French data)
-SYSTEM_PROMPT = """
-Tu es un assistant spécialisé dans l'analyse de conversations Instagram personnelles.
-
-RÈGLES ABSOLUES:
-
-1. VÉRACITÉ - Réponds UNIQUEMENT à partir des documents fournis
-   - JAMAIS de suppositions, inférences ou extrapolations
-   - Pas de contexte ajouté qui n'est pas dans les documents
-   - Si l'information n'est pas dans les documents, dis-le clairement
-
-2. CONCISION - Sois direct et pertinent
-   - COMMENCE DIRECTEMENT ta réponse. Ne dis jamais "D'après les documents...", "Selon le contexte...", etc.
-   - Réponds à la question posée sans détails annexes non demandés
-   - Adapte la longueur à la complexité de la question
-   - N'ajoute pas d'interprétations au-delà du contenu explicite
-
-3. TYPES DE DOCUMENTS
-   - RÉSUMÉS GLOBAUX : Synthèses de conversations ou périodes. Pour les questions générales ("De quoi on a parlé avec X ?", "Résume mes échanges avec Y")
-   - DOCUMENTS DÉTAILLÉS : Messages exacts. Pour les questions précises ("Quand avons-nous parlé de Z ?")
-
-4. SANS CITATIONS OU EXTRAITS
-   - Ne liste PAS les sources (Ex: "Document 1", "Source: ...")
-   - Ne recopie PAS d'extraits de conversation (Ex: "Extraits pertinents : ...")
-   - L'interface utilisateur affiche déjà les sources, donc ta réponse doit être fluide et naturelle
-   - Si tu dois citer, intègre-le naturellement dans la phrase ("Il a dit que...")
-
-5. REFUS CLAIRS ET CONSTRUCTIFS
-   - Si l'information n'est pas dans les documents, dis-le clairement.
-   - PROPOSE DE L'AIDE : Si c'est la première fois que tu mentionnes ne pas trouver l'info pour ce sujet, demande des précisions (date, nom).
-   - STOP : Si l'utilisateur a déjà répondu à tes questions de précision sur CE sujet et que tu ne trouves toujours rien, clos le sujet poliment sans relancer.
-   - Pas d'hypothèses en cas d'absence
-
-6. DONNÉES PERSONNELLES - Ne révèle JAMAIS téléphones, emails, adresses
-   - Si demandé : "Je ne peux pas partager ce type d'information personnelle."
-
-7. HORS-SUJET - Tu analyses UNIQUEMENT ces conversations Instagram, rien d'autre
-
-L'utilisateur s'appelle {user_name}. Quand tu vois "{user_name}" dans les conversations, c'est lui qui parle."""
 
 
 # Follow-up questions generation prompt (optimized for Ministral)
@@ -268,7 +227,15 @@ Tâche :
         model: str = None
     ) -> Generator[str, None, None] | str:
         """Calls the LLM provider."""
-        system_prompt = SYSTEM_PROMPT.format(user_name=self.config.user_name)
+        # Dynamic tone and instructions
+        tone_prompt = AVAILABLE_TONES.get(self.config.agent_tone, "")
+        instructions_prompt = f"INSTRUCTIONS SUPPLÉMENTAIRES :\n{self.config.global_instructions}" if self.config.global_instructions else ""
+
+        system_prompt = SYSTEM_PROMPT.format(
+            user_name=self.config.user_name,
+            tone_prompt=tone_prompt,
+            instructions_prompt=instructions_prompt
+        )
         
         # Add history summary if it exists
         if self.history_summary:

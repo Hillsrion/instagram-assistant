@@ -13,7 +13,7 @@ from rag_pipeline.core.llm_provider import create_provider
 from rag_pipeline.chat.tools import ToolBox, ToolResult
 from rag_pipeline.query.retriever import Retriever
 from rag_pipeline.core.logger import get_logger
-from rag_pipeline.core.prompts import AGENT_SYSTEM_PROMPT
+from rag_pipeline.core.prompts import AGENT_SYSTEM_PROMPT, AVAILABLE_TONES
 
 logger = get_logger()
 
@@ -64,12 +64,18 @@ class AgentRunner:
 
     def _build_system_prompt(self) -> str:
         """Build the system prompt with tool descriptions."""
+        # Dynamic tone and instructions
+        tone_prompt = AVAILABLE_TONES.get(self.config.agent_tone, "")
+        instructions_prompt = f"INSTRUCTIONS SUPPLÉMENTAIRES :\n{self.config.global_instructions}" if self.config.global_instructions else ""
+
         return AGENT_SYSTEM_PROMPT.format(
             tool_names=", ".join(self.tools.get_tool_names()),
             tools_desc=self.tools.get_tools_description(),
             max_steps=self.max_steps,
             today=datetime.now().strftime("%Y-%m-%d"),
-            user_name=self.config.user_name
+            user_name=self.config.user_name,
+            tone_prompt=tone_prompt,
+            instructions_prompt=instructions_prompt
         )
 
     def _format_history(self, history: List[Dict[str, str]]) -> str:

@@ -31,6 +31,7 @@ interface FormRendererProps {
   fields: FieldDefinition[];
   className?: string;
   submitLabel?: string;
+  disabled?: boolean;
 }
 
 export function FormRenderer({
@@ -40,6 +41,7 @@ export function FormRenderer({
   fields,
   className,
   submitLabel = "Enregistrer",
+  disabled = false,
 }: FormRendererProps) {
   const form = useForm({
     defaultValues,
@@ -87,9 +89,8 @@ export function FormRenderer({
                     <Switch
                       id={fieldApi.name}
                       checked={fieldApi.state.value}
-                      onCheckedChange={(checked) =>
-                        fieldApi.handleChange(checked)
-                      }
+                      onCheckedChange={(checked) => fieldApi.handleChange(checked)}
+                      disabled={disabled}
                     />
                   )}
                 </div>
@@ -102,6 +103,7 @@ export function FormRenderer({
                     onChange={(e) => fieldApi.handleChange(e.target.value)}
                     placeholder={field.placeholder}
                     className="rounded-xl border-slate-200 focus:border-primary focus:ring-primary"
+                    disabled={disabled}
                   />
                 )}
 
@@ -113,6 +115,7 @@ export function FormRenderer({
                     onChange={(e) => fieldApi.handleChange(e.target.value)}
                     placeholder={field.placeholder}
                     className="min-h-[120px] resize-none border-slate-200 focus:border-primary focus:ring-primary rounded-xl p-4 text-sm"
+                    disabled={disabled}
                   />
                 )}
 
@@ -124,6 +127,7 @@ export function FormRenderer({
                     <SelectTrigger
                       id={fieldApi.name}
                       className="rounded-xl border-slate-200 focus:border-primary focus:ring-primary"
+                      disabled={disabled}
                     >
                       <SelectValue placeholder={field.placeholder} />
                     </SelectTrigger>
@@ -154,7 +158,7 @@ export function FormRenderer({
           children={([canSubmit, isSubmitting]) => (
             <Button
               type="submit"
-              disabled={!canSubmit || isSubmitting}
+              disabled={!canSubmit || isSubmitting || disabled}
               className="h-11 px-8 rounded-xl font-bold transition-all shadow-md hover:shadow-lg active:scale-95"
             >
               {isSubmitting ? "Sauvegarde..." : submitLabel}

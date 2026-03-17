@@ -1,3 +1,9 @@
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Import,
   Instagram,
@@ -8,15 +14,12 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   type FieldDefinition,
   FormRenderer,
 } from "@/components/ui/form/form-renderer";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   defaultSettings,
   type Settings,
@@ -31,12 +34,64 @@ interface SettingsModalProps {
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState("general");
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [loading, setLoading] = useState(false);
+  const [availableTones, setAvailableTones] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      fetchSettings();
+      fetchTones();
+    }
+  }, [open]);
+
+  const fetchTones = async () => {
+    try {
+      const response = await fetch("/api/settings/tones");
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableTones(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch tones:", error);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/settings");
+      if (response.ok) {
+        const data = await response.json();
+        setSettings(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch settings:", error);
+      toast.error("Échec du chargement des réglages");
+    }
+  };
 
   const handleSave = async (values: Settings) => {
-    // Simulate API call
-    console.log("Saving settings:", values);
-    setSettings(values);
-    toast.success("Réglages enregistrés avec succès");
+    setLoading(true);
+    try {
+      const response = await fetch("/api/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+
+      if (response.ok) {
+        setSettings(values);
+        toast.success("Réglages enregistrés avec succès");
+      } else {
+        throw new Error("Failed to save settings");
+      }
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      toast.error("Échec de l'enregistrement des réglages");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const generalFields: FieldDefinition[] = [
@@ -56,11 +111,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       description:
         "Personnalisez le comportement et les réponses de votre assistant.",
       type: "select",
-      options: [
-        { label: "Professionnel", value: "Professionnel" },
-        { label: "Amical", value: "Amical" },
-        { label: "Concise", value: "Concise" },
-      ],
+      options: availableTones.map((tone: string) => ({ label: tone, value: tone })),
       placeholder: "Choisir un ton",
     },
     {
@@ -157,6 +208,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                       defaultValues={settings}
                       onSubmit={handleSave}
                       fields={generalFields}
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -178,6 +230,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                       defaultValues={settings}
                       onSubmit={handleSave}
                       fields={agentFields}
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -246,6 +299,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                       defaultValues={settings}
                       onSubmit={handleSave}
                       fields={preferenceFields}
+                      disabled={loading}
                     />
                   </div>
                 </div>
