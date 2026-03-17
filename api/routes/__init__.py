@@ -8,6 +8,7 @@ from .conversations import router as conversations_router
 from .participants import router as participants_router
 from .analytics import router as analytics_router
 from .chat import router as chat_router
+from .projects import router as projects_router
 
 
 def register_routes(app):
@@ -17,3 +18,4 @@ def register_routes(app):
     app.include_router(participants_router, prefix="/api", tags=["participants"])
     app.include_router(analytics_router, prefix="/api/analytics", tags=["analytics"])
     app.include_router(chat_router, prefix="/api", tags=["chat"])
+    app.include_router(projects_router, prefix="/api", tags=["projects"])

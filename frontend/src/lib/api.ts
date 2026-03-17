@@ -2,6 +2,8 @@ import type {
   ChunkDetail,
   Conversation,
   ConversationListResponse,
+  Project,
+  ProjectListResponse,
 } from "./types";
 
 const API_BASE = "/api";
@@ -34,11 +36,12 @@ export async function getConversation(id: string): Promise<Conversation> {
 
 export async function createConversation(
   title?: string,
+  project_id?: string,
 ): Promise<Conversation> {
   const res = await fetch(`${API_BASE}/conversations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, project_id }),
   });
   if (!res.ok) throw new Error("Failed to create conversation");
   return res.json();
@@ -178,5 +181,59 @@ export async function getMonthlyTimeline(
 
   const res = await fetch(`${API_BASE}/analytics/monthly_timeline?${params}`);
   if (!res.ok) throw new Error("Failed to fetch monthly timeline");
+  return res.json();
+}
+
+// ============================================================
+// Projects APIs
+// ============================================================
+
+export async function getProjects(): Promise<ProjectListResponse[]> {
+  const res = await fetch(`${API_BASE}/projects`);
+  if (!res.ok) throw new Error("Failed to fetch projects");
+  return res.json();
+}
+
+export async function getProject(id: string): Promise<Project> {
+  const res = await fetch(`${API_BASE}/projects/${id}`);
+  if (!res.ok) throw new Error("Failed to fetch project");
+  return res.json();
+}
+
+export async function createProject(data: Partial<Project>): Promise<Project> {
+  const res = await fetch(`${API_BASE}/projects`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to create project");
+  return res.json();
+}
+
+export async function updateProject(
+  id: string,
+  data: Partial<Project>,
+): Promise<Project> {
+  const res = await fetch(`${API_BASE}/projects/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update project");
+  return res.json();
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/projects/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete project");
+}
+
+export async function getProjectConversations(
+  projectId: string,
+): Promise<ConversationListResponse[]> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/conversations`);
+  if (!res.ok) throw new Error("Failed to fetch project conversations");
   return res.json();
 }

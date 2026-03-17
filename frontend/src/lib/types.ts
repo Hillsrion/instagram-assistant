@@ -45,8 +45,30 @@ export interface Conversation {
   title: string;
   created_at: string;
   updated_at: string;
+  is_favorite?: boolean;
+  project_id?: string;
   message_count?: number;
   messages?: Message[];
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  description?: string;
+  first_name?: string;
+  last_name?: string;
+  tone?: string;
+  instructions?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectListResponse {
+  id: string;
+  title: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ConversationListResponse {
@@ -55,5 +77,6 @@ export interface ConversationListResponse {
   created_at: string;
   updated_at: string;
   is_favorite: boolean;
+  project_id?: string;
   message_count: number;
 }
