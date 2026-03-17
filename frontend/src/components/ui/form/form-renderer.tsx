@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { valibotValidator } from "@tanstack/valibot-form-adapter";
+
 import type * as v from "valibot";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,8 +45,7 @@ export function FormRenderer({
 }: FormRendererProps) {
   const form = useForm({
     defaultValues,
-    // @ts-expect-error
-    validatorAdapter: valibotValidator(),
+
     validators: {
       onChange: schema,
     },
@@ -89,7 +88,9 @@ export function FormRenderer({
                     <Switch
                       id={fieldApi.name}
                       checked={fieldApi.state.value}
-                      onCheckedChange={(checked) => fieldApi.handleChange(checked)}
+                      onCheckedChange={(checked) =>
+                        fieldApi.handleChange(checked)
+                      }
                       disabled={disabled}
                     />
                   )}
