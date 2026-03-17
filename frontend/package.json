@@ -72,7 +72,7 @@
     }
   },
   "lint-staged": {
-    "*.{js,ts,jsx,tsx}": [
+    "src/**/!(*.gen).{js,ts,jsx,tsx}": [
       "oxlint -D correctness -D suspicious --quiet",
       "biome check --write --no-errors-on-unmatched"
     ]
