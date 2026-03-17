@@ -55,8 +55,6 @@ async def create_project(data: ProjectUpdate):
         "id": project_id,
         "title": data.title or "New Project",
         "description": data.description,
-        "first_name": data.first_name,
-        "last_name": data.last_name,
         "tone": data.tone,
         "instructions": data.instructions,
         "created_at": now,
@@ -95,10 +93,6 @@ async def update_project_endpoint(project_id: str, data: ProjectUpdate):
         project['title'] = data.title
     if data.description is not None:
         project['description'] = data.description
-    if data.first_name is not None:
-        project['first_name'] = data.first_name
-    if data.last_name is not None:
-        project['last_name'] = data.last_name
     if data.tone is not None:
         project['tone'] = data.tone
     if data.instructions is not None:

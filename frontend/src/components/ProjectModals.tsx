@@ -15,8 +15,6 @@ import type { Project } from "@/lib/types";
 const ProjectSchema = v.object({
   title: v.pipe(v.string(), v.minLength(1, "Le titre est requis")),
   description: v.optional(v.string()),
-  first_name: v.optional(v.string()),
-  last_name: v.optional(v.string()),
   tone: v.optional(v.picklist(["Professionnel", "Amical", "Concise"])),
   instructions: v.optional(v.pipe(v.string(), v.maxLength(1000))),
 });
@@ -46,8 +44,6 @@ export function NewProjectModal({ open, onOpenChange }: NewProjectModalProps) {
   const fields: FieldDefinition[] = [
     { name: "title", label: "Titre du projet", type: "text", placeholder: "Ex: Recherche Marketing" },
     { name: "description", label: "Description", type: "textarea", placeholder: "De quoi traite ce projet ?" },
-    { name: "first_name", label: "Prénom", type: "text", placeholder: "Prénom du contact" },
-    { name: "last_name", label: "Nom", type: "text", placeholder: "Nom du contact" },
   ];
 
   return (
@@ -61,7 +57,7 @@ export function NewProjectModal({ open, onOpenChange }: NewProjectModalProps) {
         </DialogHeader>
         <FormRenderer
           schema={ProjectSchema}
-          defaultValues={{ title: "", description: "", first_name: "", last_name: "" }}
+          defaultValues={{ title: "", description: "" }}
           onSubmit={(values) => createMutation.mutate(values as ProjectValues)}
           fields={fields}
         />
@@ -92,8 +88,6 @@ export function ProjectSettingsModal({ project, open, onOpenChange }: ProjectSet
   const fields: FieldDefinition[] = [
     { name: "title", label: "Titre du projet", type: "text" },
     { name: "description", label: "Description", type: "textarea" },
-    { name: "first_name", label: "Prénom", type: "text" },
-    { name: "last_name", label: "Nom", type: "text" },
     {
       name: "tone",
       label: "Ton de l'agent",
@@ -126,8 +120,6 @@ export function ProjectSettingsModal({ project, open, onOpenChange }: ProjectSet
           defaultValues={{
             title: project.title,
             description: project.description || "",
-            first_name: project.first_name || "",
-            last_name: project.last_name || "",
             tone: project.tone || "Professionnel",
             instructions: project.instructions || "",
           }}

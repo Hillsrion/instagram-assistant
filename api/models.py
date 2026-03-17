@@ -18,8 +18,6 @@ class Project(BaseModel):
     id: str
     title: str
     description: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
     tone: Optional[str] = None
     instructions: Optional[str] = None
     created_at: str
@@ -79,8 +77,6 @@ class ProjectUpdate(BaseModel):
     """Request body for updating projects."""
     title: Optional[str] = None
     description: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
     tone: Optional[str] = None
     instructions: Optional[str] = None
 

@@ -55,8 +55,6 @@ export interface Project {
   id: string;
   title: string;
   description?: string;
-  first_name?: string;
-  last_name?: string;
   tone?: string;
   instructions?: string;
   created_at: string;
