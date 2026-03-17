@@ -1,18 +1,18 @@
-import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { Folder, MoreHorizontal, Settings, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import type { Project, Conversation } from "@/lib/types";
-import { ProjectSettingsModal } from "./ProjectModals";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { deleteProject } from "@/lib/api";
-import { toast } from "sonner";
-import { useNavigate } from "@tanstack/react-router";
+import type { Conversation, Project } from "@/lib/types";
+import { ProjectSettingsModal } from "./ProjectModals";
 
 interface BreadcrumbsProps {
   project?: Project;
@@ -43,12 +43,15 @@ export function ProjectMenu({ project }: { project: Project }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[160px]">
-          <DropdownMenuItem className="gap-2" onClick={() => setIsSettingsOpen(true)}>
+          <DropdownMenuItem
+            className="gap-2"
+            onClick={() => setIsSettingsOpen(true)}
+          >
             <Settings className="h-4 w-4" />
             <span>Settings</span>
           </DropdownMenuItem>
-          <DropdownMenuItem 
-            className="gap-2 text-destructive focus:text-destructive" 
+          <DropdownMenuItem
+            className="gap-2 text-destructive focus:text-destructive"
             onClick={() => {
               if (confirm("Supprimer ce projet ?")) {
                 deleteMutation.mutate(project.id);
@@ -70,7 +73,11 @@ export function ProjectMenu({ project }: { project: Project }) {
   );
 }
 
-export function Breadcrumbs({ project, conversation, showMenu = true }: BreadcrumbsProps) {
+export function Breadcrumbs({
+  project,
+  conversation,
+  showMenu = true,
+}: BreadcrumbsProps) {
   if (!project) return null;
 
   return (
@@ -79,7 +86,7 @@ export function Breadcrumbs({ project, conversation, showMenu = true }: Breadcru
         <Folder className="h-4 w-4" />
         {project.title}
       </div>
-      
+
       {conversation && (
         <>
           <span className="text-slate-300">/</span>

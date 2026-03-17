@@ -1,15 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { getProject, getConversation } from "@/lib/api";
+import { useEffect, useMemo, useRef } from "react";
+import type { DateRange } from "react-day-picker";
+import ReactMarkdown from "react-markdown";
 import { Breadcrumbs, ProjectMenu } from "@/components/Breadcrumbs";
+import { ChatInput } from "@/components/ChatInput";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChatFilters } from "@/hooks/use-chat-filters";
 import { useChatStream } from "@/hooks/use-chat-stream";
-import { useEffect, useMemo, useRef } from "react";
-import ReactMarkdown from "react-markdown";
+import { getConversation, getProject } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChatInput } from "@/components/ChatInput";
-import type { DateRange } from "react-day-picker";
 
 export const Route = createFileRoute("/projects/$projectId/chat/$chatId")({
   component: ProjectChat,
@@ -63,13 +63,16 @@ function ProjectChat() {
     return messages;
   }, [messages]);
 
-  const handleSendMessage = (content: string, options: { 
-    participant?: string; 
-    group?: string; 
-    broadSearch?: boolean; 
-    model?: string; 
-    date?: DateRange; 
-  }) => {
+  const handleSendMessage = (
+    content: string,
+    options: {
+      participant?: string;
+      group?: string;
+      broadSearch?: boolean;
+      model?: string;
+      date?: DateRange;
+    },
+  ) => {
     sendMessage(content, {
       ...options,
       model: selectedModel || options.model,
@@ -80,14 +83,22 @@ function ProjectChat() {
   return (
     <div className="flex flex-col h-full bg-white relative">
       <header className="flex items-center justify-between px-6 py-4 border-b bg-white z-10 h-14 shrink-0">
-        {project && <Breadcrumbs project={project} conversation={conversation} showMenu={false} />}
+        {project && (
+          <Breadcrumbs
+            project={project}
+            conversation={conversation}
+            showMenu={false}
+          />
+        )}
         {project && <ProjectMenu project={project} />}
       </header>
-      
+
       <ScrollArea className="flex-1 p-4">
         <div className="max-w-3xl mx-auto space-y-6 pb-32">
           {filteredMessages.map((msg, i) => {
-            const messageKey = msg.timestamp ? `${msg.role}-${msg.timestamp}-${i}` : `${msg.role}-${i}`;
+            const messageKey = msg.timestamp
+              ? `${msg.role}-${msg.timestamp}-${i}`
+              : `${msg.role}-${i}`;
             return (
               <div
                 key={messageKey}
@@ -96,10 +107,14 @@ function ProjectChat() {
                   msg.role === "user" ? "justify-end" : "justify-start",
                 )}
               >
-                <div className={cn(
-                  "max-w-[85%] rounded-2xl px-4 py-2",
-                  msg.role === "user" ? "bg-primary text-primary-foreground text-sm shadow-sm" : "bg-transparent text-foreground"
-                )}>
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-4 py-2",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground text-sm shadow-sm"
+                      : "bg-transparent text-foreground",
+                  )}
+                >
                   {msg.role === "assistant" ? (
                     <div className="prose dark:prose-invert max-w-none wrap-break-word">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>

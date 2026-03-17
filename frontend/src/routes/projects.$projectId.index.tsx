@@ -1,11 +1,14 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getProject, getProjectConversations, createConversation } from "@/lib/api";
-import { Breadcrumbs, ProjectMenu } from "@/components/Breadcrumbs";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { MessageSquare } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Breadcrumbs, ProjectMenu } from "@/components/Breadcrumbs";
 import { ChatInput } from "@/components/ChatInput";
 import { useChatFilters } from "@/hooks/use-chat-filters";
+import {
+  createConversation,
+  getProject,
+  getProjectConversations,
+} from "@/lib/api";
 
 export const Route = createFileRoute("/projects/$projectId/")({
   component: ProjectIndex,
@@ -64,15 +67,21 @@ function ProjectIndex() {
 
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
-        queryClient.invalidateQueries({ queryKey: ["project-conversations", projectId] });
+        queryClient.invalidateQueries({
+          queryKey: ["project-conversations", projectId],
+        });
       }, 500);
     } catch (error) {
       console.error("Failed to create conversation:", error);
     }
   };
 
-  if (isProjectLoading) return <div className="p-8 text-center">Chargement du projet...</div>;
-  if (!project) return <div className="p-8 text-center text-destructive">Projet non trouvé</div>;
+  if (isProjectLoading)
+    return <div className="p-8 text-center">Chargement du projet...</div>;
+  if (!project)
+    return (
+      <div className="p-8 text-center text-destructive">Projet non trouvé</div>
+    );
 
   return (
     <div className="flex flex-col h-full bg-white relative">
@@ -84,23 +93,33 @@ function ProjectIndex() {
       <main className="flex-1 overflow-y-auto px-6 py-12">
         <div className="max-w-4xl mx-auto space-y-12 pb-32">
           <div className="space-y-4 text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-slate-900">{project.title}</h1>
+            <h1 className="text-4xl font-bold tracking-tight text-slate-900">
+              {project.title}
+            </h1>
             {project.description && (
-              <p className="text-lg text-slate-500 max-w-2xl mx-auto">{project.description}</p>
+              <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+                {project.description}
+              </p>
             )}
           </div>
 
           <div className="space-y-6">
             {isConvsLoading ? (
-              <div className="text-center py-12">Chargement des conversations...</div>
+              <div className="text-center py-12">
+                Chargement des conversations...
+              </div>
             ) : conversations?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-700">
                 <MessageSquare className="h-12 w-12 text-slate-200 mb-4" />
-                <h3 className="text-xl font-medium text-slate-400">Aucune conversation pour l'instant</h3>
+                <h3 className="text-xl font-medium text-slate-400">
+                  Aucune conversation pour l'instant
+                </h3>
               </div>
             ) : (
               <div className="grid gap-4 max-w-2xl mx-auto">
-                <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Conversations récentes</h2>
+                <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Conversations récentes
+                </h2>
                 {conversations?.map((conv) => (
                   <Link
                     key={conv.id}
@@ -112,8 +131,13 @@ function ProjectIndex() {
                       <MessageSquare className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-slate-900 truncate">{conv.title || "Sans titre"}</h4>
-                      <p className="text-xs text-slate-400">{conv.message_count} messages • {new Date(conv.updated_at).toLocaleDateString()}</p>
+                      <h4 className="font-medium text-slate-900 truncate">
+                        {conv.title || "Sans titre"}
+                      </h4>
+                      <p className="text-xs text-slate-400">
+                        {conv.message_count} messages •{" "}
+                        {new Date(conv.updated_at).toLocaleDateString()}
+                      </p>
                     </div>
                   </Link>
                 ))}

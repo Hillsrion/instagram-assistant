@@ -1,36 +1,36 @@
-import { useForm } from "@tanstack/react-form"
-import { valibotValidator } from "@tanstack/valibot-form-adapter"
-import * as v from "valibot"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
+import { useForm } from "@tanstack/react-form";
+import { valibotValidator } from "@tanstack/valibot-form-adapter";
+import type * as v from "valibot";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 export type FieldDefinition = {
-  name: string
-  label: string
-  description?: string
-  placeholder?: string
-  type: "text" | "switch" | "textarea" | "select"
-  options?: { label: string; value: string }[]
-}
+  name: string;
+  label: string;
+  description?: string;
+  placeholder?: string;
+  type: "text" | "switch" | "textarea" | "select";
+  options?: { label: string; value: string }[];
+};
 
 interface FormRendererProps {
-  schema: v.BaseSchema<any, any, any>
-  defaultValues: any
-  onSubmit: (values: any) => void | Promise<void>
-  fields: FieldDefinition[]
-  className?: string
-  submitLabel?: string
+  schema: v.BaseSchema<any, any, any>;
+  defaultValues: any;
+  onSubmit: (values: any) => void | Promise<void>;
+  fields: FieldDefinition[];
+  className?: string;
+  submitLabel?: string;
 }
 
 export function FormRenderer({
@@ -43,22 +43,22 @@ export function FormRenderer({
 }: FormRendererProps) {
   const form = useForm({
     defaultValues,
-    // @ts-ignore
+    // @ts-expect-error
     validatorAdapter: valibotValidator(),
     validators: {
       onChange: schema,
     },
     onSubmit: async ({ value }) => {
-      await onSubmit(value)
+      await onSubmit(value);
     },
-  })
+  });
 
   return (
     <form
       onSubmit={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        form.handleSubmit()
+        e.preventDefault();
+        e.stopPropagation();
+        form.handleSubmit();
       }}
       className={cn("space-y-6", className)}
     >
@@ -71,7 +71,10 @@ export function FormRenderer({
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <Label htmlFor={fieldApi.name} className="text-base font-semibold">
+                    <Label
+                      htmlFor={fieldApi.name}
+                      className="text-base font-semibold"
+                    >
                       {field.label}
                     </Label>
                     {field.description && (
@@ -84,7 +87,9 @@ export function FormRenderer({
                     <Switch
                       id={fieldApi.name}
                       checked={fieldApi.state.value}
-                      onCheckedChange={(checked) => fieldApi.handleChange(checked)}
+                      onCheckedChange={(checked) =>
+                        fieldApi.handleChange(checked)
+                      }
                     />
                   )}
                 </div>
@@ -158,5 +163,5 @@ export function FormRenderer({
         />
       </div>
     </form>
-  )
+  );
 }

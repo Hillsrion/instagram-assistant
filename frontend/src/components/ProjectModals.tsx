@@ -1,5 +1,6 @@
-import * as v from "valibot";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import * as v from "valibot";
 import {
   Dialog,
   DialogContent,
@@ -7,9 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FormRenderer, type FieldDefinition } from "@/components/ui/form/form-renderer";
+import {
+  type FieldDefinition,
+  FormRenderer,
+} from "@/components/ui/form/form-renderer";
 import { createProject, updateProject } from "@/lib/api";
-import { toast } from "sonner";
 import type { Project } from "@/lib/types";
 
 const ProjectSchema = v.object({
@@ -42,8 +45,18 @@ export function NewProjectModal({ open, onOpenChange }: NewProjectModalProps) {
   });
 
   const fields: FieldDefinition[] = [
-    { name: "title", label: "Titre du projet", type: "text", placeholder: "Ex: Recherche Marketing" },
-    { name: "description", label: "Description", type: "textarea", placeholder: "De quoi traite ce projet ?" },
+    {
+      name: "title",
+      label: "Titre du projet",
+      type: "text",
+      placeholder: "Ex: Recherche Marketing",
+    },
+    {
+      name: "description",
+      label: "Description",
+      type: "textarea",
+      placeholder: "De quoi traite ce projet ?",
+    },
   ];
 
   return (
@@ -72,7 +85,11 @@ interface ProjectSettingsModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function ProjectSettingsModal({ project, open, onOpenChange }: ProjectSettingsModalProps) {
+export function ProjectSettingsModal({
+  project,
+  open,
+  onOpenChange,
+}: ProjectSettingsModalProps) {
   const queryClient = useQueryClient();
 
   const updateMutation = useMutation({
@@ -112,7 +129,8 @@ export function ProjectSettingsModal({ project, open, onOpenChange }: ProjectSet
         <DialogHeader>
           <DialogTitle>Réglages du projet</DialogTitle>
           <DialogDescription>
-            Personnalisez les détails et le comportement de l'assistant pour ce projet.
+            Personnalisez les détails et le comportement de l'assistant pour ce
+            projet.
           </DialogDescription>
         </DialogHeader>
         <FormRenderer

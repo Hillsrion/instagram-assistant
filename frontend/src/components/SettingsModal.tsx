@@ -1,23 +1,27 @@
-import { useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
+  Import,
+  Instagram,
+  MessageSquare,
+  Palette,
   Settings as SettingsIcon,
   Shield,
-  MessageSquare,
-  Users,
-  Palette,
-  Import,
   Trash2,
-  Instagram,
+  Users,
 } from "lucide-react";
-import { FormRenderer, type FieldDefinition } from "@/components/ui/form/form-renderer";
-import { SettingsSchema, defaultSettings, type Settings } from "@/lib/settings-schema";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  type FieldDefinition,
+  FormRenderer,
+} from "@/components/ui/form/form-renderer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  defaultSettings,
+  type Settings,
+  SettingsSchema,
+} from "@/lib/settings-schema";
 
 interface SettingsModalProps {
   open: boolean;
@@ -39,7 +43,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     {
       name: "developerMode",
       label: "Mode développeur",
-      description: "Active les outils de diagnostic et les logs détaillés dans l'interface pour le débogage.",
+      description:
+        "Active les outils de diagnostic et les logs détaillés dans l'interface pour le débogage.",
       type: "switch",
     },
   ];
@@ -48,7 +53,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     {
       name: "agentTone",
       label: "Ton de l'agent",
-      description: "Personnalisez le comportement et les réponses de votre assistant.",
+      description:
+        "Personnalisez le comportement et les réponses de votre assistant.",
       type: "select",
       options: [
         { label: "Professionnel", value: "Professionnel" },
@@ -60,9 +66,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     {
       name: "globalInstructions",
       label: "Instructions globales",
-      description: "Ces instructions seront injectées dans le système pour influencer chaque réponse de l'agent.",
+      description:
+        "Ces instructions seront injectées dans le système pour influencer chaque réponse de l'agent.",
       type: "textarea",
-      placeholder: "Ex: Réponds toujours de manière polie et utilise le vouvoiement...",
+      placeholder:
+        "Ex: Réponds toujours de manière polie et utilise le vouvoiement...",
     },
   ];
 
@@ -70,7 +78,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     {
       name: "interfaceTheme",
       label: "Thème de l'interface",
-      description: "Ajustez l'apparence visuelle pour une expérience personnalisée.",
+      description:
+        "Ajustez l'apparence visuelle pour une expérience personnalisée.",
       type: "select",
       options: [
         { label: "Clair", value: "Clair" },
@@ -96,9 +105,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <TabsList className="flex flex-col w-64 h-full bg-slate-50/50 border-r p-5 justify-start items-stretch gap-1 rounded-none">
               <div className="flex items-center gap-2 px-3 py-4 mb-2">
                 <SettingsIcon className="w-5 h-5 text-primary" />
-                <span className="text-xl font-bold text-slate-800">Réglages</span>
+                <span className="text-xl font-bold text-slate-800">
+                  Réglages
+                </span>
               </div>
-              
+
               <TabsTrigger
                 value="general"
                 className="justify-start gap-3 px-4 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all rounded-lg"
@@ -133,11 +144,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <div className="flex-1 overflow-y-auto p-10">
               <TabsContent value="general" className="mt-0 space-y-10">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2 text-slate-900 transition-all">Options basiques</h2>
+                  <h2 className="text-2xl font-bold mb-2 text-slate-900 transition-all">
+                    Options basiques
+                  </h2>
                   <p className="text-sm text-muted-foreground mb-8">
                     Configurez les paramètres globaux de l'application.
                   </p>
-                  
+
                   <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                     <FormRenderer
                       schema={SettingsSchema}
@@ -151,9 +164,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
               <TabsContent value="agent" className="mt-0 space-y-10">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2 text-slate-900">Contrôle de l'agent</h2>
+                  <h2 className="text-2xl font-bold mb-2 text-slate-900">
+                    Contrôle de l'agent
+                  </h2>
                   <p className="text-sm text-muted-foreground mb-8">
-                    Personnalisez le comportement et les réponses de votre assistant.
+                    Personnalisez le comportement et les réponses de votre
+                    assistant.
                   </p>
 
                   <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
@@ -169,9 +185,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
               <TabsContent value="accounts" className="mt-0 space-y-10">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2 text-slate-900">Gestion des comptes</h2>
+                  <h2 className="text-2xl font-bold mb-2 text-slate-900">
+                    Gestion des comptes
+                  </h2>
                   <p className="text-sm text-muted-foreground mb-8">
-                    Gérez les sources de données et les comptes liés à votre assistant.
+                    Gérez les sources de données et les comptes liés à votre
+                    assistant.
                   </p>
 
                   <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden shadow-sm">
@@ -181,17 +200,28 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                           <Instagram className="w-6 h-6" />
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-800">Compte principal</p>
-                          <p className="text-xs text-muted-foreground">Indexé le 15 mars 2024 • 2,450 messages</p>
+                          <p className="font-semibold text-slate-800">
+                            Compte principal
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Indexé le 15 mars 2024 • 2,450 messages
+                          </p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" className="text-slate-400 hover:text-destructive transition-colors">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-slate-400 hover:text-destructive transition-colors"
+                      >
                         <Trash2 className="w-5 h-5" />
                       </Button>
                     </div>
 
                     <div className="p-6 bg-slate-50/30">
-                      <Button variant="outline" className="w-full h-12 gap-2 border-dashed border-slate-300 hover:border-primary hover:text-primary hover:bg-white transition-all rounded-xl">
+                      <Button
+                        variant="outline"
+                        className="w-full h-12 gap-2 border-dashed border-slate-300 hover:border-primary hover:text-primary hover:bg-white transition-all rounded-xl"
+                      >
                         <Import className="w-4 h-4" />
                         Importer de nouvelles conversations
                       </Button>
@@ -202,9 +232,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
               <TabsContent value="preferences" className="mt-0 space-y-10">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2 text-slate-900">Préférences</h2>
+                  <h2 className="text-2xl font-bold mb-2 text-slate-900">
+                    Préférences
+                  </h2>
                   <p className="text-sm text-muted-foreground mb-8">
-                    Ajustez l'apparence visuelle pour une expérience personnalisée.
+                    Ajustez l'apparence visuelle pour une expérience
+                    personnalisée.
                   </p>
 
                   <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
