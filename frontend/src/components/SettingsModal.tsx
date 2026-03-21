@@ -17,11 +17,8 @@ import {
   FormRenderer,
 } from "@/components/ui/form/form-renderer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  defaultSettings,
-  type Settings,
-  SettingsSchema,
-} from "@/lib/settings-schema";
+import { type Settings, SettingsSchema } from "@/lib/settings-schema";
+import { useSettingsStore } from "@/lib/settings-store";
 
 interface SettingsModalProps {
   open: boolean;
@@ -30,7 +27,11 @@ interface SettingsModalProps {
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState("general");
-  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const {
+    settings,
+    setSettings: updateStoreSettings,
+    fetchSettings,
+  } = useSettingsStore();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [availableTones, setAvailableTones] = useState<string[]>([]);
@@ -39,10 +40,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   useEffect(() => {
     if (open) {
       setInitialLoading(true);
-      fetchSettings();
+      fetchSettings().finally(() => setInitialLoading(false));
       fetchTones();
     }
-  }, [open]);
+  }, [open, fetchSettings]);
 
   const fetchTones = async () => {
     try {
@@ -53,21 +54,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       }
     } catch (error) {
       console.error("Failed to fetch tones:", error);
-    }
-  };
-
-  const fetchSettings = async () => {
-    try {
-      const response = await fetch("/api/settings");
-      if (response.ok) {
-        const data = await response.json();
-        setSettings(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch settings:", error);
-      toast.error("Échec du chargement des réglages");
-    } finally {
-      setInitialLoading(false);
     }
   };
 
@@ -83,7 +69,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       });
 
       if (response.ok) {
-        setSettings(values);
+        updateStoreSettings(values);
         toast.success("Réglages enregistrés avec succès");
         onOpenChange(false);
       } else {

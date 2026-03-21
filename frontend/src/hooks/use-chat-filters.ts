@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
-import { getOllamaModels, getParticipants, getSettings } from "@/lib/api";
-import type { Settings } from "@/lib/settings-schema";
-import { defaultSettings } from "@/lib/settings-schema";
+import { getOllamaModels, getParticipants } from "@/lib/api";
+import { useSettingsStore } from "@/lib/settings-store";
 
 interface UseChatFiltersOptions {
   initialParticipant?: string;
@@ -31,15 +30,13 @@ export function useChatFilters(options: UseChatFiltersOptions = {}) {
     return participantsData?.map((p) => p.name) || [];
   }, [participantsData]);
 
-  // Load settings
-  const { data: settings } = useQuery<Settings>({
-    queryKey: ["settings"],
-    queryFn: () => getSettings(),
-    refetchOnWindowFocus: false,
-  });
+  const { settings, fetchSettings } = useSettingsStore();
+  const developerMode = settings.developerMode;
 
-  const developerMode =
-    settings?.developerMode ?? defaultSettings.developerMode;
+  // Initial fetch of settings if needed
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   // Filters State
   const [filterParticipant, setFilterParticipant] = useState<string>(
