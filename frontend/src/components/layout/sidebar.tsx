@@ -1,3 +1,4 @@
+import { useConversationActions } from "@/hooks/use-conversation-actions";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "./sidebar/search-dialog";
@@ -24,10 +25,9 @@ export function Sidebar() {
     setOpenMenuId,
     expandedProjects,
     toggleProject,
-    createMutation,
-    deleteMutation,
-    toggleFavoriteMutation,
   } = useSidebar();
+
+  const { createMutation } = useConversationActions();
 
   return (
     <div
@@ -43,7 +43,7 @@ export function Sidebar() {
 
       <SidebarNav
         isCollapsed={isCollapsed}
-        onNewConversation={() => createMutation.mutate()}
+        onNewConversation={() => createMutation.mutate(undefined)}
         isCreatingConversation={createMutation.isPending}
         onSearchOpen={() => setIsSearchOpen(true)}
         onNewProjectOpen={() => setIsNewProjectOpen(true)}
@@ -62,8 +62,6 @@ export function Sidebar() {
               conversations={conversations || []}
               openMenuId={openMenuId}
               setOpenMenuId={setOpenMenuId}
-              toggleFavoriteMutation={toggleFavoriteMutation}
-              deleteMutation={deleteMutation}
             />
 
             <SidebarProjects
@@ -77,8 +75,6 @@ export function Sidebar() {
               conversations={conversations}
               openMenuId={openMenuId}
               setOpenMenuId={setOpenMenuId}
-              toggleFavoriteMutation={toggleFavoriteMutation}
-              deleteMutation={deleteMutation}
             />
           </div>
         </div>

@@ -4,6 +4,7 @@ import { FileText } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ChatInput } from "@/components/ChatInput";
+import { ConversationMenu } from "@/components/ConversationMenu";
 import { SourcesModal } from "@/components/SourcesModal";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChatFilters } from "@/hooks/use-chat-filters";
@@ -180,7 +181,7 @@ function ChatRoute() {
   return (
     <div className="flex h-full flex-col relative bg-gray-50/50">
       {/* Header - SIMPLIFIED */}
-      <div className="p-4 pl-8 flex items-center justify-between backdrop-blur z-10 w-full h-14">
+      <div className="p-4 pl-8 flex items-center justify-between backdrop-blur z-10 w-full h-14 bg-background/50 border-b">
         <div className="flex items-center gap-2">
           <h2 className="font-medium truncate max-w-[500px]">
             {conversation?.title || "Chat"}
@@ -191,6 +192,15 @@ function ChatRoute() {
             </span>
           )}
         </div>
+        {conversation && (
+          <ConversationMenu
+            conversation={{
+              id: conversation.id,
+              title: conversation.title,
+              is_favorite: !!conversation.is_favorite,
+            }}
+          />
+        )}
       </div>
 
       {/* Messages Area */}

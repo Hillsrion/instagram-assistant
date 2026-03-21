@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { deleteProject } from "@/lib/api";
 import type { Conversation, Project } from "@/lib/types";
+import { ConversationMenu } from "./ConversationMenu";
 import { ProjectSettingsModal } from "./ProjectModals";
 
 interface BreadcrumbsProps {
@@ -90,10 +91,26 @@ export function Breadcrumbs({
       {conversation && (
         <>
           <span className="text-slate-300">/</span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 group/conv">
             <span className="text-slate-900 font-medium truncate max-w-[200px]">
               {conversation.title || "Sans titre"}
             </span>
+            <ConversationMenu
+              conversation={{
+                id: conversation.id,
+                title: conversation.title,
+                is_favorite: !!conversation.is_favorite,
+              }}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 opacity-0 group-hover/conv:opacity-100 transition-opacity"
+                >
+                  <MoreHorizontal className="h-3 w-3" />
+                </Button>
+              }
+            />
           </div>
         </>
       )}

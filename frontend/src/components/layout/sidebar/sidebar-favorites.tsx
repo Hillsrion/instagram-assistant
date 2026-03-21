@@ -1,4 +1,3 @@
-import type { UseMutationResult } from "@tanstack/react-query";
 import type { ConversationListResponse } from "@/lib/types";
 import { ConversationItem } from "./conversation-item";
 
@@ -6,20 +5,12 @@ interface SidebarFavoritesProps {
   conversations: ConversationListResponse[];
   openMenuId: string | null;
   setOpenMenuId: (id: string | null) => void;
-  toggleFavoriteMutation: UseMutationResult<
-    any,
-    Error,
-    { id: string; is_favorite: boolean }
-  >;
-  deleteMutation: UseMutationResult<void, Error, string>;
 }
 
 export function SidebarFavorites({
   conversations,
   openMenuId,
   setOpenMenuId,
-  toggleFavoriteMutation,
-  deleteMutation,
 }: SidebarFavoritesProps) {
   const favoriteConversations = conversations.filter((c) => c.is_favorite);
 
@@ -37,8 +28,6 @@ export function SidebarFavorites({
             conversation={conv}
             openMenuId={openMenuId}
             setOpenMenuId={setOpenMenuId}
-            toggleFavoriteMutation={toggleFavoriteMutation}
-            deleteMutation={deleteMutation}
           />
         ))}
       </div>

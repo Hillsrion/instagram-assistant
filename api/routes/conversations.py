@@ -95,6 +95,9 @@ async def update_conversation_endpoint(conv_id: str, data: ConversationUpdate):
         
     if data.is_favorite is not None:
         conv['is_favorite'] = data.is_favorite
+        
+    if data.project_id is not None:
+        conv['project_id'] = data.project_id
 
     conv['updated_at'] = datetime.now().isoformat()
     save_conversation(conv)

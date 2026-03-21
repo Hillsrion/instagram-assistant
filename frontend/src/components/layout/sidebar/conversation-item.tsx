@@ -1,13 +1,7 @@
-import type { UseMutationResult } from "@tanstack/react-query";
 import { Link, useMatchRoute } from "@tanstack/react-router";
-import { MoreVertical, Star, Trash2 } from "lucide-react";
+import { MoreVertical, Star } from "lucide-react";
+import { ConversationMenu } from "@/components/ConversationMenu";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import type { ConversationListResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -15,12 +9,6 @@ interface ConversationItemProps {
   conversation: ConversationListResponse;
   openMenuId: string | null;
   setOpenMenuId: (id: string | null) => void;
-  toggleFavoriteMutation: UseMutationResult<
-    any,
-    Error,
-    { id: string; is_favorite: boolean }
-  >;
-  deleteMutation: UseMutationResult<void, Error, string>;
   isCollapsed?: boolean;
 }
 
@@ -28,8 +16,6 @@ export function ConversationItem({
   conversation,
   openMenuId,
   setOpenMenuId,
-  toggleFavoriteMutation,
-  deleteMutation,
   isCollapsed,
 }: ConversationItemProps) {
   const matchRoute = useMatchRoute();
@@ -63,64 +49,31 @@ export function ConversationItem({
         </div>
       </Link>
 
-      <DropdownMenu
-        onOpenChange={(isOpen) =>
-          setOpenMenuId(isOpen ? conversation.id : null)
-        }
+      <div
+        className={cn(
+          "absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer",
+          isMenuOpen && "opacity-100",
+          "bg-linear-to-l from-70% to-transparent pl-8 rounded-r-lg",
+          isActive ? "from-muted" : "from-gray-50 group-hover:from-[#f2f2f3]",
+        )}
       >
-        <div
-          className={cn(
-            "absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer",
-            isMenuOpen && "opacity-100",
-            "bg-linear-to-l from-70% to-transparent pl-8 rounded-r-lg",
-            isActive ? "from-muted" : "from-gray-50 group-hover:from-[#f2f2f3]",
-          )}
-        >
-          <DropdownMenuTrigger asChild>
+        <ConversationMenu
+          conversation={conversation}
+          trigger={
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8 shrink-0 hover:bg-muted/30 focus-visible:ring-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenMenuId(conversation.id);
+              }}
             >
               <MoreVertical className="h-4 w-4 text-muted-foreground" />
             </Button>
-          </DropdownMenuTrigger>
-        </div>
-        <DropdownMenuContent align="end" className="min-w-[180px]">
-          <DropdownMenuItem
-            className="gap-2 cursor-pointer"
-            onClick={() =>
-              toggleFavoriteMutation.mutate({
-                id: conversation.id,
-                is_favorite: conversation.is_favorite,
-              })
-            }
-          >
-            <Star
-              className={cn(
-                "h-4 w-4",
-                conversation.is_favorite && "fill-amber-400 text-amber-400",
-              )}
-            />
-            <span>
-              {conversation.is_favorite
-                ? "Retirer des favoris"
-                : "Mettre en favoris"}
-            </span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="focus:bg-muted/80 gap-2 cursor-pointer transition-colors"
-            onClick={() => {
-              if (confirm("Supprimer cette conversation ?")) {
-                deleteMutation.mutate(conversation.id);
-              }
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-            <span>Supprimer</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          }
+        />
+      </div>
     </div>
   );
 }
