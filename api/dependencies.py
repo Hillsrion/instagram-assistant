@@ -13,6 +13,8 @@ from rag_pipeline.utils.analytics import ConversationAnalytics
 from rag_pipeline.query.query_analyzer import QueryAnalyzer
 from rag_pipeline.chat.agent import AgentRunner
 from rag_pipeline.core.logger import get_logger
+import asyncio
+from api.warmup import warmup_models
 
 logger = get_logger()
 
@@ -72,6 +74,11 @@ async def lifespan(app: FastAPI):
         )
         print(f"Index loaded: {state.components['vector_store'].size} chunks")
         print()
+        
+        print("🔥 Starting LLM warmup tasks in background...")
+        asyncio.create_task(warmup_models(state.config))
+        print()
+        
         print(f"Application ready at http://localhost:8000")
         print()
     except Exception as e:
