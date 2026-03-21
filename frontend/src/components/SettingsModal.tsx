@@ -4,6 +4,7 @@ import { useSettingsModal } from "./settings/hooks/useSettingsModal";
 import { SettingsSidebar } from "./settings/SettingsSidebar";
 import { AccountsTab } from "./settings/Tabs/AccountsTab";
 import { AgentTab } from "./settings/Tabs/AgentTab";
+import { ConversationsTab } from "./settings/Tabs/ConversationsTab";
 import { GeneralTab } from "./settings/Tabs/GeneralTab";
 import { PreferencesTab } from "./settings/Tabs/PreferencesTab";
 
@@ -64,6 +65,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
                   <TabsContent value="accounts">
                     <AccountsTab />
+                  </TabsContent>
+
+                  <TabsContent value="conversations">
+                    <ConversationsTab />
                   </TabsContent>
 
                   <TabsContent value="preferences">

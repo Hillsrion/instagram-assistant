@@ -16,7 +16,8 @@ from api.storage import (
     load_conversations, 
     get_conversation, 
     save_conversation,
-    delete_conversation
+    delete_conversation,
+    save_conversations
 )
 from api.dependencies import get_chatbot
 
@@ -64,6 +65,19 @@ async def create_conversation(data: ConversationUpdate):
 
     save_conversation(conv)
     return conv
+
+
+@router.delete("/conversations")
+async def delete_all_conversations_endpoint():
+    """Delete all conversations."""
+    save_conversations({})
+    return {"status": "all conversations deleted"}
+
+
+@router.get("/conversations/export")
+async def export_conversations_endpoint():
+    """Export all conversations as a JSON."""
+    return load_conversations()
 
 
 @router.get("/conversations/{conv_id}")

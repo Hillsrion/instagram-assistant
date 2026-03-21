@@ -58,3 +58,18 @@ export async function evaluateTitle(
   if (!res.ok) throw new Error("Failed to evaluate title");
   return res.json();
 }
+
+export async function deleteAllConversations(): Promise<void> {
+  const res = await fetch(`${API_BASE}/conversations`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete all conversations");
+}
+
+export async function exportConversations(): Promise<
+  Record<string, Conversation>
+> {
+  const res = await fetch(`${API_BASE}/conversations/export`);
+  if (!res.ok) throw new Error("Failed to export conversations");
+  return res.json();
+}
