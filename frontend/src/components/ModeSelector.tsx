@@ -45,7 +45,7 @@ export function ModeSelector({
           variant="ghost"
           size="sm"
           className={cn(
-            "h-7 gap-1.5 px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-all duration-300 rounded-lg",
+            "h-7 gap-1.5 px-2 text-xs font-medium transition-all duration-300 rounded-lg focus-visible:ring-0",
             className,
           )}
         >
@@ -56,7 +56,7 @@ export function ModeSelector({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-64 p-1 rounded-xl shadow-2xl border-muted/50"
+        className="w-64 p-1 rounded-xl shadow-lg border-muted/50"
       >
         {MODES.map((m) => (
           <DropdownMenuItem

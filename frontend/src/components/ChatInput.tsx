@@ -268,7 +268,7 @@ export function ChatInput({
                   value={selectedModel || modelsData.default_model || ""}
                   onValueChange={setSelectedModel}
                 >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 text-xs border-0 bg-transparent hover:bg-muted focus:ring-0 px-2 text-muted-foreground hover:text-foreground transition-all duration-300 rounded-lg">
+                  <SelectTrigger className="h-7 w-auto gap-1.5 text-xs font-medium border-0 bg-transparent hover:bg-muted focus:ring-0 px-2 transition-all duration-300 rounded-lg focus-visible:ring-0">
                     <Sparkles className="h-3 w-3" />
                     <SelectValue placeholder="Modèle" />
                   </SelectTrigger>
