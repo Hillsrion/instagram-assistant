@@ -1,9 +1,8 @@
-import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
-import { evaluateTitle, updateConversation } from "@/lib/api";
+import { evaluateTitle, streamChat, updateConversation } from "@/lib/api";
 import type { Message } from "@/lib/types";
 
 interface UseChatStreamProps {
@@ -55,25 +54,17 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
       abortController.current = new AbortController();
 
       try {
-        await fetchEventSource("/api/chat/stream", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            message: content,
-            conversation_id: chatId,
-            model: filters?.model || undefined,
-            mode: filters?.mode || "fast",
-            participant_filter: filters?.participant || undefined,
-            use_about_person: filters?.broadSearch || false,
-            group_filter: filters?.group || undefined,
-            date_filter: filters?.date || undefined,
-          }),
-          signal: abortController.current.signal,
-          async onmessage(ev) {
-            const data = JSON.parse(ev.data);
-
+        await streamChat({
+          message: content,
+          conversation_id: chatId,
+          model: filters?.model || undefined,
+          mode: filters?.mode || "fast",
+          participant_filter: filters?.participant || undefined,
+          use_about_person: filters?.broadSearch || false,
+          group_filter: filters?.group || undefined,
+          date_filter: filters?.date || undefined,
+          signal: abortController.current.signal || undefined,
+          onMessage: (data) => {
             if (data.type === "progress") {
               setStreamStatus(data.message);
             } else if (data.type === "chunk") {
@@ -108,15 +99,11 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
 
               // Auto-evaluate title if it's the first message
               if (messages.length === 0) {
-                try {
-                  const { title } = await evaluateTitle(
-                    content,
-                    filters?.model || undefined,
+                evaluateTitle(content, filters?.model || undefined)
+                  .then(({ title }) => updateConversation(chatId, { title }))
+                  .catch((err) =>
+                    console.error("Failed to auto-update title:", err),
                   );
-                  await updateConversation(chatId, { title });
-                } catch (err) {
-                  console.error("Failed to auto-update title:", err);
-                }
               }
 
               queryClient.invalidateQueries({ queryKey: ["conversations"] });
@@ -128,7 +115,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
               throw new Error(data.error);
             }
           },
-          onerror(err) {
+          onError: (err) => {
             console.error("Stream error:", err);
             toast.error("Failed to send message");
             setIsStreaming(false);

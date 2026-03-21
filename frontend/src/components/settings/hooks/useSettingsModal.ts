@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { getTones, updateSettings } from "@/lib/api";
 import type { Settings } from "@/lib/settings-schema";
 import { useSettingsStore } from "@/lib/settings-store";
 
@@ -28,11 +29,8 @@ export function useSettingsModal(
 
   const fetchTones = async () => {
     try {
-      const response = await fetch("/api/settings/tones");
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableTones(data);
-      }
+      const data = await getTones();
+      setAvailableTones(data);
     } catch (error) {
       console.error("Failed to fetch tones:", error);
     }
@@ -41,21 +39,10 @@ export function useSettingsModal(
   const handleSave = async (values: Settings) => {
     setLoading(true);
     try {
-      const response = await fetch("/api/settings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(values),
-      });
-
-      if (response.ok) {
-        updateStoreSettings(values);
-        toast.success("Réglages enregistrés avec succès");
-        onOpenChange(false);
-      } else {
-        throw new Error("Failed to save settings");
-      }
+      await updateSettings(values);
+      updateStoreSettings(values);
+      toast.success("Réglages enregistrés avec succès");
+      onOpenChange(false);
     } catch (error) {
       console.error("Error saving settings:", error);
       toast.error("Échec de l'enregistrement des réglages");
