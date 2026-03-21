@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { FileText } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { ChatInput } from "@/components/ChatInput";
 import { ConversationMenu } from "@/components/ConversationMenu";
 import { SourcesModal } from "@/components/SourcesModal";
@@ -233,7 +234,9 @@ function ChatRoute() {
                 >
                   {msg.role === "assistant" ? (
                     <div className="prose dark:prose-invert max-w-none wrap-break-word">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
                     </div>
                   ) : (
                     <div className="whitespace-pre-wrap">{msg.content}</div>
