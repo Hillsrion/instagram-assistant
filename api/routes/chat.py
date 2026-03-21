@@ -135,25 +135,30 @@ async def generate_agent_response(request: ChatRequest, analysis) -> AsyncGenera
             continue
 
         elif event_type == "thinking":
-            step_num = event["step"]
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'thinking', 'message': f'Reasoning step {step_num}...'})}\n\n"
+            # Just wait...
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'thinking', 'message': 'Analyse en cours...'})}\n\n"
 
         elif event_type == "thought":
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'thinking', 'message': event['content'][:200]})}\n\n"
+            thought_text = event.get('content', '')
+            one_liner = thought_text.split('\n')[0].strip()
+            if len(one_liner) > 80:
+                one_liner = one_liner[:77] + "..."
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'thinking', 'message': one_liner})}\n\n"
 
         elif event_type == "action":
-            tool = event["tool"]
+            tool = event.get("tool", "")
+            action_input = event.get("input", "")
             tool_messages = {
-                "search_conversations": "Searching conversations...",
-                "get_contact_stats": f"Getting stats for {event['input']}...",
-                "get_participants": "Listing participants...",
-                "get_todays_date": "Getting today's date...",
+                "search_conversations": f"Recherche de '{action_input[:30]}...' dans les conversations",
+                "get_contact_stats": f"Analyse des statistiques de {action_input}",
+                "get_participants": "Récupération de la liste des participants",
+                "get_todays_date": "Vérification de la date du jour",
             }
-            msg = tool_messages.get(tool, f"Using {tool}...")
+            msg = tool_messages.get(tool, f"Utilisation de l'outil {tool}...")
             yield f"data: {json.dumps({'type': 'progress', 'step': 'search', 'message': msg})}\n\n"
 
         elif event_type == "observation":
-            yield f"data: {json.dumps({'type': 'progress', 'step': 'documents', 'message': 'Processing results...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'progress', 'step': 'documents', 'message': 'Lecture des résultats...'})}\n\n"
 
         elif event_type == "final":
             response_text = event["answer"]
