@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import {
   BarChart3,
+  ChevronDown,
+  ChevronRight,
+  Folder,
   Instagram,
   MoreVertical,
   PanelLeftClose,
@@ -11,11 +14,10 @@ import {
   Settings,
   Star,
   Trash2,
-  Folder,
-  ChevronDown,
-  ChevronRight,
 } from "lucide-react";
 import { useState } from "react";
+import { NewProjectModal } from "@/components/ProjectModals";
+import { SettingsModal } from "@/components/SettingsModal";
 import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
@@ -34,12 +36,10 @@ import {
   createConversation,
   deleteConversation,
   getConversations,
+  getProjects,
   updateConversation,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { SettingsModal } from "@/components/SettingsModal";
-import { NewProjectModal } from "@/components/ProjectModals";
-import { getProjects } from "@/lib/api";
 
 export function Sidebar() {
   const queryClient = useQueryClient();
@@ -49,7 +49,9 @@ export function Sidebar() {
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
+  const [expandedProjects, setExpandedProjects] = useState<
+    Record<string, boolean>
+  >({});
 
   const toggleProject = (projectId: string) => {
     setExpandedProjects((prev) => ({
@@ -67,8 +69,6 @@ export function Sidebar() {
     queryKey: ["projects"],
     queryFn: getProjects,
   });
-
-
 
   const createMutation = useMutation({
     mutationFn: () => createConversation(),
@@ -337,89 +337,97 @@ export function Sidebar() {
                 </div>
               </>
             )}
-            <div className="px-2 py-2 text-xs font-medium text-muted-foreground shrink-0 uppercase tracking-wider mt-4">
-              Projets
-            </div>
-            {projects?.length === 0 ? (
-              <div className="px-4 py-2 text-xs text-muted-foreground italic">
-                Aucun projet
-              </div>
-            ) : (
-              <div className="space-y-1 mb-4">
-                {projects?.map((project) => (
-                  <div key={project.id} className="space-y-0.5">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      className={cn(
-                        "group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                        matchRoute({ to: "/projects/$projectId" as any, params: { projectId: project.id } as any }) && "bg-muted",
-                      )}
-                      onClick={() => toggleProject(project.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          toggleProject(project.id);
-                        }
-                      }}
-                    >
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        {expandedProjects[project.id] ? (
-                          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            {projects && projects.length > 0 && (
+              <>
+                <div className="px-2 py-2 text-xs font-medium text-muted-foreground shrink-0 uppercase tracking-wider mt-4">
+                  Projets
+                </div>
+                <div className="space-y-1 mb-4">
+                  {projects.map((project) => (
+                    <div key={project.id} className="space-y-0.5">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className={cn(
+                          "group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                          matchRoute({
+                            to: "/projects/$projectId" as any,
+                            params: { projectId: project.id } as any,
+                          }) && "bg-muted",
                         )}
-                      </div>
-                      <Link
-                        to={"/projects/$projectId" as any}
-                        params={{ projectId: project.id } as any}
-                        className="flex-1 text-sm font-medium truncate"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={() => toggleProject(project.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleProject(project.id);
+                          }
+                        }}
                       >
-                        {project.title}
-                      </Link>
-                    </div>
-
-                    {expandedProjects[project.id] && (
-                      <div className="ml-4 pl-2 border-l border-muted-foreground/20 space-y-0.5">
-                        {conversations
-                          ?.filter((c) => c.project_id === project.id)
-                          .map((conv) => (
-                            <Link
-                              key={conv.id}
-                              to="/chat/$chatId"
-                              params={{ chatId: conv.id }}
-                              className={cn(
-                                "block px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-md truncate transition-colors",
-                                matchRoute({ to: "/chat/$chatId", params: { chatId: conv.id } }) && "bg-muted text-foreground",
-                              )}
-                            >
-                              {conv.title || "Nouvelle conversation"}
-                            </Link>
-                          ))}
-                        {conversations?.filter((c) => c.project_id === project.id).length === 0 && (
-                          <div className="px-2 py-1 text-[10px] text-muted-foreground italic">
-                            Aucune conversation
-                          </div>
-                        )}
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          {expandedProjects[project.id] ? (
+                            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <Link
+                          to={"/projects/$projectId" as any}
+                          params={{ projectId: project.id } as any}
+                          className="flex-1 text-sm font-medium truncate"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {project.title}
+                        </Link>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
 
+                      {expandedProjects[project.id] && (
+                        <div className="ml-4 pl-2 border-l border-muted-foreground/20 space-y-0.5">
+                          {conversations
+                            ?.filter((c) => c.project_id === project.id)
+                            .map((conv) => (
+                              <Link
+                                key={conv.id}
+                                to="/chat/$chatId"
+                                params={{ chatId: conv.id }}
+                                className={cn(
+                                  "block px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-md truncate transition-colors",
+                                  matchRoute({
+                                    to: "/chat/$chatId",
+                                    params: { chatId: conv.id },
+                                  }) && "bg-muted text-foreground",
+                                )}
+                              >
+                                {conv.title || "Nouvelle conversation"}
+                              </Link>
+                            ))}
+                          {conversations?.filter(
+                            (c) => c.project_id === project.id,
+                          ).length === 0 && (
+                            <div className="px-2 py-1 text-[10px] text-muted-foreground italic">
+                              Aucune conversation
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
             <div className="px-2 py-2 text-xs font-medium text-muted-foreground shrink-0 uppercase tracking-wider">
               Conversations Libres
             </div>
-            {conversations?.filter((c) => !c.project_id && !c.is_favorite)?.length === 0 ? (
+            {conversations?.filter((c) => !c.project_id && !c.is_favorite)
+              ?.length === 0 ? (
               <div className="p-4 text-sm text-muted-foreground text-center">
                 Aucune conversation libre
               </div>
             ) : (
               conversations
                 ?.filter(
-                  (c) => !c.project_id && (c.is_favorite === false || c.is_favorite === undefined),
+                  (c) =>
+                    !c.project_id &&
+                    (c.is_favorite === false || c.is_favorite === undefined),
                 )
                 ?.map((conv) => {
                   const isActive = matchRoute({
@@ -526,10 +534,7 @@ export function Sidebar() {
           {!isCollapsed && <span>Réglages</span>}
         </Button>
 
-        <SettingsModal
-          open={isSettingsOpen}
-          onOpenChange={setIsSettingsOpen}
-        />
+        <SettingsModal open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
 
         <NewProjectModal
           open={isNewProjectOpen}
