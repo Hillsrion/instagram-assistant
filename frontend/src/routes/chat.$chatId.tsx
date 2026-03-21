@@ -19,7 +19,14 @@ export const Route = createFileRoute("/chat/$chatId")({
       p: typeof search.p === "string" ? search.p : undefined,
       g: typeof search.g === "string" ? search.g : undefined,
       b: search.b === "true" || search.b === true || undefined,
-    } as { q?: string; p?: string; g?: string; b?: boolean };
+      m: typeof search.m === "string" ? search.m : undefined,
+    } as {
+      q?: string;
+      p?: string;
+      g?: string;
+      b?: boolean;
+      m?: "fast" | "reflexion";
+    };
   },
   component: ChatRoute,
 });
@@ -31,6 +38,7 @@ function ChatRoute() {
     p: initialParticipant,
     g: initialGroup,
     b: initialBroad,
+    m: initialMode,
   } = Route.useSearch();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -54,10 +62,14 @@ function ChatRoute() {
     setFilterDate,
     selectedModel,
     setSelectedModel,
+    selectedMode,
+    setSelectedMode,
+    developerMode,
   } = useChatFilters({
     initialParticipant,
     initialGroup,
     initialBroad,
+    initialMode,
   });
 
   // Chat hook
@@ -135,6 +147,8 @@ function ChatRoute() {
         participant: filterParticipant,
         group: filterGroup,
         broadSearch: filterBroad,
+        model: selectedModel, // Ensure initial message uses selected model
+        mode: selectedMode, // Ensure initial message uses selected mode
       });
     }
   }, [
@@ -144,6 +158,8 @@ function ChatRoute() {
     filterParticipant,
     filterGroup,
     filterBroad,
+    selectedModel,
+    selectedMode,
   ]);
 
   const [sourcesModalOpen, setSourcesModalOpen] = useState(false);
@@ -157,6 +173,7 @@ function ChatRoute() {
       ...options,
       model: selectedModel,
       date: filterDate,
+      mode: selectedMode, // Pass selectedMode to sendMessage
     });
   };
 
@@ -258,6 +275,9 @@ function ChatRoute() {
             stopStream={stopStream}
             selectedModel={selectedModel || ""}
             setSelectedModel={setSelectedModel}
+            selectedMode={selectedMode}
+            setSelectedMode={setSelectedMode}
+            developerMode={developerMode}
             modelsData={modelsData}
             filterParticipant={filterParticipant}
             setFilterParticipant={setFilterParticipant}

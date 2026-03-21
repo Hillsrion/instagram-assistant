@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useRef } from "react";
 import type { DateRange } from "react-day-picker";
+import { type ChatMode, ModeSelector } from "@/components/ModeSelector";
 import { SearchPopover } from "@/components/SearchPopover";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -36,6 +37,7 @@ interface ChatInputProps {
       group?: string;
       broadSearch?: boolean;
       model?: string;
+      mode?: string;
       date?: DateRange;
     },
   ) => void;
@@ -43,6 +45,9 @@ interface ChatInputProps {
   stopStream: () => void;
   selectedModel: string;
   setSelectedModel: (model: string) => void;
+  selectedMode: ChatMode;
+  setSelectedMode: (mode: ChatMode) => void;
+  developerMode: boolean;
   modelsData?: {
     models: Array<{ name: string }>;
     default_model: string;
@@ -68,6 +73,9 @@ export function ChatInput({
   stopStream,
   selectedModel,
   setSelectedModel,
+  selectedMode,
+  setSelectedMode,
+  developerMode,
   modelsData,
   filterParticipant,
   setFilterParticipant,
@@ -93,6 +101,7 @@ export function ChatInput({
         group: filterGroup,
         broadSearch: filterBroad,
         model: selectedModel,
+        mode: selectedMode,
         date: filterDate,
       });
       inputRef.current.value = "";
@@ -250,30 +259,40 @@ export function ChatInput({
               </PopoverContent>
             </Popover>
 
-            {/* 3. MODEL SELECTOR */}
-            {modelsData?.models && modelsData.models.length > 0 && (
-              <Select
-                value={selectedModel || modelsData.default_model || ""}
-                onValueChange={setSelectedModel}
-              >
-                <SelectTrigger className="h-7 w-auto gap-1.5 text-xs border-0 bg-transparent hover:bg-muted focus:ring-0 px-2 text-muted-foreground hover:text-foreground transition-all duration-300 rounded-lg">
-                  <Sparkles className="h-3 w-3" />
-                  <SelectValue placeholder="Modèle" />
-                </SelectTrigger>
-                <SelectContent>
-                  {modelsData.models.map((model) => (
-                    <SelectItem
-                      key={model.name}
-                      value={model.name}
-                      className="text-xs"
-                    >
-                      {model.name.includes(":")
-                        ? model.name
-                        : `${model.name}:latest`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* 3. MODE OR MODEL SELECTOR */}
+            {developerMode ? (
+              // Developer Mode: Show Model Selector
+              modelsData?.models &&
+              modelsData.models.length > 0 && (
+                <Select
+                  value={selectedModel || modelsData.default_model || ""}
+                  onValueChange={setSelectedModel}
+                >
+                  <SelectTrigger className="h-7 w-auto gap-1.5 text-xs border-0 bg-transparent hover:bg-muted focus:ring-0 px-2 text-muted-foreground hover:text-foreground transition-all duration-300 rounded-lg">
+                    <Sparkles className="h-3 w-3" />
+                    <SelectValue placeholder="Modèle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modelsData.models.map((model) => (
+                      <SelectItem
+                        key={model.name}
+                        value={model.name}
+                        className="text-xs"
+                      >
+                        {model.name.includes(":")
+                          ? model.name
+                          : `${model.name}:latest`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )
+            ) : (
+              // Regular Mode: Show Mode Selector
+              <ModeSelector
+                mode={selectedMode}
+                onModeChange={setSelectedMode}
+              />
             )}
           </div>
         </div>

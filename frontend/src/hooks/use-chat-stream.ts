@@ -26,6 +26,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
         group?: string;
         broadSearch?: boolean;
         model?: string;
+        mode?: string;
         date?: DateRange;
       },
     ) => {
@@ -63,6 +64,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
             message: content,
             conversation_id: chatId,
             model: filters?.model || undefined,
+            mode: filters?.mode || "fast",
             participant_filter: filters?.participant || undefined,
             use_about_person: filters?.broadSearch || false,
             group_filter: filters?.group || undefined,

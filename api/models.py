@@ -41,6 +41,7 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[str] = None
     project_id: Optional[str] = None
     model: Optional[str] = None
+    mode: Optional[str] = "fast" # NEW: mode selector (fast, reflexion)
     participant_filter: Optional[str] = None
     about_person: Optional[str] = None 
     use_about_person: bool = False # NEW: toggle between strict and broad person search

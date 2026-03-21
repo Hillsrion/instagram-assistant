@@ -114,12 +114,17 @@ async def generate_agent_response(request: ChatRequest, analysis) -> AsyncGenera
 
     yield f"data: {json.dumps({'type': 'progress', 'step': 'thinking', 'message': 'Agent reasoning...'})}\n\n"
 
+    # Use appropriate model based on mode
+    agent_model = request.model or (
+        state.config.llm_model_strong if request.mode == "reflexion" else state.config.llm_model
+    )
+
     # Run agent stream
     response_text = ""
     sources = []
     summary_sources = []
 
-    for event in agent.run_stream(request.message, history=history, analysis=analysis):
+    for event in agent.run_stream(request.message, history=history, analysis=analysis, model=agent_model):
         event_type = event["type"]
 
         if event_type == "start":
@@ -335,7 +340,12 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
 
         # Stream response
         response_text = ""
-        for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=request.model):
+        # Use appropriate model based on mode
+        chat_model = request.model or (
+            state.config.llm_model_strong if request.mode == "reflexion" else state.config.llm_model_fast
+        )
+        
+        for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model):
             response_text += chunk
             yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
             await asyncio.sleep(0)  # Allow other tasks to run
@@ -391,7 +401,7 @@ async def chat(request: ChatRequest):
     analysis = await run_sync(query_analyzer.analyze, request.message, chatbot.conversation_history)
 
 
-    if should_use_agent(analysis) and agent:
+    if should_use_agent(analysis, request.mode) and agent:
         # Agent path
         conv_id, conv, error = _get_or_create_conversation(request)
         if error:
@@ -404,7 +414,12 @@ async def chat(request: ChatRequest):
             for m in conv['messages'][:-1]
         ]
 
-        result = await run_sync(agent.run, request.message, history, analysis)
+        # Use stronger model for agent if mode is reflexion
+        agent_model = request.model or (
+            state.config.llm_model_strong if request.mode == "reflexion" else state.config.llm_model
+        )
+        
+        result = await run_sync(agent.run, request.message, history, analysis, model=agent_model)
         response_text = chatbot.filter_pii(result.answer)
 
         context = agent.tools.get_last_context()
@@ -472,7 +487,12 @@ async def chat(request: ChatRequest):
 
     # Generate response
     response_text = ""
-    for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=request.model):
+    # Use appropriate model based on mode
+    chat_model = request.model or (
+        state.config.llm_model_strong if request.mode == "reflexion" else state.config.llm_model_fast
+    )
+    
+    for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model):
         response_text += chunk
 
     # Format sources
@@ -524,15 +544,15 @@ async def chat_stream(request: ChatRequest):
     logger.info(f"🎯 Analysis result: mode={analysis.mode}, intent={analysis.intent}")
 
     # Binary routing
-    if should_use_agent(analysis):
-        logger.info(f"🤖 Routing to AGENT for: '{request.message}'")
+    if should_use_agent(analysis, request.mode):
+        logger.info(f"🤖 Routing to AGENT for: '{request.message}' (mode={request.mode})")
         return StreamingResponse(
             generate_agent_response(request, analysis),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
         )
 
-    logger.info(f"⚡ Using FAST-PATH (direct retrieval) for: '{request.message}'")
+    logger.info(f"⚡ Using FAST-PATH (direct retrieval) for: '{request.message}' (mode={request.mode})")
     return StreamingResponse(
         generate_direct_response(request, analysis),
         media_type="text/event-stream",

@@ -1,12 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
-import { getOllamaModels, getParticipants } from "@/lib/api";
+import { getOllamaModels, getParticipants, getSettings } from "@/lib/api";
+import type { Settings } from "@/lib/settings-schema";
+import { defaultSettings } from "@/lib/settings-schema";
 
 interface UseChatFiltersOptions {
   initialParticipant?: string;
   initialGroup?: string;
   initialBroad?: boolean;
+  initialMode?: "fast" | "reflexion";
 }
 
 export function useChatFilters(options: UseChatFiltersOptions = {}) {
@@ -28,6 +31,16 @@ export function useChatFilters(options: UseChatFiltersOptions = {}) {
     return participantsData?.map((p) => p.name) || [];
   }, [participantsData]);
 
+  // Load settings
+  const { data: settings } = useQuery<Settings>({
+    queryKey: ["settings"],
+    queryFn: () => getSettings(),
+    refetchOnWindowFocus: false,
+  });
+
+  const developerMode =
+    settings?.developerMode ?? defaultSettings.developerMode;
+
   // Filters State
   const [filterParticipant, setFilterParticipant] = useState<string>(
     options.initialParticipant || "",
@@ -42,8 +55,11 @@ export function useChatFilters(options: UseChatFiltersOptions = {}) {
     undefined,
   );
 
-  // Model State
+  // Model & Mode State
   const [selectedModel, setSelectedModel] = useState<string>("");
+  const [selectedMode, setSelectedMode] = useState<"fast" | "reflexion">(
+    options.initialMode || "fast",
+  );
 
   // Set default model when models are loaded
   useEffect(() => {
@@ -65,5 +81,8 @@ export function useChatFilters(options: UseChatFiltersOptions = {}) {
     setFilterDate,
     selectedModel,
     setSelectedModel,
+    selectedMode,
+    setSelectedMode,
+    developerMode,
   };
 }

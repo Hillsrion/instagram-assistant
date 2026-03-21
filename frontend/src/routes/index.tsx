@@ -26,6 +26,9 @@ function Index() {
     setFilterDate,
     selectedModel,
     setSelectedModel,
+    selectedMode,
+    setSelectedMode,
+    developerMode,
   } = useChatFilters();
 
   const createMutation = useMutation({
@@ -48,6 +51,7 @@ function Index() {
           p: options.participant || undefined,
           g: options.group || undefined,
           b: options.broadSearch || undefined,
+          m: options.mode || undefined,
         },
       });
 
@@ -66,11 +70,16 @@ function Index() {
         {/* Centered Chat Input */}
         <div className="h-[60px] w-full flex items-center justify-center">
           <ChatInput
-            onSendMessage={handleSendMessage}
-            isStreaming={createMutation.isPending}
+            onSendMessage={(content, options) => {
+              handleSendMessage(content, options);
+            }}
+            isStreaming={false}
             stopStream={() => {}}
             selectedModel={selectedModel}
             setSelectedModel={setSelectedModel}
+            selectedMode={selectedMode}
+            setSelectedMode={setSelectedMode}
+            developerMode={developerMode}
             modelsData={modelsData}
             filterParticipant={filterParticipant}
             setFilterParticipant={setFilterParticipant}

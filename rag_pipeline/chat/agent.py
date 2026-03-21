@@ -60,6 +60,7 @@ class AgentRunner:
         self.tools = ToolBox(config=self.config, retriever=retriever, analytics=analytics)
         self.max_steps = max_steps
         self.model = self.config.llm_model
+        self.provider_type = provider_type
         self.provider = create_provider(self.config, self.model, provider_type)
 
     def _build_system_prompt(self) -> str:
@@ -183,7 +184,8 @@ class AgentRunner:
         self,
         query: str,
         history: List[Dict[str, str]] = None,
-        analysis=None
+        analysis=None,
+        model: Optional[str] = None
     ) -> AgentResult:
         """
         Run the agent on a query.
@@ -192,6 +194,7 @@ class AgentRunner:
             query: User question
             history: Recent conversation history
             analysis: AnalysisResult from QueryAnalyzer
+            model: Optional LLM model to use for this specific run, overriding the default.
 
         Returns:
             AgentResult with answer, reasoning steps, and sources
@@ -223,7 +226,7 @@ class AgentRunner:
 
             # Call LLM
             try:
-                llm_response = self._call_llm(messages)
+                llm_response = self._call_llm(messages, model=model) # Pass the model parameter
             except Exception as e:
                 return AgentResult(
                     answer=f"Erreur lors de l'appel au modèle: {str(e)}",
@@ -305,7 +308,7 @@ class AgentRunner:
         sources, summary_sources = self._extract_results()
 
         # Fallback Synthesis: Call LLM one last time to make sense of the scratchpad
-        fallback_answer = self._synthesize_fallback(query, scratchpad)
+        fallback_answer = self._synthesize_fallback(query, scratchpad, model=model)
 
         return AgentResult(
             answer=fallback_answer,
@@ -317,7 +320,7 @@ class AgentRunner:
             error="Max steps reached - Synthesized fallback"
         )
 
-    def _synthesize_fallback(self, query: str, scratchpad: str) -> str:
+    def _synthesize_fallback(self, query: str, scratchpad: str, model: Optional[str] = None) -> str:
         """Synthesize a final answer from a partial scratchpad."""
         if not scratchpad:
             return "Désolé, je n'ai pas trouvé assez d'informations pour répondre à votre question."
@@ -340,7 +343,8 @@ RÉPONSE FINALE:"""
 
         try:
             messages = [{"role": "user", "content": prompt}]
-            return self.provider.generate(messages, temperature=0.3, max_tokens=512)
+            # Re-use current provider if possible or use default
+            return self._call_llm(messages, model=model) # Pass the model parameter
         except Exception as e:
             logger.error(f"Fallback synthesis failed: {e}")
             return "Désolé, une erreur est survenue lors de la synthèse des résultats."
@@ -349,7 +353,8 @@ RÉPONSE FINALE:"""
         self,
         query: str,
         history: List[Dict[str, str]] = None,
-        analysis=None
+        analysis=None,
+        model: Optional[str] = None
     ) -> Generator[Dict, None, None]:
         """
         Run the agent with streaming output for UI integration.
@@ -387,7 +392,11 @@ RÉPONSE FINALE:"""
             yield {"type": "thinking", "step": step_num}
 
             try:
-                llm_response = self._call_llm(messages)
+                llm_response = current_provider.generate(
+                    messages,
+                    temperature=0.1,
+                    max_tokens=512
+                )
             except Exception as e:
                 yield {"type": "error", "message": str(e)}
                 return
