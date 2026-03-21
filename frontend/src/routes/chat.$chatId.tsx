@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import { ChatInput } from "@/components/ChatInput";
 import { ConversationMenu } from "@/components/ConversationMenu";
 import { SourcesModal } from "@/components/SourcesModal";
+import { TypingIndicator } from "@/components/TypingIndicator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChatFilters } from "@/hooks/use-chat-filters";
 import { useChatStream } from "@/hooks/use-chat-stream";
@@ -291,9 +292,9 @@ function ChatRoute() {
 
           {/* Stream Status Indicator */}
           {isStreaming && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse">
-              <div className="h-2 w-2 rounded-full bg-primary animate-bounce" />
-              {streamStatus}
+            <div className="flex items-center gap-3 text-[13px] text-muted-foreground animate-pulse font-medium">
+              <TypingIndicator />
+              <span>{streamStatus}</span>
             </div>
           )}
 
