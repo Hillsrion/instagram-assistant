@@ -260,6 +260,28 @@ function ChatRoute() {
                     sources
                   </button>
                 )}
+
+                {/* Followups */}
+                {msg.followups && msg.followups.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {msg.followups.map((followup, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() =>
+                          handleSendMessage(followup, {
+                            participant: filterParticipant,
+                            group: filterGroup,
+                            broadSearch: filterBroad,
+                          })
+                        }
+                        className="text-xs px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors text-left"
+                      >
+                        {followup}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}

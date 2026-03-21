@@ -5,6 +5,7 @@ export interface Message {
   timestamp: string;
   sources?: Source[];
   summary_sources?: SummarySource[];
+  followups?: string[];
 }
 
 export interface Source {

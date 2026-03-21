@@ -11,6 +11,7 @@ class Message(BaseModel):
     content: str
     timestamp: str
     sources: Optional[List[dict]] = None
+    followups: Optional[List[str]] = None
 
 
 class Project(BaseModel):

@@ -62,7 +62,8 @@ def _add_user_message(conv: dict, message: str):
 
 def _save_assistant_message(conv: dict, response_text: str, sources: list = None,
                             summary_sources: list = None, low_confidence: bool = False,
-                            used_summary_fallback: bool = False, confidence_score: float = 0.0):
+                            used_summary_fallback: bool = False, confidence_score: float = 0.0,
+                            followups: list = None):
     """Append assistant message and save conversation."""
     assistant_msg = {
         "role": "assistant",
@@ -74,6 +75,8 @@ def _save_assistant_message(conv: dict, response_text: str, sources: list = None
         "used_summary_fallback": used_summary_fallback,
         "confidence_score": round(confidence_score, 3)
     }
+    if followups:
+        assistant_msg["followups"] = followups
     conv['messages'].append(assistant_msg)
     conv['updated_at'] = datetime.now().isoformat()
     save_conversation(conv)
@@ -199,7 +202,8 @@ async def generate_agent_response(request: ChatRequest, analysis) -> AsyncGenera
         conv, response_text, sources, summary_sources,
         low_confidence=context.low_confidence if context else False,
         used_summary_fallback=context.used_summary_fallback if context else False,
-        confidence_score=context.max_confidence_score if context else 0.0
+        confidence_score=context.max_confidence_score if context else 0.0,
+        followups=followups
     )
 
     yield f"data: {json.dumps({'type': 'done'})}\n\n"
@@ -371,7 +375,8 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
         conv, response_text, sources, summary_sources,
         low_confidence=context.low_confidence,
         used_summary_fallback=context.used_summary_fallback,
-        confidence_score=context.max_confidence_score
+        confidence_score=context.max_confidence_score,
+        followups=followups
     )
 
     # Trigger compaction if necessary and inform frontend

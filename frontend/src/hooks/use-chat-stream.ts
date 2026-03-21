@@ -93,6 +93,17 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
                 }
                 return prev;
               });
+            } else if (data.type === "followups") {
+              setMessages((prev) => {
+                const last = prev[prev.length - 1];
+                if (last.role === "assistant") {
+                  return [
+                    ...prev.slice(0, -1),
+                    { ...last, followups: data.questions },
+                  ];
+                }
+                return prev;
+              });
             } else if (data.type === "done") {
               setIsStreaming(false);
               setStreamStatus("");
