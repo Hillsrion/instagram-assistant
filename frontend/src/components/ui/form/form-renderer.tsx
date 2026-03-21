@@ -1,6 +1,7 @@
 import { useForm } from "@tanstack/react-form";
+import { useEffect } from "react";
 
-import type * as v from "valibot";
+import * as v from "valibot";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,14 +46,26 @@ export function FormRenderer({
 }: FormRendererProps) {
   const form = useForm({
     defaultValues,
-
     validators: {
-      onChange: schema,
+      onChange: ({ value }) => {
+        const result = v.safeParse(schema, value);
+        if (result.success) return undefined;
+        return result.issues.map((i) => i.message);
+      },
     },
     onSubmit: async ({ value }) => {
       await onSubmit(value);
     },
   });
+
+  // Re-sync form when defaultValues change (e.g. after fetch or tab switch with fresh data)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional to avoid flip-back
+  useEffect(() => {
+    // Only reset if the values differ, to ensure syncing with parent state (e.g. after save)
+    if (JSON.stringify(form.state.values) !== JSON.stringify(defaultValues)) {
+      form.reset(defaultValues);
+    }
+  }, [defaultValues, form.reset]); // removed form.state.values from dependencies
 
   return (
     <form

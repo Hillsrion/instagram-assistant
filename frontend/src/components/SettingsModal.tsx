@@ -1,9 +1,3 @@
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Import,
   Instagram,
@@ -14,12 +8,15 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   type FieldDefinition,
   FormRenderer,
 } from "@/components/ui/form/form-renderer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   defaultSettings,
   type Settings,
@@ -35,10 +32,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState("general");
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [availableTones, setAvailableTones] = useState<string[]>([]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
     if (open) {
+      setInitialLoading(true);
       fetchSettings();
       fetchTones();
     }
@@ -66,6 +66,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     } catch (error) {
       console.error("Failed to fetch settings:", error);
       toast.error("Échec du chargement des réglages");
+    } finally {
+      setInitialLoading(false);
     }
   };
 
@@ -83,6 +85,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       if (response.ok) {
         setSettings(values);
         toast.success("Réglages enregistrés avec succès");
+        onOpenChange(false);
       } else {
         throw new Error("Failed to save settings");
       }
@@ -111,7 +114,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       description:
         "Personnalisez le comportement et les réponses de votre assistant.",
       type: "select",
-      options: availableTones.map((tone: string) => ({ label: tone, value: tone })),
+      options: availableTones.map((tone: string) => ({
+        label: tone,
+        value: tone,
+      })),
       placeholder: "Choisir un ton",
     },
     {
@@ -193,117 +199,127 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto p-10">
-              <TabsContent value="general" className="mt-0 space-y-10">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2 text-slate-900 transition-all">
-                    Options basiques
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-8">
-                    Configurez les paramètres globaux de l'application.
-                  </p>
-
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                    <FormRenderer
-                      schema={SettingsSchema}
-                      defaultValues={settings}
-                      onSubmit={handleSave}
-                      fields={generalFields}
-                      disabled={loading}
-                    />
-                  </div>
+              {initialLoading ? (
+                <div className="space-y-6 animate-pulse">
+                  <div className="h-8 w-1/3 bg-slate-200 rounded-lg"></div>
+                  <div className="h-4 w-1/2 bg-slate-100 rounded-lg"></div>
+                  <div className="h-[200px] w-full bg-slate-50 border border-slate-100 rounded-2xl"></div>
                 </div>
-              </TabsContent>
+              ) : (
+                <>
+                  <TabsContent value="general" className="mt-0 space-y-10">
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2 text-slate-900 transition-all">
+                        Options basiques
+                      </h2>
+                      <p className="text-sm text-muted-foreground mb-8">
+                        Configurez les paramètres globaux de l'application.
+                      </p>
 
-              <TabsContent value="agent" className="mt-0 space-y-10">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2 text-slate-900">
-                    Contrôle de l'agent
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-8">
-                    Personnalisez le comportement et les réponses de votre
-                    assistant.
-                  </p>
+                      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                        <FormRenderer
+                          schema={SettingsSchema}
+                          defaultValues={settings}
+                          onSubmit={handleSave}
+                          fields={generalFields}
+                          disabled={loading}
+                        />
+                      </div>
+                    </div>
+                  </TabsContent>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                    <FormRenderer
-                      schema={SettingsSchema}
-                      defaultValues={settings}
-                      onSubmit={handleSave}
-                      fields={agentFields}
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-              </TabsContent>
+                  <TabsContent value="agent" className="mt-0 space-y-10">
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2 text-slate-900">
+                        Contrôle de l'agent
+                      </h2>
+                      <p className="text-sm text-muted-foreground mb-8">
+                        Personnalisez le comportement et les réponses de votre
+                        assistant.
+                      </p>
 
-              <TabsContent value="accounts" className="mt-0 space-y-10">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2 text-slate-900">
-                    Gestion des comptes
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-8">
-                    Gérez les sources de données et les comptes liés à votre
-                    assistant.
-                  </p>
+                      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                        <FormRenderer
+                          schema={SettingsSchema}
+                          defaultValues={settings}
+                          onSubmit={handleSave}
+                          fields={agentFields}
+                          disabled={loading}
+                        />
+                      </div>
+                    </div>
+                  </TabsContent>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden shadow-sm">
-                    <div className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-100">
-                          <Instagram className="w-6 h-6" />
+                  <TabsContent value="accounts" className="mt-0 space-y-10">
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2 text-slate-900">
+                        Gestion des comptes
+                      </h2>
+                      <p className="text-sm text-muted-foreground mb-8">
+                        Gérez les sources de données et les comptes liés à votre
+                        assistant.
+                      </p>
+
+                      <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden shadow-sm">
+                        <div className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-100">
+                              <Instagram className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-800">
+                                Compte principal
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Indexé le 15 mars 2024 • 2,450 messages
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-slate-400 hover:text-destructive transition-colors"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </Button>
                         </div>
-                        <div>
-                          <p className="font-semibold text-slate-800">
-                            Compte principal
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Indexé le 15 mars 2024 • 2,450 messages
-                          </p>
+
+                        <div className="p-6 bg-slate-50/30">
+                          <Button
+                            variant="outline"
+                            className="w-full h-12 gap-2 border-dashed border-slate-300 hover:border-primary hover:text-primary hover:bg-white transition-all rounded-xl"
+                          >
+                            <Import className="w-4 h-4" />
+                            Importer de nouvelles conversations
+                          </Button>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-slate-400 hover:text-destructive transition-colors"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </Button>
                     </div>
+                  </TabsContent>
 
-                    <div className="p-6 bg-slate-50/30">
-                      <Button
-                        variant="outline"
-                        className="w-full h-12 gap-2 border-dashed border-slate-300 hover:border-primary hover:text-primary hover:bg-white transition-all rounded-xl"
-                      >
-                        <Import className="w-4 h-4" />
-                        Importer de nouvelles conversations
-                      </Button>
+                  <TabsContent value="preferences" className="mt-0 space-y-10">
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2 text-slate-900">
+                        Préférences
+                      </h2>
+                      <p className="text-sm text-muted-foreground mb-8">
+                        Ajustez l'apparence visuelle pour une expérience
+                        personnalisée.
+                      </p>
+
+                      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                        <FormRenderer
+                          schema={SettingsSchema}
+                          defaultValues={settings}
+                          onSubmit={handleSave}
+                          fields={preferenceFields}
+                          disabled={loading}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="preferences" className="mt-0 space-y-10">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2 text-slate-900">
-                    Préférences
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-8">
-                    Ajustez l'apparence visuelle pour une expérience
-                    personnalisée.
-                  </p>
-
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                    <FormRenderer
-                      schema={SettingsSchema}
-                      defaultValues={settings}
-                      onSubmit={handleSave}
-                      fields={preferenceFields}
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-              </TabsContent>
+                  </TabsContent>
+                </>
+              )}
             </div>
           </Tabs>
         </div>
