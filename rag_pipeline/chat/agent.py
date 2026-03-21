@@ -153,10 +153,14 @@ class AgentRunner:
 
         return result
 
-    def _call_llm(self, messages: List[Dict[str, str]]) -> str:
+    def _call_llm(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> str:
         """Call the LLM with the given messages."""
         try:
-            return self.provider.generate(
+            current_provider = self.provider
+            if model and model != self.model:
+                current_provider = create_provider(self.config, model, self.provider_type)
+                
+            return current_provider.generate(
                 messages,
                 temperature=0.1,
                 max_tokens=512
@@ -392,11 +396,7 @@ RÉPONSE FINALE:"""
             yield {"type": "thinking", "step": step_num}
 
             try:
-                llm_response = current_provider.generate(
-                    messages,
-                    temperature=0.1,
-                    max_tokens=512
-                )
+                llm_response = self._call_llm(messages, model=model)
             except Exception as e:
                 yield {"type": "error", "message": str(e)}
                 return

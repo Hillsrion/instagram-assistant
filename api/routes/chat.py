@@ -18,7 +18,8 @@ from api.dependencies import (
     get_retriever,
     get_chatbot,
     get_query_analyzer,
-    get_agent_runner
+    get_agent_runner,
+    get_config
 )
 from api.routing import should_use_agent
 from rag_pipeline.core.logger import get_logger
@@ -119,7 +120,7 @@ async def generate_agent_response(request: ChatRequest, analysis) -> AsyncGenera
 
     # Use appropriate model based on mode
     agent_model = request.model or (
-        state.config.llm_model_strong if request.mode == "reflexion" else state.config.llm_model
+        get_config().llm_model_strong if request.mode == "reflexion" else get_config().llm_model
     )
 
     # Run agent stream
@@ -346,7 +347,7 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
         response_text = ""
         # Use appropriate model based on mode
         chat_model = request.model or (
-            state.config.llm_model_strong if request.mode == "reflexion" else state.config.llm_model_fast
+            get_config().llm_model_strong if request.mode == "reflexion" else get_config().llm_model_fast
         )
         
         for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model):
@@ -421,7 +422,7 @@ async def chat(request: ChatRequest):
 
         # Use stronger model for agent if mode is reflexion
         agent_model = request.model or (
-            state.config.llm_model_strong if request.mode == "reflexion" else state.config.llm_model
+            get_config().llm_model_strong if request.mode == "reflexion" else get_config().llm_model
         )
         
         result = await run_sync(agent.run, request.message, history, analysis, model=agent_model)
@@ -494,7 +495,7 @@ async def chat(request: ChatRequest):
     response_text = ""
     # Use appropriate model based on mode
     chat_model = request.model or (
-        state.config.llm_model_strong if request.mode == "reflexion" else state.config.llm_model_fast
+        get_config().llm_model_strong if request.mode == "reflexion" else get_config().llm_model_fast
     )
     
     for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model):
