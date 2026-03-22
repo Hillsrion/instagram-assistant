@@ -183,7 +183,7 @@ function ChatRoute() {
   return (
     <div className="flex h-full flex-col relative bg-gray-50/50">
       {/* Header - SIMPLIFIED */}
-      <div className="p-4 pl-8 flex items-center justify-between backdrop-blur z-10 w-full h-14 bg-background/50 border-b">
+      <div className="p-4 pl-8 flex items-center justify-between backdrop-blur z-10 w-full h-14 bg-background/50">
         <div className="flex items-center gap-2">
           <h2 className="font-medium truncate max-w-[500px]">
             {conversation?.title || "Chat"}

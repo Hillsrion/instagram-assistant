@@ -134,5 +134,10 @@
   --tw-prose-pre-bg: hsl(var(--muted));
   --tw-prose-th-borders: hsl(var(--border) / 0.8);
   --tw-prose-td-borders: hsl(var(--border) / 0.8);
+
+  & hr {
+    margin-top: 2em;
+    margin-bottom: 2em;
+  }
 }
 
