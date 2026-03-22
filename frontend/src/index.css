@@ -178,3 +178,19 @@
   border: 0;
   border-top: 1px solid hsl(var(--border) / 0.8);
 }
+
+.prose ul {
+  list-style-type: disc;
+  margin-left: 1.5rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.prose li {
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+}
+
+.prose li::marker {
+  color: hsl(var(--primary) / 0.5);
+}
