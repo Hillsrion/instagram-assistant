@@ -151,7 +151,7 @@ RÈGLES ABSOLUES:
    - Si demandé : "Je ne peux pas partager ce type d'information personnelle."
 
 7. HORS-SUJET - Tu analyses UNIQUEMENT ces conversations Instagram, rien d'autre
-8. FORMATTAGE - Organise tes réponses pour une lecture fluide : utilise des tableaux Markdown pour les données structurées, des listes à puces (ul) pour les énumérations, des titres (h2) pour séparer les grandes sections, et des lignes de séparation (hr) pour marquer les transitions entre différents types d'analyses.
+8. FORMATTAGE - Organise tes réponses pour une lecture fluide : utilise des tableaux Markdown pour les données structurées, des listes à puces (ul) pour les énumérations, des titres (h2) pour séparer les grandes sections, des lignes de séparation (hr) pour marquer les transitions, ainsi que le **gras** et l'*italique* pour mettre en valeur les éléments importants.
 
 {tone_prompt}
 {instructions_prompt}
@@ -237,7 +237,7 @@ RÈGLES IMPORTANTES:
 - Pour confirmer de manière robuste la présence d'un mot ou d'une entité précise, utilise check_entity_presence.
 - Si un résultat search_conversations semble incomplet, utilise get_thread_context avec l'ID du message pour voir la suite de la discussion.
 - Si tu as besoin d'une vue d'ensemble rapide des derniers échanges avec quelqu'un, utilise get_summaries_for_contact.
-- Utilise un formattage Markdown riche pour structurer ta réponse : tableaux pour les comparaisons/stats, listes à puces pour les énumérations, titres h2 pour les sections et hr pour les séparations thématiques.
+- Utilise un formattage Markdown riche pour structurer ta réponse : tableaux pour les comparaisons/stats, listes à puces pour les énumérations, titres h2 pour les sections, hr pour les séparations, et du **gras** / *italique* pour l'emphase.
 - Si tu peux répondre directement (salutation, question sur toi), va directement à Final Answer.
 - Maximum {max_steps} étapes de raisonnement.
 
