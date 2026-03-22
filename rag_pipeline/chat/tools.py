@@ -77,11 +77,20 @@ class ToolBox:
         """Helper to accumulate summaries from different tools."""
         for r in results:
             # Handle both SummarySearchResult and raw Summary objects
-            summary = getattr(r, 'summary', r)
-            score = getattr(r, 'score', 1.0)
-            level = getattr(r, 'level', 'unknown')
+            # CRITICAL: models have a .summary attribute which is a string (the text)
+            # wrappers have a .summary attribute which is the model object
+            summary_attr = getattr(r, 'summary', None)
             
-            summary_id = getattr(summary, 'summary_id', f"sum_{summary.date_start}_{summary.date_end}")
+            if summary_attr is not None and not isinstance(summary_attr, str):
+                summary = summary_attr
+                score = getattr(r, 'score', 1.0)
+                level = getattr(r, 'level', 'unknown')
+            else:
+                summary = r
+                score = 1.0
+                level = getattr(r, 'level', 'unknown') if hasattr(r, 'level') else 'unknown'
+            
+            summary_id = getattr(summary, 'summary_id', f"sum_{getattr(summary, 'date_start', 'unknown')}_{getattr(summary, 'date_end', 'unknown')}")
             
             if summary_id not in self._summaries_registry:
                 self._summaries_registry[summary_id] = {
