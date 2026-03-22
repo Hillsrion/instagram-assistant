@@ -194,3 +194,21 @@
 .prose li::marker {
   color: hsl(var(--primary) / 0.5);
 }
+
+.prose blockquote {
+  border-left: 2px solid hsl(var(--primary) / 0.5);
+  margin-left: 0;
+  padding-left: 1rem;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.prose code:not(pre code) {
+  background-color: hsl(var(--muted));
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.9em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
