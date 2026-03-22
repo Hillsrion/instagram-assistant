@@ -22,7 +22,7 @@ export function SidebarConversations({
       <div className="px-2 py-2 text-xs font-medium text-muted-foreground shrink-0 mt-4">
         Conversations
       </div>
-      <div>
+      <div className="px-2">
         {freeConversations?.length === 0 ? (
           <div className="p-4 text-sm text-muted-foreground text-center">
             Aucune conversation libre

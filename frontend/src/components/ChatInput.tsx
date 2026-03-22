@@ -3,23 +3,19 @@ import { fr } from "date-fns/locale";
 import {
   CalendarDays,
   Instagram,
+  Plus,
   Send,
-  SlidersHorizontal,
   Sparkles,
   StopCircle,
+  Users,
 } from "lucide-react";
 import { useRef } from "react";
 import type { DateRange } from "react-day-picker";
+import { ChatInputMenu } from "@/components/ChatInputMenu";
 import { type ChatMode, ModeSelector } from "@/components/ModeSelector";
-import { SearchPopover } from "@/components/SearchPopover";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -179,8 +175,8 @@ export function ChatInput({
         {/* Toolbar: Inside the rounded container */}
         <div className="flex items-center justify-between px-3 pb-2 border-t border-muted/30 pt-2 bg-muted/5">
           <div className="flex items-center gap-1.5">
-            {/* 1. COMPTES POPOVER (Renamed from Filters) */}
-            <SearchPopover
+            {/* 1. CHAT INPUT MENU */}
+            <ChatInputMenu
               participantNames={participantNames}
               selectedParticipant={filterParticipant}
               onSelectParticipant={(p) => {
@@ -198,66 +194,51 @@ export function ChatInput({
                   setFilterBroad(false);
                 }
               }}
+              filterDate={filterDate}
+              setFilterDate={setFilterDate}
+              onReset={() => {
+                setFilterParticipant("");
+                setFilterGroup("");
+                setFilterBroad(false);
+                setFilterDate(undefined);
+              }}
             >
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 className={cn(
-                  "gap-1.5 h-7 text-xs font-medium hover:bg-muted transition-colors rounded-lg",
-                  selectedCount > 0 &&
-                    "bg-primary/5 text-primary hover:bg-primary/10",
+                  "gap-1.5 h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground transition-colors",
+                  selectedCount > 0 || filterDate?.from
+                    ? "border-primary/50 text-primary hover:text-primary hover:bg-primary/10"
+                    : "border-dashed hover:border-solid",
                 )}
               >
-                <SlidersHorizontal className="h-3 w-3" />
-                <span>
-                  {selectedCount > 0
-                    ? `${selectedCount} compte${selectedCount > 1 ? "s" : ""}`
-                    : "Comptes"}
-                </span>
+                <Plus className="h-4 w-4" />
               </Button>
-            </SearchPopover>
+            </ChatInputMenu>
 
-            {/* 2. DATEPICKER */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "gap-1.5 h-7 text-xs font-medium hover:bg-muted transition-colors rounded-lg",
-                    filterDate?.from &&
-                      "bg-primary/5 text-primary hover:bg-primary/10",
-                  )}
-                >
-                  <CalendarDays className="h-3 w-3" />
-                  <span>
-                    {filterDate?.from ? (
-                      filterDate.to ? (
-                        <>
-                          {format(filterDate.from, "d MMM", { locale: fr })} -{" "}
-                          {format(filterDate.to, "d MMM yyyy", { locale: fr })}
-                        </>
-                      ) : (
-                        format(filterDate.from, "d MMM yyyy", { locale: fr })
-                      )
-                    ) : (
-                      "Date"
-                    )}
-                  </span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="range"
-                  selected={filterDate}
-                  onSelect={setFilterDate}
-                  initialFocus
-                  locale={fr}
-                  numberOfMonths={2}
-                  className="p-4"
-                />
-              </PopoverContent>
-            </Popover>
+            {/* Selected Filters Badges */}
+            {selectedCount > 0 && (
+              <Badge
+                variant="secondary"
+                className="h-6 px-2 text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 cursor-default"
+              >
+                <Users className="h-3 w-3 mr-1" />
+                {selectedCount} compte{selectedCount > 1 ? "s" : ""}
+              </Badge>
+            )}
+
+            {filterDate?.from && (
+              <Badge
+                variant="secondary"
+                className="h-6 px-2 text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 cursor-default"
+              >
+                <CalendarDays className="h-3 w-3 mr-1" />
+                {filterDate.to
+                  ? `${format(filterDate.from, "d MMM", { locale: fr })} - ${format(filterDate.to, "d MMM yy", { locale: fr })}`
+                  : format(filterDate.from, "d MMM yyyy", { locale: fr })}
+              </Badge>
+            )}
 
             {/* 3. MODE OR MODEL SELECTOR */}
             {developerMode ? (
