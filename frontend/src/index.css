@@ -162,3 +162,19 @@
   background-color: hsl(var(--muted) / 0.5);
   transition: background-color 0.2s ease;
 }
+
+/* Markdown Headings & Dividers */
+.prose h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+.prose hr {
+  margin: 1.5rem 0;
+  border: 0;
+  border-top: 1px solid hsl(var(--border) / 0.8);
+}
