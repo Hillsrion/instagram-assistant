@@ -115,3 +115,50 @@
     transform: scale(1.15);
   }
 }
+
+/* Markdown Table Styles */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.prose th {
+  background-color: hsl(var(--muted));
+  border-bottom: 2px solid hsl(var(--border));
+  border-right: 1px solid hsl(var(--border));
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.prose td {
+  border-bottom: 1px solid hsl(var(--border));
+  border-right: 1px solid hsl(var(--border));
+  padding: 0.75rem;
+  vertical-align: top;
+  color: hsl(var(--muted-foreground));
+}
+
+.prose tr:last-child td {
+  border-bottom: none;
+}
+
+.prose th:last-child, 
+.prose td:last-child {
+  border-right: none;
+}
+
+.prose tr:nth-child(even) {
+  background-color: hsl(var(--muted) / 0.3);
+}
+
+.prose tr:hover {
+  background-color: hsl(var(--muted) / 0.5);
+  transition: background-color 0.2s ease;
+}

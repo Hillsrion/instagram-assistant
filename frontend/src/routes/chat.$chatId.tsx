@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { FileText } from "lucide-react";
+import { ArrowRight, FileText } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -267,7 +267,7 @@ function ChatRoute() {
 
                 {/* Followups */}
                 {msg.followups && msg.followups.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="flex flex-col gap-1 mt-3 w-full">
                     {msg.followups.map((followup, idx) => (
                       <button
                         key={idx}
@@ -279,9 +279,10 @@ function ChatRoute() {
                             broadSearch: filterBroad,
                           })
                         }
-                        className="text-xs px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors text-left"
+                        className="group flex items-center gap-2 text-[13px] text-muted-foreground hover:text-primary transition-colors text-left py-1 w-full"
                       >
-                        {followup}
+                        <ArrowRight className="h-3.5 w-3.5 text-primary/40 group-hover:text-primary transition-colors shrink-0" />
+                        <span className="flex-1">{followup}</span>
                       </button>
                     ))}
                   </div>
