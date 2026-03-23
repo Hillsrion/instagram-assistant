@@ -1,9 +1,10 @@
 """
 Agent Personas Registry.
 Defines selectable personas that modify the assistant's behavior
-by injecting additional system prompt instructions.
+by injecting additional system prompt instructions and restricting
+available tools to those relevant for the persona's use case.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 
@@ -15,6 +16,7 @@ class Persona:
     icon: str
     description: str
     system_prompt_override: str
+    allowed_tools: Optional[tuple[str, ...]] = None  # None = all tools allowed
 
 
 # ============================================================
@@ -27,7 +29,8 @@ PERSONAS: dict[str, Persona] = {
         name="Standard",
         icon="💬",
         description="Assistant par défaut, neutre et factuel.",
-        system_prompt_override=""  # No override — uses default behavior
+        system_prompt_override="",  # No override — uses default behavior
+        allowed_tools=None  # All tools
     ),
     "nostalgique": Persona(
         id="nostalgique",
@@ -49,7 +52,13 @@ FORMATTAGE :
 - Utilise l'*italique* pour les citations et les moments forts
 - Ajoute des emojis temporels (📅, 🌅, 🌙) pour ponctuer les moments
 
-RÈGLE : Tu restes factuel. Tu ne brodes PAS sur ce qui n'est pas dans les documents. Tu romances la FORME, pas le FOND."""
+RÈGLE : Tu restes factuel. Tu ne brodes PAS sur ce qui n'est pas dans les documents. Tu romances la FORME, pas le FOND.""",
+        allowed_tools=(
+            "search_conversations",
+            "explore_topic_timeline",
+            "get_thread_context",
+            "get_todays_date",
+        )
     ),
     "analyste": Persona(
         id="analyste",
@@ -72,7 +81,15 @@ FORMATTAGE :
 - Utilise des indicateurs visuels : 🟢 (positif), 🟡 (neutre), 🔴 (tension)
 - Conclus avec un résumé en une phrase de la dynamique observée
 
-RÈGLE : Tu analyses avec bienveillance. Tu ne juges JAMAIS. Tu observes et tu restitues ce que les données montrent, sans psychanalyse sauvage."""
+RÈGLE : Tu analyses avec bienveillance. Tu ne juges JAMAIS. Tu observes et tu restitues ce que les données montrent, sans psychanalyse sauvage.""",
+        allowed_tools=(
+            "search_conversations",
+            "get_contact_stats",
+            "get_participants",
+            "get_summaries_for_contact",
+            "check_entity_presence",
+            "get_todays_date",
+        )
     ),
 }
 

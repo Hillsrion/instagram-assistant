@@ -63,15 +63,15 @@ class AgentRunner:
         self.provider_type = provider_type
         self.provider = create_provider(self.config, self.model, provider_type)
 
-    def _build_system_prompt(self, persona_prompt: str = "") -> str:
+    def _build_system_prompt(self, persona_prompt: str = "", allowed_tools: list = None) -> str:
         """Build the system prompt with tool descriptions."""
         # Dynamic tone and instructions
         tone_prompt = AVAILABLE_TONES.get(self.config.agent_tone, "")
         instructions_prompt = f"INSTRUCTIONS SUPPLÉMENTAIRES :\n{self.config.global_instructions}" if self.config.global_instructions else ""
 
         return AGENT_SYSTEM_PROMPT.format(
-            tool_names=", ".join(self.tools.get_tool_names()),
-            tools_desc=self.tools.get_tools_description(),
+            tool_names=", ".join(self.tools.get_tool_names(allowed_tools)),
+            tools_desc=self.tools.get_tools_description(allowed_tools),
             max_steps=self.max_steps,
             today=datetime.now().strftime("%Y-%m-%d"),
             user_name=self.config.user_name,
@@ -192,7 +192,8 @@ class AgentRunner:
         analysis=None,
         model: Optional[str] = None,
         images: Optional[List[str]] = None,
-        persona_prompt: str = ""
+        persona_prompt: str = "",
+        allowed_tools: Optional[List[str]] = None
     ) -> AgentResult:
         """
         Run the agent on a query.
@@ -214,7 +215,7 @@ class AgentRunner:
         steps: List[AgentStep] = []
         scratchpad = ""  # Accumulated context
 
-        system_prompt = self._build_system_prompt(persona_prompt=persona_prompt)
+        system_prompt = self._build_system_prompt(persona_prompt=persona_prompt, allowed_tools=allowed_tools)
         history_str = self._format_history(history)
 
         logger.info(f"🤖 Agent starting for: '{query}'")
@@ -290,7 +291,8 @@ class AgentRunner:
 
                 tool_result = self.tools.execute(
                     parsed["action"],
-                    parsed["action_input"]
+                    parsed["action_input"],
+                    allowed_tools=allowed_tools
                 )
                 step.observation = tool_result.output
                 steps.append(step)
@@ -370,7 +372,8 @@ RÉPONSE FINALE:"""
         analysis=None,
         model: Optional[str] = None,
         images: Optional[List[str]] = None,
-        persona_prompt: str = ""
+        persona_prompt: str = "",
+        allowed_tools: Optional[List[str]] = None
     ) -> Generator[Dict, None, None]:
         """
         Run the agent with streaming output for UI integration.
@@ -389,7 +392,7 @@ RÉPONSE FINALE:"""
         self._prepare_run(query, history, analysis)
 
         scratchpad = ""
-        system_prompt = self._build_system_prompt(persona_prompt=persona_prompt)
+        system_prompt = self._build_system_prompt(persona_prompt=persona_prompt, allowed_tools=allowed_tools)
         history_str = self._format_history(history)
 
         yield {"type": "start", "query": query}
@@ -445,7 +448,7 @@ RÉPONSE FINALE:"""
                     "input": parsed["action_input"]
                 }
 
-                tool_result = self.tools.execute(parsed["action"], parsed["action_input"])
+                tool_result = self.tools.execute(parsed["action"], parsed["action_input"], allowed_tools=allowed_tools)
 
                 yield {
                     "type": "observation",

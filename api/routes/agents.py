@@ -16,6 +16,7 @@ async def list_agents():
             "name": p.name,
             "icon": p.icon,
             "description": p.description,
+            "allowed_tools": list(p.allowed_tools) if p.allowed_tools else None,
         }
         for p in get_all_personas()
     ]

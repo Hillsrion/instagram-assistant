@@ -149,7 +149,7 @@ async def generate_agent_response(request: ChatRequest, analysis) -> AsyncGenera
     persona = get_persona(request.agent_id)
     persona_prompt = persona.system_prompt_override
 
-    for event in agent.run_stream(request.message, history=history, analysis=analysis, model=agent_model, images=images if images else None, persona_prompt=persona_prompt):
+    for event in agent.run_stream(request.message, history=history, analysis=analysis, model=agent_model, images=images if images else None, persona_prompt=persona_prompt, allowed_tools=list(persona.allowed_tools) if persona.allowed_tools else None):
         event_type = event["type"]
 
         if event_type == "start":
@@ -477,7 +477,7 @@ async def chat(request: ChatRequest):
         persona = get_persona(request.agent_id)
         persona_prompt = persona.system_prompt_override
 
-        result = await run_sync(agent.run, request.message, history, analysis, model=agent_model, images=images if images else None, persona_prompt=persona_prompt)
+        result = await run_sync(agent.run, request.message, history, analysis, model=agent_model, images=images if images else None, persona_prompt=persona_prompt, allowed_tools=list(persona.allowed_tools) if persona.allowed_tools else None)
         response_text = chatbot.filter_pii(result.answer)
 
         context = agent.tools.get_last_context()

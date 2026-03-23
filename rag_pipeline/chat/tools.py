@@ -123,35 +123,45 @@ class ToolBox:
         """Return the last retrieval context (for chat.py to access confidence, etc.)."""
         return self._last_context
 
-    def get_tools_description(self) -> str:
-        """Returns description of available tools for the agent prompt."""
-        return """1. search_conversations(query: str, participant: str = None, about_person: str = None, date_range: str = None): Recherche sémantique.
-   - 'participant': UNIQUEMENT pour restreindre aux conversations où la personne est présente (ex: "Qu'a dit X?").
-   - 'about_person': Pour chercher TOUT ce qui concerne une personne (elle est présente OU mentionnée). Préférable pour des sujets comme des anniversaires ou cadeaux.
-   - 'date_range': format "YYYY-MM-DD to YYYY-MM-DD".
-2. get_contact_stats(contact_name: str): Statistiques (messages, conversations, dates) pour un contact précis.
-3. get_participants(): Liste tous les participants connus avec leurs statistiques globales.
-4. get_todays_date(): Date actuelle pour aider aux calculs temporels.
-5. explore_topic_timeline(query: str): Chronologie détaillée d'un sujet avec volume mensuel et épisodes clés.
-6. get_thread_context(chunk_id: str, window: int = 5): Récupère les messages entourant un extrait précis (ID de chunk) pour comprendre le flux de la conversation.
-7. check_entity_presence(keyword: str, participant: str = None): Vérifie de manière stricte (mot-clé) la présence d'un terme. Très fiable pour confirmer ou infirmer une mention.
-8. get_summaries_for_contact(contact: str, limit: int = 5): Récupère les résumés de haut niveau des dernières conversations avec ce contact."""
+    # Per-tool descriptions for filtering
+    TOOL_DESCRIPTIONS = {
+        "search_conversations": "search_conversations(query: str, participant: str = None, about_person: str = None, date_range: str = None): Recherche sémantique.\n   - 'participant': UNIQUEMENT pour restreindre aux conversations où la personne est présente (ex: \"Qu'a dit X?\").\n   - 'about_person': Pour chercher TOUT ce qui concerne une personne (elle est présente OU mentionnée). Préférable pour des sujets comme des anniversaires ou cadeaux.\n   - 'date_range': format \"YYYY-MM-DD to YYYY-MM-DD\".",
+        "get_contact_stats": "get_contact_stats(contact_name: str): Statistiques (messages, conversations, dates) pour un contact précis.",
+        "get_participants": "get_participants(): Liste tous les participants connus avec leurs statistiques globales.",
+        "get_todays_date": "get_todays_date(): Date actuelle pour aider aux calculs temporels.",
+        "explore_topic_timeline": "explore_topic_timeline(query: str): Chronologie détaillée d'un sujet avec volume mensuel et épisodes clés.",
+        "get_thread_context": "get_thread_context(chunk_id: str, window: int = 5): Récupère les messages entourant un extrait précis (ID de chunk) pour comprendre le flux de la conversation.",
+        "check_entity_presence": "check_entity_presence(keyword: str, participant: str = None): Vérifie de manière stricte (mot-clé) la présence d'un terme. Très fiable pour confirmer ou infirmer une mention.",
+        "get_summaries_for_contact": "get_summaries_for_contact(contact: str, limit: int = 5): Récupère les résumés de haut niveau des dernières conversations avec ce contact.",
+    }
 
-    def get_tool_names(self) -> List[str]:
-        """Returns list of tool names."""
-        return list(self._tools_registry.keys())
+    def get_tools_description(self, allowed_tools: list = None) -> str:
+        """Returns description of available tools for the agent prompt, optionally filtered."""
+        descs = self.TOOL_DESCRIPTIONS
+        if allowed_tools:
+            descs = {k: v for k, v in descs.items() if k in allowed_tools}
+        return "\n".join(f"{i+1}. {desc}" for i, desc in enumerate(descs.values()))
 
-    def execute(self, tool_name: str, tool_input: str) -> ToolResult:
+    def get_tool_names(self, allowed_tools: list = None) -> List[str]:
+        """Returns list of tool names, optionally filtered."""
+        names = list(self._tools_registry.keys())
+        if allowed_tools:
+            names = [n for n in names if n in allowed_tools]
+        return names
+
+    def execute(self, tool_name: str, tool_input: str, allowed_tools: list = None) -> ToolResult:
         """
         Execute a tool by name with the given input.
         Supports both simple strings and JSON-formatted multi-argument strings.
         """
         tool_name = tool_name.strip().lower()
 
-        if tool_name not in self._tools_registry:
+        available = self.get_tool_names(allowed_tools)
+
+        if tool_name not in available:
             return ToolResult(
                 success=False,
-                output=f"Erreur: Outil '{tool_name}' inconnu. Outils disponibles: {', '.join(self.get_tool_names())}",
+                output=f"Erreur: Outil '{tool_name}' non disponible. Outils disponibles: {', '.join(available)}",
                 tool_name=tool_name,
                 input_args=tool_input
             )
