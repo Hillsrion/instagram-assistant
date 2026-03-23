@@ -11,6 +11,7 @@ from .chat import router as chat_router
 from .projects import router as projects_router
 from .settings import router as settings_router
 from .files import router as files_router
+from .agents import router as agents_router
 
 
 def register_routes(app):
@@ -23,3 +24,4 @@ def register_routes(app):
     app.include_router(projects_router, prefix="/api", tags=["projects"])
     app.include_router(settings_router, prefix="/api", tags=["settings"])
     app.include_router(files_router, prefix="/api", tags=["files"])
+    app.include_router(agents_router, prefix="/api", tags=["agents"])

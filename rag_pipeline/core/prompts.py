@@ -155,6 +155,7 @@ RÈGLES ABSOLUES:
 
 {tone_prompt}
 {instructions_prompt}
+{persona_prompt}
 
 L'utilisateur s'appelle {user_name}. Quand tu vois "{user_name}" dans les conversations, c'est lui qui parle."""
 
@@ -247,6 +248,8 @@ Date d'aujourd'hui: {today}
 {tone_prompt}
 
 {instructions_prompt}
+
+{persona_prompt}
 """
 
 AVAILABLE_TONES = {

@@ -63,7 +63,7 @@ class AgentRunner:
         self.provider_type = provider_type
         self.provider = create_provider(self.config, self.model, provider_type)
 
-    def _build_system_prompt(self) -> str:
+    def _build_system_prompt(self, persona_prompt: str = "") -> str:
         """Build the system prompt with tool descriptions."""
         # Dynamic tone and instructions
         tone_prompt = AVAILABLE_TONES.get(self.config.agent_tone, "")
@@ -76,7 +76,8 @@ class AgentRunner:
             today=datetime.now().strftime("%Y-%m-%d"),
             user_name=self.config.user_name,
             tone_prompt=tone_prompt,
-            instructions_prompt=instructions_prompt
+            instructions_prompt=instructions_prompt,
+            persona_prompt=persona_prompt
         )
 
     def _format_history(self, history: List[Dict[str, str]]) -> str:
@@ -190,7 +191,8 @@ class AgentRunner:
         history: List[Dict[str, str]] = None,
         analysis=None,
         model: Optional[str] = None,
-        images: Optional[List[str]] = None
+        images: Optional[List[str]] = None,
+        persona_prompt: str = ""
     ) -> AgentResult:
         """
         Run the agent on a query.
@@ -212,7 +214,7 @@ class AgentRunner:
         steps: List[AgentStep] = []
         scratchpad = ""  # Accumulated context
 
-        system_prompt = self._build_system_prompt()
+        system_prompt = self._build_system_prompt(persona_prompt=persona_prompt)
         history_str = self._format_history(history)
 
         logger.info(f"🤖 Agent starting for: '{query}'")
@@ -367,7 +369,8 @@ RÉPONSE FINALE:"""
         history: List[Dict[str, str]] = None,
         analysis=None,
         model: Optional[str] = None,
-        images: Optional[List[str]] = None
+        images: Optional[List[str]] = None,
+        persona_prompt: str = ""
     ) -> Generator[Dict, None, None]:
         """
         Run the agent with streaming output for UI integration.
@@ -386,7 +389,7 @@ RÉPONSE FINALE:"""
         self._prepare_run(query, history, analysis)
 
         scratchpad = ""
-        system_prompt = self._build_system_prompt()
+        system_prompt = self._build_system_prompt(persona_prompt=persona_prompt)
         history_str = self._format_history(history)
 
         yield {"type": "start", "query": query}

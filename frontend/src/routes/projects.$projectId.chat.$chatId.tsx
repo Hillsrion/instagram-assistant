@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { FileText } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import ReactMarkdown from "react-markdown";
 import { Breadcrumbs, ProjectMenu } from "@/components/Breadcrumbs";
@@ -48,6 +48,8 @@ function ProjectChat() {
     setSelectedMode,
     developerMode,
   } = useChatFilters();
+
+  const [selectedAgent, setSelectedAgent] = useState("standard");
 
   const {
     messages,
@@ -207,6 +209,8 @@ function ProjectChat() {
             filterDate={filterDate}
             setFilterDate={setFilterDate}
             participantNames={participantNames}
+            selectedAgent={selectedAgent}
+            setSelectedAgent={setSelectedAgent}
             isLoading={isLoading}
             autoFocus
           />

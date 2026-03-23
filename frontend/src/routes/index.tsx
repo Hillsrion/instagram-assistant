@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { ChatInput } from "@/components/ChatInput";
 import { useChatFilters } from "@/hooks/use-chat-filters";
 import { createConversation } from "@/lib/api";
@@ -34,6 +35,8 @@ function Index() {
   const createMutation = useMutation({
     mutationFn: (title?: string) => createConversation(title),
   });
+
+  const [selectedAgent, setSelectedAgent] = useState("standard");
 
   const handleSendMessage = async (content: string, options: any) => {
     try {
@@ -93,6 +96,8 @@ function Index() {
             filterDate={filterDate}
             setFilterDate={setFilterDate}
             participantNames={participantNames}
+            selectedAgent={selectedAgent}
+            setSelectedAgent={setSelectedAgent}
             isLoading={createMutation.isPending}
             autoFocus
             isHome

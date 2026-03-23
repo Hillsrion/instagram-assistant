@@ -173,6 +173,7 @@ function ChatRoute() {
   ]);
 
   const [sourcesModalOpen, setSourcesModalOpen] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState("standard");
   const [selectedMessageSources, setSelectedMessageSources] = useState<{
     sources: Source[];
     summary_sources: SummarySource[];
@@ -183,7 +184,8 @@ function ChatRoute() {
       ...options,
       model: selectedModel,
       date: filterDate,
-      mode: selectedMode, // Pass selectedMode to sendMessage
+      mode: selectedMode,
+      agent_id: selectedAgent,
     });
   };
 
@@ -375,6 +377,8 @@ function ChatRoute() {
             filterDate={filterDate}
             setFilterDate={setFilterDate}
             participantNames={participantNames}
+            selectedAgent={selectedAgent}
+            setSelectedAgent={setSelectedAgent}
             isLoading={isLoading}
             autoFocus
           />

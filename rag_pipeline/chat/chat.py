@@ -225,7 +225,8 @@ Tâche :
         prompt: str,
         stream: bool = False,
         model: str = None,
-        images: Optional[List[str]] = None
+        images: Optional[List[str]] = None,
+        persona_prompt: str = ""
     ) -> Generator[str, None, None] | str:
         """Calls the LLM provider."""
         # Dynamic tone and instructions
@@ -235,7 +236,8 @@ Tâche :
         system_prompt = SYSTEM_PROMPT.format(
             user_name=self.config.user_name,
             tone_prompt=tone_prompt,
-            instructions_prompt=instructions_prompt
+            instructions_prompt=instructions_prompt,
+            persona_prompt=persona_prompt
         )
         
         # Add history summary if it exists
@@ -576,7 +578,7 @@ RÈGLES STRICTES :
             print(f"Followup generation error: {e}")
             return []
 
-    def chat_stream(self, query: str, context: str, model: str = None, images: Optional[List[str]] = None) -> Generator[str, None, None]:
+    def chat_stream(self, query: str, context: str, model: str = None, images: Optional[List[str]] = None, persona_prompt: str = "") -> Generator[str, None, None]:
         """
         Stream chat response given a query and formatted context.
         Used by app.py for direct context passing.
@@ -599,6 +601,6 @@ Question de l'utilisateur : {query}
 
 Reponds en te basant UNIQUEMENT sur les documents ci-dessus. Si tu ne trouves pas l'information, dis-le clairement."""
 
-        for token in self._call_ollama(prompt, stream=True, model=model, images=images):
+        for token in self._call_ollama(prompt, stream=True, model=model, images=images, persona_prompt=persona_prompt):
             # Filter PII from each token (less efficient but real-time)
             yield token

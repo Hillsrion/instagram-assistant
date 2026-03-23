@@ -7,6 +7,7 @@ export interface ChatStreamOptions {
   conversation_id: string;
   model?: string;
   mode?: string;
+  agent_id?: string;
   participant_filter?: string;
   use_about_person?: boolean;
   group_filter?: string;

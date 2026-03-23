@@ -23,6 +23,7 @@ from api.dependencies import (
     get_config
 )
 from api.routing import should_use_agent
+from rag_pipeline.chat.personas import get_persona
 from rag_pipeline.core.logger import get_logger
 
 logger = get_logger()
@@ -144,7 +145,11 @@ async def generate_agent_response(request: ChatRequest, analysis) -> AsyncGenera
     sources = []
     summary_sources = []
 
-    for event in agent.run_stream(request.message, history=history, analysis=analysis, model=agent_model, images=images if images else None):
+    # Resolve persona
+    persona = get_persona(request.agent_id)
+    persona_prompt = persona.system_prompt_override
+
+    for event in agent.run_stream(request.message, history=history, analysis=analysis, model=agent_model, images=images if images else None, persona_prompt=persona_prompt):
         event_type = event["type"]
 
         if event_type == "start":
@@ -380,7 +385,11 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
             get_config().llm_model_strong if request.mode == "reflexion" else get_config().llm_model_fast
         )
         
-        for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model, images=images if images else None):
+        # Resolve persona
+        persona = get_persona(request.agent_id)
+        persona_prompt = persona.system_prompt_override
+
+        for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model, images=images if images else None, persona_prompt=persona_prompt):
             response_text += chunk
             yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
             await asyncio.sleep(0)  # Allow other tasks to run
@@ -464,7 +473,11 @@ async def chat(request: ChatRequest):
             get_config().llm_model_strong if request.mode == "reflexion" else get_config().llm_model
         )
         
-        result = await run_sync(agent.run, request.message, history, analysis, model=agent_model, images=images if images else None)
+        # Resolve persona
+        persona = get_persona(request.agent_id)
+        persona_prompt = persona.system_prompt_override
+
+        result = await run_sync(agent.run, request.message, history, analysis, model=agent_model, images=images if images else None, persona_prompt=persona_prompt)
         response_text = chatbot.filter_pii(result.answer)
 
         context = agent.tools.get_last_context()
@@ -546,7 +559,11 @@ async def chat(request: ChatRequest):
         get_config().llm_model_strong if request.mode == "reflexion" else get_config().llm_model_fast
     )
     
-    for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model, images=images if images else None):
+    # Resolve persona for non-streaming path
+    persona = get_persona(request.agent_id)
+    persona_prompt = persona.system_prompt_override
+
+    for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model, images=images if images else None, persona_prompt=persona_prompt):
         response_text += chunk
 
     # Format sources

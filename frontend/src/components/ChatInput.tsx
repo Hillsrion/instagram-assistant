@@ -38,6 +38,7 @@ interface ChatInputProps {
       broadSearch?: boolean;
       model?: string;
       mode?: string;
+      agent_id?: string;
       date?: DateRange;
       attachments?: FileAttachment[];
     },
@@ -63,6 +64,8 @@ interface ChatInputProps {
   filterDate?: DateRange;
   setFilterDate: (date: DateRange | undefined) => void;
   participantNames: string[];
+  selectedAgent: string;
+  setSelectedAgent: (id: string) => void;
   className?: string;
   isLoading?: boolean;
   autoFocus?: boolean;
@@ -89,6 +92,8 @@ export function ChatInput({
   filterDate,
   setFilterDate,
   participantNames,
+  selectedAgent,
+  setSelectedAgent,
   className,
   isLoading,
   autoFocus = false,
@@ -291,6 +296,8 @@ export function ChatInput({
                 setFilterDate(undefined);
               }}
               onFilesSelected={handleFilesSelected}
+              selectedAgent={selectedAgent}
+              onSelectAgent={setSelectedAgent}
             >
               <Button
                 variant="outline"
