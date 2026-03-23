@@ -1,85 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-import {
-  CalendarDays,
-  ChevronDown,
-  FileText,
-  Instagram,
-  Loader2,
-  Plus,
-  Send,
-  Sparkles,
-  StopCircle,
-  Users,
-  X,
-} from "lucide-react";
-import { useRef, useState } from "react";
-import type { DateRange } from "react-day-picker";
-import { ChatInputMenu } from "@/components/ChatInputMenu";
-import { type ChatMode, ModeSelector } from "@/components/ModeSelector";
-import { Badge } from "@/components/ui/badge";
+import { Instagram, Send, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useChatInput } from "@/hooks/use-chat-input";
 import { getAgents } from "@/lib/api/agents";
-import type { FileAttachment } from "@/lib/types";
+import type { ChatInputProps } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-interface ChatInputProps {
-  onSendMessage: (
-    content: string,
-    options: {
-      participant?: string;
-      group?: string;
-      broadSearch?: boolean;
-      model?: string;
-      mode?: string;
-      agent_id?: string;
-      date?: DateRange;
-      attachments?: FileAttachment[];
-    },
-  ) => void;
-  isStreaming: boolean;
-  stopStream: () => void;
-
-  selectedModel: string;
-  setSelectedModel: (model: string) => void;
-  selectedMode: ChatMode;
-  setSelectedMode: (mode: ChatMode) => void;
-  developerMode: boolean;
-  modelsData?: {
-    models: Array<{ name: string }>;
-    default_model: string;
-  };
-  filterParticipant: string;
-  setFilterParticipant: (p: string) => void;
-  filterGroup: string;
-  setFilterGroup: (g: string) => void;
-  filterBroad: boolean;
-  setFilterBroad: (b: boolean) => void;
-  filterDate?: DateRange;
-  setFilterDate: (date: DateRange | undefined) => void;
-  participantNames: string[];
-  selectedAgent: string;
-  setSelectedAgent: (id: string) => void;
-  className?: string;
-  isLoading?: boolean;
-  autoFocus?: boolean;
-  isHome?: boolean;
-}
+import { ChatInputAgentPill } from "./chat-input/ChatInputAgentPill";
+import { ChatInputPreviews } from "./chat-input/ChatInputPreviews";
+import { ChatInputToolbar } from "./chat-input/ChatInputToolbar";
 
 export function ChatInput({
   onSendMessage,
   isStreaming,
   stopStream,
-
   selectedModel,
   setSelectedModel,
   selectedMode,
@@ -102,9 +36,22 @@ export function ChatInput({
   autoFocus = false,
   isHome = false,
 }: ChatInputProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+  const {
+    inputRef,
+    attachments,
+    isUploading,
+    handleSubmit,
+    handleFilesSelected,
+    removeAttachment,
+  } = useChatInput({
+    onSendMessage,
+    filterParticipant,
+    filterGroup,
+    filterBroad,
+    selectedModel,
+    selectedMode,
+    filterDate,
+  });
 
   const { data: agents = [] } = useQuery({
     queryKey: ["agents"],
@@ -113,61 +60,6 @@ export function ChatInput({
 
   const currentAgent = agents.find((a) => a.id === selectedAgent);
   const isAgentActive = selectedAgent !== "standard" && currentAgent;
-
-  const handleSubmit = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (inputRef.current?.value || attachments.length > 0) {
-      onSendMessage(inputRef.current?.value || "", {
-        participant: filterParticipant,
-        group: filterGroup,
-        broadSearch: filterBroad,
-        model: selectedModel,
-        mode: selectedMode,
-        date: filterDate,
-        attachments: attachments,
-      });
-      if (inputRef.current) inputRef.current.value = "";
-      setAttachments([]);
-    }
-  };
-
-  const handleFilesSelected = async (files: FileList) => {
-    if (attachments.length + files.length > 5) {
-      alert("Maximum 5 fichiers autorisés");
-      return;
-    }
-
-    setIsUploading(true);
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append("files", files[i]);
-    }
-
-    try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error("Erreur lors de l'envoi");
-
-      const newAttachments: FileAttachment[] = (await response.ok)
-        ? await response.json()
-        : [];
-      setAttachments((prev) => [...prev, ...newAttachments]);
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Erreur lors du téléchargement des fichiers");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const removeAttachment = (id: string) => {
-    setAttachments((prev) => prev.filter((a) => a.id !== id));
-  };
-
-  const selectedCount = (filterParticipant ? 1 : 0) + (filterGroup ? 1 : 0);
 
   return (
     <div
@@ -197,67 +89,19 @@ export function ChatInput({
             : "focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30",
         )}
       >
-        {/* Agent Active Pill */}
         {isAgentActive && (
-          <div className="bg-primary text-primary-foreground px-3 py-1.5 flex items-center justify-between text-xs font-semibold animate-in slide-in-from-top-2 duration-300">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1 opacity-90">
-                @{currentAgent.name}
-                <ChevronDown className="h-3 w-3 ml-0.5" />
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelectedAgent("standard")}
-              className="p-1 hover:bg-white/20 rounded-full transition-colors"
-              title="Désactiver l'agent"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          <ChatInputAgentPill
+            currentAgent={currentAgent}
+            onDeactivate={() => setSelectedAgent("standard")}
+          />
         )}
 
-        {/* Previews Area */}
-        {(attachments.length > 0 || isUploading) && (
-          <div className="flex flex-wrap gap-2 p-3 pb-0">
-            {attachments.map((file) => (
-              <div
-                key={file.id}
-                className="relative w-20 h-20 rounded-xl border bg-background/80 backdrop-blur-sm overflow-hidden flex items-center justify-center shadow-md group border-muted/20 hover:border-primary/30 transition-all duration-200 hover:shadow-lg"
-              >
-                {file.type === "image" ? (
-                  <img
-                    src={file.url}
-                    alt={file.name}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-1.5 p-2 text-[10px] text-center">
-                    <div className="p-2 bg-muted/30 rounded-lg group-hover:bg-primary/10 transition-colors">
-                      <FileText className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <span className="truncate w-16 font-medium text-foreground/80 group-hover:text-foreground transition-colors">
-                      {file.name}
-                    </span>
-                  </div>
-                )}
-                {/* Remove button with improved look */}
-                <button
-                  type="button"
-                  onClick={() => removeAttachment(file.id)}
-                  className="absolute top-1 right-1 h-5 w-5 rounded-full bg-destructive/90 text-white flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 transform scale-90 group-hover:scale-100 hover:bg-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-            {isUploading && (
-              <div className="w-20 h-20 rounded-lg border bg-muted/10 flex items-center justify-center animate-pulse">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-          </div>
-        )}
+        <ChatInputPreviews
+          attachments={attachments}
+          isUploading={isUploading}
+          onRemove={removeAttachment}
+        />
+
         {/* Unified Container Input Area */}
         <div className="flex gap-2 relative p-2 px-3">
           <Input
@@ -303,114 +147,26 @@ export function ChatInput({
           </div>
         </div>
 
-        {/* Toolbar: Inside the rounded container */}
-        <div className="flex items-center justify-between px-3 pb-2 border-t border-muted/30 pt-2 bg-muted/5">
-          <div className="flex items-center gap-1.5">
-            {/* 1. CHAT INPUT MENU */}
-            <ChatInputMenu
-              participantNames={participantNames}
-              selectedParticipant={filterParticipant}
-              onSelectParticipant={(p) => {
-                setFilterParticipant(p);
-                if (p) setFilterGroup("");
-                if (!p) setFilterBroad(false);
-              }}
-              isBroadSearch={filterBroad}
-              onBroadSearchChange={setFilterBroad}
-              selectedGroup={filterGroup}
-              onSelectGroup={(g) => {
-                setFilterGroup(g);
-                if (g) {
-                  setFilterParticipant("");
-                  setFilterBroad(false);
-                }
-              }}
-              filterDate={filterDate}
-              setFilterDate={setFilterDate}
-              onReset={() => {
-                setFilterParticipant("");
-                setFilterGroup("");
-                setFilterBroad(false);
-                setFilterDate(undefined);
-              }}
-              onFilesSelected={handleFilesSelected}
-              selectedAgent={selectedAgent}
-              onSelectAgent={setSelectedAgent}
-            >
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "gap-1.5 h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground transition-colors",
-                  selectedCount > 0 || filterDate?.from
-                    ? "border-primary/50 text-primary hover:text-primary hover:bg-primary/10"
-                    : "border-dashed hover:border-solid",
-                )}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </ChatInputMenu>
-
-            {/* Selected Filters Badges */}
-            {selectedCount > 0 && (
-              <Badge
-                variant="secondary"
-                className="h-6 px-2 text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 cursor-default"
-              >
-                <Users className="h-3 w-3 mr-1" />
-                {selectedCount} compte{selectedCount > 1 ? "s" : ""}
-              </Badge>
-            )}
-
-            {filterDate?.from && (
-              <Badge
-                variant="secondary"
-                className="h-6 px-2 text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 cursor-default"
-              >
-                <CalendarDays className="h-3 w-3 mr-1" />
-                {filterDate.to
-                  ? `${format(filterDate.from, "d MMM", { locale: fr })} - ${format(filterDate.to, "d MMM yy", { locale: fr })}`
-                  : format(filterDate.from, "d MMM yyyy", { locale: fr })}
-              </Badge>
-            )}
-
-            {/* 3. MODE OR MODEL SELECTOR */}
-            {developerMode ? (
-              // Developer Mode: Show Model Selector
-              modelsData?.models &&
-              modelsData.models.length > 0 && (
-                <Select
-                  value={selectedModel || modelsData.default_model || ""}
-                  onValueChange={setSelectedModel}
-                >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 text-xs font-medium border-0 bg-transparent hover:bg-muted focus:ring-0 px-2 transition-all duration-300 rounded-lg focus-visible:ring-0">
-                    <Sparkles className="h-3 w-3" />
-                    <SelectValue placeholder="Modèle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {modelsData.models.map((model) => (
-                      <SelectItem
-                        key={model.name}
-                        value={model.name}
-                        className="text-xs"
-                      >
-                        {model.name.includes(":")
-                          ? model.name
-                          : `${model.name}:latest`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )
-            ) : (
-              // Regular Mode: Show Mode Selector
-              <ModeSelector
-                mode={selectedMode}
-                onModeChange={setSelectedMode}
-              />
-            )}
-          </div>
-        </div>
+        <ChatInputToolbar
+          participantNames={participantNames}
+          filterParticipant={filterParticipant}
+          setFilterParticipant={setFilterParticipant}
+          filterGroup={filterGroup}
+          setFilterGroup={setFilterGroup}
+          filterBroad={filterBroad}
+          setFilterBroad={setFilterBroad}
+          filterDate={filterDate}
+          setFilterDate={setFilterDate}
+          selectedAgent={selectedAgent}
+          setSelectedAgent={setSelectedAgent}
+          handleFilesSelected={handleFilesSelected}
+          developerMode={developerMode}
+          selectedModel={selectedModel}
+          setSelectedModel={setSelectedModel}
+          modelsData={modelsData}
+          selectedMode={selectedMode}
+          setSelectedMode={setSelectedMode}
+        />
       </div>
     </div>
   );

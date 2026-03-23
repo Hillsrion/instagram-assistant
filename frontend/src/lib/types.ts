@@ -1,3 +1,6 @@
+import type { DateRange } from "react-day-picker";
+import type { ChatMode } from "@/components/ModeSelector";
+
 // Basic types based on the backend API
 export interface FileAttachment {
   id: string;
@@ -87,4 +90,47 @@ export interface ConversationListResponse {
   is_favorite: boolean;
   project_id?: string;
   message_count: number;
+}
+
+export interface ChatInputProps {
+  onSendMessage: (
+    content: string,
+    options: {
+      participant?: string;
+      group?: string;
+      broadSearch?: boolean;
+      model?: string;
+      mode?: string;
+      agent_id?: string;
+      date?: DateRange;
+      attachments?: FileAttachment[];
+    },
+  ) => void;
+  isStreaming: boolean;
+  stopStream: () => void;
+
+  selectedModel: string;
+  setSelectedModel: (model: string) => void;
+  selectedMode: ChatMode;
+  setSelectedMode: (mode: ChatMode) => void;
+  developerMode: boolean;
+  modelsData?: {
+    models: Array<{ name: string }>;
+    default_model: string;
+  };
+  filterParticipant: string;
+  setFilterParticipant: (p: string) => void;
+  filterGroup: string;
+  setFilterGroup: (g: string) => void;
+  filterBroad: boolean;
+  setFilterBroad: (b: boolean) => void;
+  filterDate?: DateRange;
+  setFilterDate: (date: DateRange | undefined) => void;
+  participantNames: string[];
+  selectedAgent: string;
+  setSelectedAgent: (id: string) => void;
+  className?: string;
+  isLoading?: boolean;
+  autoFocus?: boolean;
+  isHome?: boolean;
 }

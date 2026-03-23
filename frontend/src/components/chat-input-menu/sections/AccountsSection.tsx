@@ -1,0 +1,151 @@
+import { Check, Search, User, Users } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+
+interface AccountsSectionProps {
+  accountSearch: string;
+  setAccountSearch: (s: string) => void;
+  selectedGroup: string;
+  onSelectGroup: (g: string) => void;
+  selectedParticipant: string;
+  onSelectParticipant: (p: string) => void;
+  isBroadSearch: boolean;
+  onBroadSearchChange: (b: boolean) => void;
+  sortedParticipants: string[];
+  mockGroups: Array<{ id: string; name: string }>;
+}
+
+export function AccountsSection({
+  accountSearch,
+  setAccountSearch,
+  selectedGroup,
+  onSelectGroup,
+  selectedParticipant,
+  onSelectParticipant,
+  isBroadSearch,
+  onBroadSearchChange,
+  sortedParticipants,
+  mockGroups,
+}: AccountsSectionProps) {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-3 border-b flex flex-col gap-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher"
+            className="pl-9 h-9 border-none bg-muted/50 focus-visible:ring-0 focus-visible:bg-muted text-sm rounded-full"
+            value={accountSearch}
+            onChange={(e) => setAccountSearch(e.target.value)}
+          />
+        </div>
+        {/* Groups as Pills */}
+        <div className="w-full whitespace-nowrap pb-1 overflow-x-auto">
+          <div className="flex w-max space-x-2 px-1">
+            <button
+              type="button"
+              onClick={() => onSelectGroup("")}
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                !selectedGroup
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-transparent text-foreground hover:bg-accent",
+              )}
+            >
+              Tous
+            </button>
+            {mockGroups.map((group) => (
+              <button
+                type="button"
+                key={group.id}
+                onClick={() => {
+                  onSelectGroup(group.id);
+                  onSelectParticipant("");
+                }}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                  selectedGroup === group.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-transparent text-foreground hover:bg-accent",
+                )}
+              >
+                {group.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        {selectedParticipant && (
+          <div className="flex items-center gap-2 px-1">
+            <input
+              type="checkbox"
+              id="menu-broad-search"
+              checked={isBroadSearch}
+              onChange={(e) => onBroadSearchChange(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <label
+              htmlFor="menu-broad-search"
+              className="text-[11px] font-medium text-muted-foreground cursor-pointer select-none"
+            >
+              Inclure les mentions (recherche large)
+            </label>
+          </div>
+        )}
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="p-2 space-y-0.5">
+          <button
+            type="button"
+            onClick={() => onSelectParticipant("")}
+            className={cn(
+              "flex items-center w-full px-2 py-2 text-sm rounded-md text-left transition-colors",
+              selectedParticipant === "" && !selectedGroup
+                ? "bg-primary/10 text-primary font-medium"
+                : "hover:bg-accent text-foreground/80",
+            )}
+          >
+            <div className="flex items-center gap-2 flex-1">
+              <Users className="h-4 w-4" />
+              <span>Tous les participants</span>
+            </div>
+            {selectedParticipant === "" && !selectedGroup && (
+              <Check className="h-4 w-4" />
+            )}
+          </button>
+
+          {sortedParticipants.map((name: string) => (
+            <button
+              type="button"
+              key={name}
+              onClick={() => {
+                onSelectParticipant(selectedParticipant === name ? "" : name);
+              }}
+              className={cn(
+                "flex items-center w-full px-2 py-2 text-sm rounded-md text-left transition-colors",
+                selectedParticipant === name
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "hover:bg-accent text-foreground/80",
+              )}
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <User className="h-4 w-4 opacity-70 shrink-0" />
+                <span className="truncate">{name}</span>
+              </div>
+              {selectedParticipant === name && (
+                <Check className="h-4 w-4 shrink-0" />
+              )}
+            </button>
+          ))}
+
+          {sortedParticipants.length === 0 && (
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              Aucun participant trouvé.
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
