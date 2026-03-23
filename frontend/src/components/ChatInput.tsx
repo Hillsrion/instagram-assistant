@@ -1,7 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   CalendarDays,
+  ChevronDown,
   FileText,
   Instagram,
   Loader2,
@@ -26,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getAgents } from "@/lib/api/agents";
 import type { FileAttachment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -103,6 +106,14 @@ export function ChatInput({
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
+  const { data: agents = [] } = useQuery({
+    queryKey: ["agents"],
+    queryFn: getAgents,
+  });
+
+  const currentAgent = agents.find((a) => a.id === selectedAgent);
+  const isAgentActive = selectedAgent !== "standard" && currentAgent;
+
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (inputRef.current?.value || attachments.length > 0) {
@@ -178,7 +189,34 @@ export function ChatInput({
           </div>
         </div>
       )}
-      <div className="bg-card border rounded-2xl shadow-xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all duration-300">
+      <div
+        className={cn(
+          "bg-card border rounded-2xl shadow-xl overflow-hidden transition-all duration-300 relative",
+          isAgentActive
+            ? "border-primary ring-1 ring-primary/20 shadow-primary/5"
+            : "focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30",
+        )}
+      >
+        {/* Agent Active Pill */}
+        {isAgentActive && (
+          <div className="bg-primary text-primary-foreground px-3 py-1.5 flex items-center justify-between text-xs font-semibold animate-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1 opacity-90">
+                @{currentAgent.name}
+                <ChevronDown className="h-3 w-3 ml-0.5" />
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedAgent("standard")}
+              className="p-1 hover:bg-white/20 rounded-full transition-colors"
+              title="Désactiver l'agent"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Previews Area */}
         {(attachments.length > 0 || isUploading) && (
           <div className="flex flex-wrap gap-2 p-3 pb-0">

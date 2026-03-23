@@ -458,6 +458,7 @@ export function ChatInputMenu({
                           key={agent.id}
                           onClick={() => {
                             onSelectAgent(agent.id);
+                            setOpen(false);
                           }}
                           className={cn(
                             "flex items-center w-full px-2 py-2.5 text-sm rounded-md text-left transition-colors gap-3",
