@@ -23,12 +23,14 @@ export const Route = createFileRoute("/chat/$chatId")({
       g: typeof search.g === "string" ? search.g : undefined,
       b: search.b === "true" || search.b === true || undefined,
       m: typeof search.m === "string" ? search.m : undefined,
+      at: typeof search.at === "string" ? search.at : undefined,
     } as {
       q?: string;
       p?: string;
       g?: string;
       b?: boolean;
       m?: "fast" | "reflexion";
+      at?: string;
     };
   },
   component: ChatRoute,
@@ -42,6 +44,7 @@ function ChatRoute() {
     g: initialGroup,
     b: initialBroad,
     m: initialMode,
+    at: initialAttachmentsId,
   } = Route.useSearch();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -152,6 +155,9 @@ function ChatRoute() {
         broadSearch: filterBroad,
         model: selectedModel, // Ensure initial message uses selected model
         mode: selectedMode, // Ensure initial message uses selected mode
+        attachments: initialAttachmentsId
+          ? JSON.parse(initialAttachmentsId)
+          : undefined,
       });
     }
   }, [
@@ -163,6 +169,7 @@ function ChatRoute() {
     filterBroad,
     selectedModel,
     selectedMode,
+    initialAttachmentsId,
   ]);
 
   const [sourcesModalOpen, setSourcesModalOpen] = useState(false);
@@ -225,24 +232,67 @@ function ChatRoute() {
                     : "w-full items-start",
                 )}
               >
-                <div
-                  className={cn(
-                    "text-[15px] leading-relaxed",
-                    msg.role === "user"
-                      ? "rounded-2xl px-4 py-2 bg-primary text-primary-foreground shadow-sm text-sm"
-                      : "py-1 text-foreground",
-                  )}
-                >
-                  {msg.role === "assistant" ? (
-                    <div className="prose dark:prose-invert max-w-none wrap-break-word">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
-                  )}
-                </div>
+                {/* Attachments (as separate bubbles/messages) */}
+                {msg.attachments && msg.attachments.length > 0 && (
+                  <div
+                    className={cn(
+                      "flex flex-wrap gap-2 mb-1",
+                      msg.role === "user" ? "justify-end" : "justify-start",
+                    )}
+                  >
+                    {msg.attachments.map((file) => (
+                      <div
+                        key={file.id}
+                        className={cn(
+                          "relative rounded-2xl border bg-background/50 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200 border-muted/20 hover:border-primary/20 group",
+                          file.type === "image" ? "w-48 h-48" : "w-32 h-24",
+                        )}
+                      >
+                        {file.type === "image" ? (
+                          <img
+                            src={file.url}
+                            alt={file.name}
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity group-hover:scale-105 duration-500"
+                            onClick={() => window.open(file.url, "_blank")}
+                          />
+                        ) : (
+                          <div
+                            className="flex flex-col items-center gap-1.5 p-3 text-[10px] text-center cursor-pointer hover:bg-muted/50 transition-colors w-full h-full justify-center"
+                            onClick={() => window.open(file.url, "_blank")}
+                          >
+                            <div className="p-2 bg-muted/30 rounded-lg group-hover:bg-primary/10 transition-colors">
+                              <FileText className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
+                            <span className="truncate w-24 text-foreground/80 font-medium">
+                              {file.name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {msg.content && (
+                  <div
+                    className={cn(
+                      "text-[15px] leading-relaxed",
+                      msg.role === "user"
+                        ? "rounded-2xl px-4 py-2 bg-primary text-primary-foreground shadow-sm text-sm"
+                        : "py-1 text-foreground",
+                    )}
+                  >
+                    {msg.role === "assistant" ? (
+                      <div className="prose dark:prose-invert max-w-none wrap-break-word font-normal">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                    )}
+                  </div>
+                )}
 
                 {/* Sources */}
                 {((msg.sources && msg.sources.length > 0) ||

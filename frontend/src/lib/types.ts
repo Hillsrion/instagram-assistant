@@ -1,8 +1,17 @@
 // Basic types based on the backend API
+export interface FileAttachment {
+  id: string;
+  name: string;
+  type: "image" | "document" | string;
+  url: string;
+  size?: number;
+}
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  attachments?: FileAttachment[];
   sources?: Source[];
   summary_sources?: SummarySource[];
   followups?: string[];

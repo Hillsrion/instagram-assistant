@@ -151,3 +151,6 @@ coverage.xml
 # Imports and Exports
 original_import_folders/
 merged_instagram_export/
+
+
+uploads/

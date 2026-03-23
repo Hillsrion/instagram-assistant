@@ -12,6 +12,7 @@ faiss-cpu>=1.7.4
 fastapi>=0.104.0
 uvicorn>=0.24.0
 pydantic>=2.0.0
+python-multipart>=0.0.7
 
 # Utilitaires
 numpy>=1.24.0,<2

@@ -1,4 +1,5 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
+import type { FileAttachment } from "../types";
 import { API_BASE } from "./base";
 
 export interface ChatStreamOptions {
@@ -10,6 +11,7 @@ export interface ChatStreamOptions {
   use_about_person?: boolean;
   group_filter?: string;
   date_filter?: any;
+  attachments?: FileAttachment[];
   signal?: AbortSignal;
   onMessage: (data: any) => void;
   onError: (err: any) => void;

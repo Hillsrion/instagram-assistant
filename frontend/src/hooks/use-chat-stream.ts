@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 import { evaluateTitle, streamChat, updateConversation } from "@/lib/api";
-import type { Message } from "@/lib/types";
+import type { FileAttachment, Message } from "@/lib/types";
 
 interface UseChatStreamProps {
   chatId: string;
@@ -27,6 +27,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
         model?: string;
         mode?: string;
         date?: DateRange;
+        attachments?: FileAttachment[];
       },
     ) => {
       if (!content.trim()) return;
@@ -36,6 +37,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
         role: "user",
         content,
         timestamp: new Date().toISOString(),
+        attachments: filters?.attachments,
       };
       setMessages((prev) => [...prev, userMsg]);
       setIsStreaming(true);
@@ -63,6 +65,7 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
           use_about_person: filters?.broadSearch || false,
           group_filter: filters?.group || undefined,
           date_filter: filters?.date || undefined,
+          attachments: filters?.attachments || undefined,
           signal: abortController.current.signal || undefined,
           onMessage: (data) => {
             if (data.type === "progress") {

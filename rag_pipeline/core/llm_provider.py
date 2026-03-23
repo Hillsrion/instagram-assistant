@@ -6,7 +6,7 @@ during evaluation runs.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import requests
 from rag_pipeline.core.config import Config
 from rag_pipeline.core.mlx_provider import MlxProvider
@@ -16,7 +16,7 @@ class LLMProvider(ABC):
     """Base class for LLM providers used in evaluations."""
 
     @abstractmethod
-    def generate(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    def generate(self, messages: List[Dict[str, Any]], **kwargs) -> str:
         """
         Generate text from chat messages.
 
@@ -37,7 +37,7 @@ class OllamaProvider(LLMProvider):
         self.config = config
         self.model = model
 
-    def generate(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    def generate(self, messages: List[Dict[str, Any]], **kwargs) -> str:
         """Call Ollama HTTP API."""
         payload = {
             "model": self.model,
@@ -73,7 +73,7 @@ class MLXProviderWrapper(LLMProvider):
         self.model = model
         self.mlx = MlxProvider(model_path=model)
 
-    def generate(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    def generate(self, messages: List[Dict[str, Any]], **kwargs) -> str:
         """Call MLX provider."""
         max_tokens = kwargs.get("max_tokens", 2048)
         temperature = kwargs.get("temperature", 0.1)

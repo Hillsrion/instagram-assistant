@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 
 from api.models import ChatRequest
 from api.storage import get_conversation, save_conversation
+from api.utils import get_image_base64
 from api.dependencies import (
     get_retriever,
     get_chatbot,
@@ -52,13 +53,19 @@ def _get_or_create_conversation(request: ChatRequest) -> tuple:
     return conv_id, conv, None
 
 
-def _add_user_message(conv: dict, message: str):
+def _add_user_message(conv: dict, message: str, attachments: list = None):
     """Append user message to conversation."""
-    conv['messages'].append({
+    user_msg = {
         "role": "user",
         "content": message,
         "timestamp": datetime.now().isoformat()
-    })
+    }
+    if attachments:
+        # Convert Pydantic models to dicts if needed
+        user_msg["attachments"] = [
+            a.dict() if hasattr(a, 'dict') else a for a in attachments
+        ]
+    conv['messages'].append(user_msg)
 
 
 def _save_assistant_message(conv: dict, response_text: str, sources: list = None,
@@ -105,7 +112,16 @@ async def generate_agent_response(request: ChatRequest, analysis) -> AsyncGenera
 
     yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
 
-    _add_user_message(conv, request.message)
+    _add_user_message(conv, request.message, request.attachments)
+
+    # Extract images from attachments
+    images = []
+    if request.attachments:
+        for att in request.attachments:
+            if att.type == "image":
+                base64_data = get_image_base64(att.url)
+                if base64_data:
+                    images.append(base64_data)
 
     # Build history for agent context
     history = [
@@ -128,7 +144,7 @@ async def generate_agent_response(request: ChatRequest, analysis) -> AsyncGenera
     sources = []
     summary_sources = []
 
-    for event in agent.run_stream(request.message, history=history, analysis=analysis, model=agent_model):
+    for event in agent.run_stream(request.message, history=history, analysis=analysis, model=agent_model, images=images if images else None):
         event_type = event["type"]
 
         if event_type == "start":
@@ -232,7 +248,16 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
 
     yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
 
-    _add_user_message(conv, request.message)
+    _add_user_message(conv, request.message, request.attachments)
+
+    # Extract images from attachments
+    images = []
+    if request.attachments:
+        for att in request.attachments:
+            if att.type == "image":
+                base64_data = get_image_base64(att.url)
+                if base64_data:
+                    images.append(base64_data)
 
     # Synchronize chatbot history with current conversation
     chatbot.conversation_history = [
@@ -355,7 +380,7 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
             get_config().llm_model_strong if request.mode == "reflexion" else get_config().llm_model_fast
         )
         
-        for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model):
+        for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model, images=images if images else None):
             response_text += chunk
             yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
             await asyncio.sleep(0)  # Allow other tasks to run
@@ -418,7 +443,16 @@ async def chat(request: ChatRequest):
         if error:
             raise HTTPException(status_code=404, detail=error)
 
-        _add_user_message(conv, request.message)
+        _add_user_message(conv, request.message, request.attachments)
+        
+        # Extract images from attachments
+        images = []
+        if request.attachments:
+            for att in request.attachments:
+                if att.type == "image":
+                    base64_data = get_image_base64(att.url)
+                    if base64_data:
+                        images.append(base64_data)
 
         history = [
             {"role": m["role"], "content": m["content"]}
@@ -430,7 +464,7 @@ async def chat(request: ChatRequest):
             get_config().llm_model_strong if request.mode == "reflexion" else get_config().llm_model
         )
         
-        result = await run_sync(agent.run, request.message, history, analysis, model=agent_model)
+        result = await run_sync(agent.run, request.message, history, analysis, model=agent_model, images=images if images else None)
         response_text = chatbot.filter_pii(result.answer)
 
         context = agent.tools.get_last_context()
@@ -452,7 +486,16 @@ async def chat(request: ChatRequest):
     if error:
         raise HTTPException(status_code=404, detail=error)
 
-    _add_user_message(conv, request.message)
+    _add_user_message(conv, request.message, request.attachments)
+
+    # Extract images from attachments
+    images = []
+    if request.attachments:
+        for att in request.attachments:
+            if att.type == "image":
+                base64_data = get_image_base64(att.url)
+                if base64_data:
+                    images.append(base64_data)
 
     dyn_top_k = analysis.top_k
     dyn_reranking = analysis.use_reranking
@@ -503,7 +546,7 @@ async def chat(request: ChatRequest):
         get_config().llm_model_strong if request.mode == "reflexion" else get_config().llm_model_fast
     )
     
-    for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model):
+    for chunk in chatbot.chat_stream(request.message, context.formatted_context, model=chat_model, images=images if images else None):
         response_text += chunk
 
     # Format sources

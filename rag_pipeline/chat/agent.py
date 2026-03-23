@@ -5,7 +5,7 @@ Implements the Reasoning + Acting pattern for multi-step query processing.
 import re
 import requests
 from datetime import datetime
-from typing import List, Dict, Optional, Generator
+from typing import List, Dict, Optional, Generator, Any
 from dataclasses import dataclass, field
 
 from rag_pipeline.core.config import Config, default_config
@@ -153,7 +153,7 @@ class AgentRunner:
 
         return result
 
-    def _call_llm(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> str:
+    def _call_llm(self, messages: List[Dict[str, Any]], model: Optional[str] = None) -> str:
         """Call the LLM with the given messages."""
         try:
             current_provider = self.provider
@@ -189,7 +189,8 @@ class AgentRunner:
         query: str,
         history: List[Dict[str, str]] = None,
         analysis=None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        images: Optional[List[str]] = None
     ) -> AgentResult:
         """
         Run the agent on a query.
@@ -224,9 +225,16 @@ class AgentRunner:
                 user_content = f"{history_str}Question: {query}"
 
             messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content}
+                {"role": "system", "content": system_prompt}
             ]
+            
+            # Form the user message
+            user_msg = {"role": "user", "content": user_content}
+            # Only add images in the FIRST step to avoid redundant context and tokens
+            if step_num == 1 and images:
+                user_msg["images"] = images
+                
+            messages.append(user_msg)
 
             # Call LLM
             try:
@@ -358,7 +366,8 @@ RÉPONSE FINALE:"""
         query: str,
         history: List[Dict[str, str]] = None,
         analysis=None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        images: Optional[List[str]] = None
     ) -> Generator[Dict, None, None]:
         """
         Run the agent with streaming output for UI integration.
@@ -389,9 +398,16 @@ RÉPONSE FINALE:"""
                 user_content = f"{history_str}Question: {query}"
 
             messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content}
+                {"role": "system", "content": system_prompt}
             ]
+            
+            # User message
+            user_msg = {"role": "user", "content": user_content}
+            # Add images only in first step
+            if step_num == 1 and images:
+                user_msg["images"] = images
+                
+            messages.append(user_msg)
 
             yield {"type": "thinking", "step": step_num}
 

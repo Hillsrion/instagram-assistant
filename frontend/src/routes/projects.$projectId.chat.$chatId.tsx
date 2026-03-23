@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { FileText } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import type { DateRange } from "react-day-picker";
 import ReactMarkdown from "react-markdown";
@@ -9,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChatFilters } from "@/hooks/use-chat-filters";
 import { useChatStream } from "@/hooks/use-chat-stream";
 import { getConversation, getProject } from "@/lib/api";
+import type { FileAttachment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/projects/$projectId/chat/$chatId")({
@@ -42,6 +44,9 @@ function ProjectChat() {
     setFilterDate,
     selectedModel,
     setSelectedModel,
+    selectedMode,
+    setSelectedMode,
+    developerMode,
   } = useChatFilters();
 
   const {
@@ -71,6 +76,7 @@ function ProjectChat() {
       broadSearch?: boolean;
       model?: string;
       date?: DateRange;
+      attachments?: FileAttachment[];
     },
   ) => {
     sendMessage(content, {
@@ -103,26 +109,69 @@ function ProjectChat() {
               <div
                 key={messageKey}
                 className={cn(
-                  "flex",
-                  msg.role === "user" ? "justify-end" : "justify-start",
+                  "flex flex-col gap-1",
+                  msg.role === "user" ? "items-end" : "items-start",
                 )}
               >
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-4 py-2",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground text-sm shadow-sm"
-                      : "bg-transparent text-foreground",
-                  )}
-                >
-                  {msg.role === "assistant" ? (
-                    <div className="prose dark:prose-invert max-w-none wrap-break-word">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
-                  ) : (
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
-                  )}
-                </div>
+                {/* Attachments (separate visual bubbles) */}
+                {msg.attachments && msg.attachments.length > 0 && (
+                  <div
+                    className={cn(
+                      "flex flex-wrap gap-2 mb-1",
+                      msg.role === "user" ? "justify-end" : "justify-start",
+                    )}
+                  >
+                    {msg.attachments.map((file) => (
+                      <div
+                        key={file.id}
+                        className={cn(
+                          "relative rounded-2xl border bg-background/50 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200 border-muted/20 hover:border-primary/20 group",
+                          file.type === "image" ? "w-40 h-40" : "w-32 h-24",
+                        )}
+                      >
+                        {file.type === "image" ? (
+                          <img
+                            src={file.url}
+                            alt={file.name}
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity group-hover:scale-105 duration-500"
+                            onClick={() => window.open(file.url, "_blank")}
+                          />
+                        ) : (
+                          <div
+                            className="flex flex-col items-center gap-1.5 p-3 text-[10px] text-center cursor-pointer hover:bg-muted/50 transition-colors w-full h-full justify-center"
+                            onClick={() => window.open(file.url, "_blank")}
+                          >
+                            <div className="p-2 bg-muted/30 rounded-lg group-hover:bg-primary/10 transition-colors">
+                              <FileText className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
+                            <span className="truncate w-24 text-foreground/80 font-medium">
+                              {file.name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {msg.content && (
+                  <div
+                    className={cn(
+                      "max-w-[85%] rounded-2xl px-4 py-2",
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground text-sm shadow-sm"
+                        : "bg-transparent text-foreground",
+                    )}
+                  >
+                    {msg.role === "assistant" ? (
+                      <div className="prose dark:prose-invert max-w-none wrap-break-word">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -145,6 +194,9 @@ function ProjectChat() {
             stopStream={stopStream}
             selectedModel={selectedModel || ""}
             setSelectedModel={setSelectedModel}
+            selectedMode={selectedMode}
+            setSelectedMode={setSelectedMode}
+            developerMode={developerMode}
             modelsData={modelsData}
             filterParticipant={filterParticipant}
             setFilterParticipant={setFilterParticipant}

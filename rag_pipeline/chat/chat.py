@@ -2,7 +2,7 @@
 Integrates the retriever with an LLM via Ollama."""
 import json
 import requests
-from typing import Optional, Generator, List
+from typing import Optional, Generator, List, Any, Dict
 from dataclasses import dataclass
 from enum import Enum
 
@@ -224,7 +224,8 @@ Tâche :
         self,
         prompt: str,
         stream: bool = False,
-        model: str = None
+        model: str = None,
+        images: Optional[List[str]] = None
     ) -> Generator[str, None, None] | str:
         """Calls the LLM provider."""
         # Dynamic tone and instructions
@@ -250,7 +251,10 @@ Tâche :
             messages.append(msg)
 
         # Add current question
-        messages.append({"role": "user", "content": prompt})
+        user_message = {"role": "user", "content": prompt}
+        if images:
+            user_message["images"] = images
+        messages.append(user_message)
 
         # If model is different from main provider model, create a temporary provider
         target_provider = self.provider
@@ -324,7 +328,8 @@ Tâche :
         stream: bool = True,
         top_k: int = None,
         use_rewriting: bool = True,
-        model: str = None
+        model: str = None,
+        images: Optional[List[str]] = None
     ) -> ChatResponse | Generator[str, None, ChatResponse]:
         """
         Asks a question and gets a response based on conversations.
@@ -394,9 +399,9 @@ Tâche :
         prompt = self._build_prompt(query, context)
 
         if stream:
-            return self._chat_stream(query, prompt, context, rewritten_query, model, search_intent, request_logger)
+            return self._chat_stream(query, prompt, context, rewritten_query, model, search_intent, request_logger, images=images)
         else:
-            answer = self._call_ollama(prompt, stream=False, model=model)
+            answer = self._call_ollama(prompt, stream=False, model=model, images=images)
             self._update_history(query, answer)
             request_logger.log_llm_call(model or self.config.llm_model, len(answer))
             request_logger.save()
@@ -416,12 +421,13 @@ Tâche :
         rewritten_query: Optional[str] = None,
         model: str = None,
         search_intent: str = None,
-        request_logger: Optional[RequestLogger] = None
+        request_logger: Optional[RequestLogger] = None,
+        images: Optional[List[str]] = None
     ) -> Generator[str, None, ChatResponse]:
         """Chat in streaming mode."""
         full_response = []
 
-        for token in self._call_ollama(prompt, stream=True, model=model):
+        for token in self._call_ollama(prompt, stream=True, model=model, images=images):
             full_response.append(token)
             yield token
 
@@ -570,7 +576,7 @@ RÈGLES STRICTES :
             print(f"Followup generation error: {e}")
             return []
 
-    def chat_stream(self, query: str, context: str, model: str = None) -> Generator[str, None, None]:
+    def chat_stream(self, query: str, context: str, model: str = None, images: Optional[List[str]] = None) -> Generator[str, None, None]:
         """
         Stream chat response given a query and formatted context.
         Used by app.py for direct context passing.
@@ -593,6 +599,6 @@ Question de l'utilisateur : {query}
 
 Reponds en te basant UNIQUEMENT sur les documents ci-dessus. Si tu ne trouves pas l'information, dis-le clairement."""
 
-        for token in self._call_ollama(prompt, stream=True, model=model):
+        for token in self._call_ollama(prompt, stream=True, model=model, images=images):
             # Filter PII from each token (less efficient but real-time)
             yield token

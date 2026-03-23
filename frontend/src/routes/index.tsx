@@ -52,6 +52,9 @@ function Index() {
           g: options.group || undefined,
           b: options.broadSearch || undefined,
           m: options.mode || undefined,
+          at: options.attachments
+            ? JSON.stringify(options.attachments)
+            : undefined,
         },
       });
 

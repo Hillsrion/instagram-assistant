@@ -5,6 +5,15 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
+class FileAttachment(BaseModel):
+    """A file attached to a message."""
+    id: str
+    name: str
+    type: str  # image, document, etc.
+    url: str
+    size: Optional[int] = None
+
+
 class Message(BaseModel):
     """A single message in a conversation."""
     role: str
@@ -12,6 +21,7 @@ class Message(BaseModel):
     timestamp: str
     sources: Optional[List[dict]] = None
     followups: Optional[List[str]] = None
+    attachments: Optional[List[FileAttachment]] = None
 
 
 class Project(BaseModel):
@@ -39,6 +49,7 @@ class Conversation(BaseModel):
 class ChatRequest(BaseModel):
     """Request body for chat endpoints."""
     message: str
+    attachments: Optional[List[FileAttachment]] = None
     conversation_id: Optional[str] = None
     project_id: Optional[str] = None
     model: Optional[str] = None

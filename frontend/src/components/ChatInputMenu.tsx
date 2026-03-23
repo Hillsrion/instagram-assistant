@@ -15,7 +15,7 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -46,6 +46,7 @@ interface ChatInputMenuProps {
   setFilterDate: (date: DateRange | undefined) => void;
   // Action
   onReset: () => void;
+  onFilesSelected: (files: FileList) => void;
   // Optional Projects/Agents to render right side
   // projects?: ProjectListResponse[];
 }
@@ -68,9 +69,11 @@ export function ChatInputMenu({
   filterDate,
   setFilterDate,
   onReset,
+  onFilesSelected,
 }: ChatInputMenuProps) {
   const [open, setOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<MenuSection>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const { data: projects = [] } = useQuery({
     queryKey: ["projects"],
@@ -114,7 +117,7 @@ export function ChatInputMenu({
       icon: Upload,
       label: "Télécharger des fichiers",
       action: () => {
-        // Mock action
+        fileInputRef.current?.click();
         setOpen(false);
       },
     },
@@ -469,6 +472,18 @@ export function ChatInputMenu({
           )}
         </div>
       </PopoverContent>
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        multiple
+        accept="image/*,.pdf,.txt,.doc,.docx"
+        onChange={(e) => {
+          if (e.target.files) {
+            onFilesSelected(e.target.files);
+          }
+        }}
+      />
     </Popover>
   );
 }
