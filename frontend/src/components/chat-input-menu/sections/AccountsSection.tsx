@@ -1,4 +1,5 @@
-import { Check, Search, User, Users } from "lucide-react";
+import { Check, Globe, Search, User, Users } from "lucide-react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -28,9 +29,27 @@ export function AccountsSection({
   sortedParticipants,
   mockGroups,
 }: AccountsSectionProps) {
+  const [activeFilter, setActiveFilter] = useState<string>("");
+
+  const filteredParticipants = sortedParticipants.filter((_name) => {
+    if (!activeFilter) return true;
+    // Mock mapping: for demo, let's assume participants starting with certain letters belong to groups
+    // In a real app, this would come from the backend or props
+    const group = mockGroups.find((g) => g.id === activeFilter);
+    if (!group) return true;
+
+    // Just for demonstration, if no real mapping exists
+    return true;
+  });
+
+  const filteredGroupsInList = mockGroups.filter((group) => {
+    if (!activeFilter) return true;
+    return group.id === activeFilter;
+  });
+
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b flex flex-col gap-3">
+      <div className="p-3 pb-1 flex flex-col gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -40,17 +59,17 @@ export function AccountsSection({
             onChange={(e) => setAccountSearch(e.target.value)}
           />
         </div>
-        {/* Groups as Pills */}
+        {/* Groups as Filter Pills */}
         <div className="w-full whitespace-nowrap pb-1 overflow-x-auto">
           <div className="flex w-max space-x-2 px-1">
             <button
               type="button"
-              onClick={() => onSelectGroup("")}
+              onClick={() => setActiveFilter("")}
               className={cn(
                 "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
-                !selectedGroup
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-transparent text-foreground hover:bg-accent",
+                !activeFilter
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-transparent text-foreground hover:bg-accent border-input",
               )}
             >
               Tous
@@ -59,15 +78,12 @@ export function AccountsSection({
               <button
                 type="button"
                 key={group.id}
-                onClick={() => {
-                  onSelectGroup(group.id);
-                  onSelectParticipant("");
-                }}
+                onClick={() => setActiveFilter(group.id)}
                 className={cn(
                   "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
-                  selectedGroup === group.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-transparent text-foreground hover:bg-accent",
+                  activeFilter === group.id
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-transparent text-foreground hover:bg-accent border-input",
                 )}
               >
                 {group.name}
@@ -98,7 +114,10 @@ export function AccountsSection({
         <div className="p-2 space-y-0.5">
           <button
             type="button"
-            onClick={() => onSelectParticipant("")}
+            onClick={() => {
+              onSelectParticipant("");
+              onSelectGroup("");
+            }}
             className={cn(
               "flex items-center w-full px-2 py-2 text-sm rounded-md text-left transition-colors",
               selectedParticipant === "" && !selectedGroup
@@ -107,15 +126,55 @@ export function AccountsSection({
             )}
           >
             <div className="flex items-center gap-2 flex-1">
-              <Users className="h-4 w-4" />
+              <Globe className="h-4 w-4 opacity-70" />
               <span>Tous les participants</span>
             </div>
             {selectedParticipant === "" && !selectedGroup && (
-              <Check className="h-4 w-4" />
+              <Check className="h-4 w-4 shrink-0" />
             )}
           </button>
 
-          {sortedParticipants.map((name: string) => (
+          {/* Groups as selectable ensembles */}
+          {filteredGroupsInList.length > 0 && (
+            <div className="mt-2 mb-1 px-2">
+              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Groupes
+              </h3>
+            </div>
+          )}
+          {filteredGroupsInList.map((group) => (
+            <button
+              type="button"
+              key={`list-group-${group.id}`}
+              onClick={() => {
+                onSelectGroup(selectedGroup === group.id ? "" : group.id);
+              }}
+              className={cn(
+                "flex items-center w-full px-2 py-2 text-sm rounded-md text-left transition-colors",
+                selectedGroup === group.id
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "hover:bg-accent text-foreground/80",
+              )}
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Users className="h-4 w-4 opacity-70 shrink-0" />
+                <span className="truncate">{group.name}</span>
+              </div>
+              {selectedGroup === group.id && (
+                <Check className="h-4 w-4 shrink-0" />
+              )}
+            </button>
+          ))}
+
+          {/* Individual Participants */}
+          {filteredParticipants.length > 0 && (
+            <div className="mt-2 mb-1 px-2">
+              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Participants
+              </h3>
+            </div>
+          )}
+          {filteredParticipants.map((name: string) => (
             <button
               type="button"
               key={name}
@@ -139,11 +198,12 @@ export function AccountsSection({
             </button>
           ))}
 
-          {sortedParticipants.length === 0 && (
-            <div className="p-8 text-center text-sm text-muted-foreground">
-              Aucun participant trouvé.
-            </div>
-          )}
+          {filteredParticipants.length === 0 &&
+            filteredGroupsInList.length === 0 && (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                Aucun résultat trouvé.
+              </div>
+            )}
         </div>
       </ScrollArea>
     </div>
