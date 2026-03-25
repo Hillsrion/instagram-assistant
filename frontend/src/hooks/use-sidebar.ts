@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { getChats, getProjects, instagramApi } from "@/lib/api";
+import { getChats, getProjects } from "@/lib/api";
 
 export function useSidebar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -29,15 +29,9 @@ export function useSidebar() {
     queryFn: getProjects,
   });
 
-  const { data: instagramGroups } = useQuery({
-    queryKey: ["instagram-groups"],
-    queryFn: instagramApi.listGroups,
-  });
-
   return {
     chats,
     projects,
-    instagramGroups,
     isSearchOpen,
     setIsSearchOpen,
     isSettingsOpen,

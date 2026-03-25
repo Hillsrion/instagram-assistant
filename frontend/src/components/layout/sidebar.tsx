@@ -13,7 +13,6 @@ export function Sidebar() {
   const {
     chats,
     projects,
-    instagramGroups,
     isSearchOpen,
     setIsSearchOpen,
     isSettingsOpen,
@@ -68,7 +67,6 @@ export function Sidebar() {
             <SidebarProjects
               projects={projects}
               chats={chats}
-              instagramGroups={instagramGroups}
               expandedProjects={expandedProjects}
               toggleProject={toggleProject}
             />

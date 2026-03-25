@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
+import { toast } from "sonner";
 import type { ChatMode } from "@/components/ModeSelector";
 import type { FileAttachment } from "@/lib/types";
 
@@ -56,7 +57,7 @@ export function useChatInput({
 
   const handleFilesSelected = async (files: FileList) => {
     if (attachments.length + files.length > 5) {
-      alert("Maximum 5 fichiers autorisés");
+      toast.error("Maximum 5 fichiers autorisés");
       return;
     }
 
@@ -78,7 +79,7 @@ export function useChatInput({
       setAttachments((prev) => [...prev, ...newAttachments]);
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Erreur lors du téléchargement des fichiers");
+      toast.error("Erreur lors du téléchargement des fichiers");
     } finally {
       setIsUploading(false);
     }

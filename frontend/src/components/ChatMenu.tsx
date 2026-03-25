@@ -1,6 +1,7 @@
 import { MoreHorizontal, Pencil, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ export function ChatMenu({ chat, align = "end", trigger }: ChatMenuProps) {
   const { toggleFavoriteMutation, deleteMutation, renameMutation } =
     useChatActions();
   const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [newTitle, setNewTitle] = useState(chat.title || "");
 
   const handleRename = () => {
@@ -36,6 +38,11 @@ export function ChatMenu({ chat, align = "end", trigger }: ChatMenuProps) {
       renameMutation.mutate({ id: chat.id, title: newTitle.trim() });
     }
     setIsRenameOpen(false);
+  };
+
+  const handleDelete = () => {
+    deleteMutation.mutate(chat.id);
+    setIsDeleteOpen(false);
   };
 
   return (
@@ -86,11 +93,7 @@ export function ChatMenu({ chat, align = "end", trigger }: ChatMenuProps) {
 
           <DropdownMenuItem
             className="focus:bg-destructive/10 text-destructive focus:text-destructive gap-2 cursor-pointer transition-colors"
-            onClick={() => {
-              if (confirm("Supprimer ce chat ?")) {
-                deleteMutation.mutate(chat.id);
-              }
-            }}
+            onClick={() => setIsDeleteOpen(true)}
           >
             <Trash2 className="h-4 w-4" />
             <span>Supprimer</span>
@@ -126,6 +129,16 @@ export function ChatMenu({ chat, align = "end", trigger }: ChatMenuProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title="Supprimer ce chat ?"
+        description="Cette action est irréversible. Toutes les données associées seront supprimées."
+        onConfirm={handleDelete}
+        confirmText="Supprimer"
+        variant="destructive"
+      />
     </>
   );
 }

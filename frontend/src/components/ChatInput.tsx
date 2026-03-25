@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Instagram, Send, StopCircle } from "lucide-react";
+import { Send, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useChatInput } from "@/hooks/use-chat-input";
@@ -76,9 +76,11 @@ export function ChatInput({
     >
       {isHome && (
         <div className="flex flex-col items-center gap-12 mb-10 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out">
-          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm">
-            <Instagram className="h-10 w-10 text-primary" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Sira"
+            className="h-28 w-28 object-contain drop-shadow-sm"
+          />
         </div>
       )}
       <div

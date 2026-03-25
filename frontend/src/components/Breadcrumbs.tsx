@@ -4,6 +4,7 @@ import { Folder, MoreHorizontal, Settings, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +24,7 @@ interface BreadcrumbsProps {
 
 export function ProjectMenu({ project }: { project: ChatProject }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -34,6 +36,11 @@ export function ProjectMenu({ project }: { project: ChatProject }) {
       navigate({ to: "/" });
     },
   });
+
+  const handleDelete = () => {
+    deleteMutation.mutate(project.id);
+    setIsDeleteOpen(false);
+  };
 
   return (
     <>
@@ -53,11 +60,7 @@ export function ProjectMenu({ project }: { project: ChatProject }) {
           </DropdownMenuItem>
           <DropdownMenuItem
             className="gap-2 text-destructive focus:text-destructive"
-            onClick={() => {
-              if (confirm("Supprimer ce projet ?")) {
-                deleteMutation.mutate(project.id);
-              }
-            }}
+            onClick={() => setIsDeleteOpen(true)}
           >
             <Trash2 className="h-4 w-4" />
             <span>Supprimer</span>
@@ -69,6 +72,16 @@ export function ProjectMenu({ project }: { project: ChatProject }) {
         project={project}
         open={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
+      />
+
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title="Supprimer ce projet ?"
+        description="Cette action supprimera également tous les chats associés. Cette opération est irréversible."
+        onConfirm={handleDelete}
+        confirmText="Supprimer"
+        variant="destructive"
       />
     </>
   );

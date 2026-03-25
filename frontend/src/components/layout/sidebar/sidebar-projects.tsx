@@ -1,16 +1,11 @@
 import { Link, useMatchRoute } from "@tanstack/react-router";
-import { ChevronDown, ChevronRight, Users } from "lucide-react";
-import type {
-  ChatListResponse,
-  ChatProjectListResponse,
-  SourceGroup,
-} from "@/lib/types";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import type { ChatListResponse, ChatProjectListResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface SidebarProjectsProps {
   projects: ChatProjectListResponse[] | undefined;
   chats: ChatListResponse[] | undefined;
-  instagramGroups: SourceGroup[] | undefined;
   expandedProjects: Record<string, boolean>;
   toggleProject: (projectId: string) => void;
 }
@@ -18,7 +13,6 @@ interface SidebarProjectsProps {
 export function SidebarProjects({
   projects,
   chats,
-  instagramGroups,
   expandedProjects,
   toggleProject,
 }: SidebarProjectsProps) {
@@ -26,34 +20,6 @@ export function SidebarProjects({
 
   return (
     <>
-      {/* Instagram Groups Section */}
-      {instagramGroups && instagramGroups.length > 0 && (
-        <>
-          <div className="px-2 py-2 text-xs font-medium text-muted-foreground shrink-0 mt-4">
-            Groupes Instagram
-          </div>
-          <div className="space-y-1 mb-2">
-            {instagramGroups.map((group) => (
-              <div key={group.id} className="space-y-0.5">
-                <div
-                  className={cn(
-                    "group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors outline-none",
-                  )}
-                >
-                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="flex-1 text-sm font-medium truncate">
-                    {group.title}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
-                    {group.thread_ids.length}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
       {/* Projects Section */}
       {projects && projects.length > 0 && (
         <>
