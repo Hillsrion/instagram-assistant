@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { getAgents } from "@/lib/api/agents";
 import { getProjects } from "@/lib/api/chat-projects";
+import { instagramApi } from "@/lib/api/instagram";
 
 interface UseChatInputMenuProps {
   participantNames: string[];
@@ -32,6 +33,11 @@ export function useChatInputMenu({
   const { data: agents = [] } = useQuery({
     queryKey: ["agents"],
     queryFn: getAgents,
+  });
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["instagram-groups"],
+    queryFn: instagramApi.listGroups,
   });
 
   // Search states
@@ -73,6 +79,7 @@ export function useChatInputMenu({
     fileInputRef,
     projects,
     agents,
+    groups,
     accountSearch,
     setAccountSearch,
     projectSearch,

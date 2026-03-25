@@ -33,12 +33,6 @@ interface ChatInputMenuProps {
   onFilesSelected: (files: FileList) => void;
 }
 
-const MOCK_GROUPS = [
-  { id: "family", name: "Famille", count: 4 },
-  { id: "work", name: "Travail", count: 8 },
-  { id: "friends", name: "Amis", count: 12 },
-];
-
 export function ChatInputMenu({
   children,
   participantNames = [],
@@ -62,6 +56,7 @@ export function ChatInputMenu({
     setActiveSection,
     fileInputRef,
     agents,
+    groups,
     accountSearch,
     setAccountSearch,
     projectSearch,
@@ -118,7 +113,7 @@ export function ChatInputMenu({
                   isBroadSearch={isBroadSearch}
                   onBroadSearchChange={onBroadSearchChange}
                   sortedParticipants={sortedParticipants}
-                  mockGroups={MOCK_GROUPS}
+                  groups={groups}
                 />
               )}
 

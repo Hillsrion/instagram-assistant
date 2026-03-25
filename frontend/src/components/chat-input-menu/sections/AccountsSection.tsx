@@ -2,6 +2,7 @@ import { Check, Globe, Search, User, Users } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { SourceGroup } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface AccountsSectionProps {
@@ -14,7 +15,7 @@ interface AccountsSectionProps {
   isBroadSearch: boolean;
   onBroadSearchChange: (b: boolean) => void;
   sortedParticipants: string[];
-  mockGroups: Array<{ id: string; name: string }>;
+  groups: SourceGroup[];
 }
 
 export function AccountsSection({
@@ -27,24 +28,22 @@ export function AccountsSection({
   isBroadSearch,
   onBroadSearchChange,
   sortedParticipants,
-  mockGroups,
+  groups,
 }: AccountsSectionProps) {
   const [activeFilter, setActiveFilter] = useState<string>("");
 
   const filteredParticipants = sortedParticipants.filter((_name) => {
     if (!activeFilter) return true;
-    // Mock mapping: for demo, let's assume participants starting with certain letters belong to groups
-    // In a real app, this would come from the backend or props
-    const group = mockGroups.find((g) => g.id === activeFilter);
-    if (!group) return true;
-
-    // Just for demonstration, if no real mapping exists
+    // In a real app, we might filter participants based on group membership if we had the mapping
     return true;
   });
 
-  const filteredGroupsInList = mockGroups.filter((group) => {
-    if (!activeFilter) return true;
-    return group.id === activeFilter;
+  const filteredGroupsInList = groups.filter((group) => {
+    const matchesSearch = group.title
+      .toLowerCase()
+      .includes(accountSearch.toLowerCase());
+    if (!activeFilter) return matchesSearch;
+    return group.id === activeFilter && matchesSearch;
   });
 
   return (
@@ -74,7 +73,7 @@ export function AccountsSection({
             >
               Tous
             </button>
-            {mockGroups.map((group) => (
+            {groups.map((group) => (
               <button
                 type="button"
                 key={group.id}
@@ -86,7 +85,7 @@ export function AccountsSection({
                     : "bg-transparent text-foreground hover:bg-accent border-input",
                 )}
               >
-                {group.name}
+                {group.title}
               </button>
             ))}
           </div>
@@ -158,7 +157,7 @@ export function AccountsSection({
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <Users className="h-4 w-4 opacity-70 shrink-0" />
-                <span className="truncate">{group.name}</span>
+                <span className="truncate">{group.title}</span>
               </div>
               {selectedGroup === group.id && (
                 <Check className="h-4 w-4 shrink-0" />
