@@ -24,7 +24,7 @@ export function AgentsSection({
 }: AgentsSectionProps) {
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b">
+      <div className="p-3 pb-1">
         <span className="text-sm font-medium">Choisir un agent</span>
       </div>
       <ScrollArea className="flex-1">

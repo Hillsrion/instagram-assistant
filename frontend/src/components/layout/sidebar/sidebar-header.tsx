@@ -41,7 +41,7 @@ export function SidebarHeader({
           <img
             src="/logo.png"
             alt="Logo"
-            className="h-8 w-8 rounded-lg object-contain shrink-0 bg-white p-0.5 shadow-sm mx-auto"
+            className="h-8 w-8 rounded-lg object-contain shrink-0 p-0.5 mx-auto"
           />
           <Button
             variant="ghost"
