@@ -303,11 +303,16 @@ class AgentRunner:
                 )
 
                 # Add to scratchpad for next iteration
+                # Truncate observation if too long to prevent context bloat
+                obs_truncated = tool_result.output
+                if len(obs_truncated) > 2000:
+                    obs_truncated = obs_truncated[:2000] + "\n[...résultat tronqué pour économiser du contexte...]"
+
                 scratchpad += (
                     f"\nThought: {parsed['thought'] or '(raisonnement)'}\n"
                     f"Action: {parsed['action']}\n"
                     f"Action Input: {parsed['action_input']}\n"
-                    f"Observation: {tool_result.output}\n"
+                    f"Observation: {obs_truncated}\n"
                 )
             else:
                 # No valid action, try to recover or fail
@@ -457,11 +462,16 @@ RÉPONSE FINALE:"""
                     "content": tool_result.output[:500]  # Truncate for UI
                 }
 
+                # Truncate observation if too long to prevent context bloat
+                obs_truncated = tool_result.output
+                if len(obs_truncated) > 2000:
+                    obs_truncated = obs_truncated[:2000] + "\n[...résultat tronqué pour économiser du contexte...]"
+
                 scratchpad += (
                     f"\nThought: {parsed['thought'] or '(raisonnement)'}\n"
                     f"Action: {parsed['action']}\n"
                     f"Action Input: {parsed['action_input']}\n"
-                    f"Observation: {tool_result.output}\n"
+                    f"Observation: {obs_truncated}\n"
                 )
 
         sources, summary_sources = self._extract_results()

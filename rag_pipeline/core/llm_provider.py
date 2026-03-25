@@ -54,7 +54,7 @@ class OllamaProvider(LLMProvider):
         if kwargs.get("format"):
             payload["format"] = kwargs.get("format")
             
-        timeout = kwargs.get("timeout", 180)
+        timeout = kwargs.get("timeout", 300)
 
         response = requests.post(
             f"{self.config.ollama_url}/api/chat",

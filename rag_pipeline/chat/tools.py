@@ -131,7 +131,7 @@ class ToolBox:
         "get_todays_date": "get_todays_date(): Date actuelle pour aider aux calculs temporels.",
         "explore_topic_timeline": "explore_topic_timeline(query: str): Chronologie détaillée d'un sujet avec volume mensuel et épisodes clés.",
         "get_thread_context": "get_thread_context(chunk_id: str, window: int = 5): Récupère les messages entourant un extrait précis (ID de chunk) pour comprendre le flux de la conversation.",
-        "check_entity_presence": "check_entity_presence(keyword: str, participant: str = None): Vérifie de manière stricte (mot-clé) la présence d'un terme. Très fiable pour confirmer ou infirmer une mention.",
+        "check_entity_presence": "check_entity_presence(keyword: str, participant: str = None, date_range: str = None): Vérification stricte d'un terme. 'date_range' format: \"YYYY-MM-DD to YYYY-MM-DD\".",
         "get_summaries_for_contact": "get_summaries_for_contact(contact: str, limit: int = 5): Récupère les résumés de haut niveau des dernières conversations avec ce contact.",
     }
 
@@ -407,15 +407,29 @@ class ToolBox:
             
         return "\n---\n".join(output)
 
-    def check_entity_presence(self, keyword: str, participant: str = None) -> str:
+    def check_entity_presence(self, keyword: str, participant: str = None, **kwargs) -> str:
         """
         Vérification stricte et comptage par mot-clé (Anti-hallucination + Stats).
+        Supports: date_range="YYYY-MM-DD to YYYY-MM-DD"
         """
         if not self.retriever or not self.retriever.bm25_index:
             return "Erreur: Le moteur de recherche textuelle n'est pas prêt."
 
         keyword = keyword.strip().strip('"\'')
         
+        # Parse date range if provided
+        date_start = None
+        date_end = None
+        date_range = kwargs.get('date_range')
+        if not date_range and self._analysis:
+            date_start = self._analysis.date_start
+            date_end = self._analysis.date_end
+        elif date_range:
+            parts = date_range.lower().split(" to ")
+            if len(parts) == 2:
+                date_start = parts[0].strip()
+                date_end = parts[1].strip()
+
         # 1. Récupérer TOUS les matches potentiels via BM25 (plus que 50 pour le compte)
         results = self.retriever.bm25_index.search(keyword, top_k=500)
         
@@ -431,6 +445,12 @@ class ToolBox:
             if participant:
                 if not any(participant.lower() in p.lower() for p in chunk.participants):
                     continue
+            
+            # Filtre date
+            if date_start and chunk.date_end < date_start:
+                continue
+            if date_end and chunk.date_start > date_end:
+                continue
             
             # Vérification exacte (case insensitive)
             count_in_chunk = chunk.content.lower().count(keyword.lower())
