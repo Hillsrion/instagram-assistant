@@ -1,6 +1,6 @@
-# Instagram Assistant - Features Documentation
+# Sira - Features Documentation
 
-This document describes the advanced features of the Instagram Assistant RAG system.
+This document describes the advanced features of the Sira RAG system.
 
 > For a concise end-to-end overview of the pipeline, see [RAG_PIPELINE.md](RAG_PIPELINE.md).
 
@@ -889,7 +889,7 @@ flowchart TD
 ## Architecture
 
 ```
-instagram-assistant/
+sira/
 ├── eval/
 │   ├── synthetic_generator.py   # QA generation
 │   ├── metrics.py               # RAGAS metrics

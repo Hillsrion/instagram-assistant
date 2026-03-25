@@ -43,7 +43,7 @@ For 2 machines:
 python setup_chunks.py
 
 # Copy to Machine 2
-scp rag_data/chunks.json user@machine2:~/instagram-assistant/rag_data/
+scp rag_data/chunks.json user@machine2:~/sira/rag_data/
 ```
 
 ### Phase 2: Parallel Enrichment
@@ -83,7 +83,7 @@ Once **both** shards complete enrichment:
 **On Machine 1:**
 ```bash
 # Copy shard 1 results from Machine 2
-scp user@machine2:~/instagram-assistant/rag_data/chunks_shard1.json ./rag_data/
+scp user@machine2:~/sira/rag_data/chunks_shard1.json ./rag_data/
 
 # Merge shards
 python scripts/merge_enriched_shards.py
@@ -144,8 +144,8 @@ python setup_enrich.py --total-shards 3 --shard-index 2
 Then merge as usual:
 ```bash
 # Copy all shard files to one machine
-scp user@machine2:~/instagram-assistant/rag_data/chunks_shard1.json ./rag_data/
-scp user@machine3:~/instagram-assistant/rag_data/chunks_shard2.json ./rag_data/
+scp user@machine2:~/sira/rag_data/chunks_shard1.json ./rag_data/
+scp user@machine3:~/sira/rag_data/chunks_shard2.json ./rag_data/
 
 python scripts/merge_enriched_shards.py
 ```
@@ -371,7 +371,7 @@ grep -i error enrichment_shard*.log                   # Find errors
 
 1. **Network:** Use fast network or `rsync` for shard file transfer
    ```bash
-   rsync -avz rag_data/chunks.json user@machine2:~/instagram-assistant/rag_data/
+   rsync -avz rag_data/chunks.json user@machine2:~/sira/rag_data/
    ```
 
 2. **Disk:** SSD recommended for faster JSON I/O

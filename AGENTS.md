@@ -1,6 +1,6 @@
-# Instagram Assistant - Agents
+# Sira - Agents
 
-**Instagram Assistant** is a local, privacy-focused RAG (Retrieval-Augmented Generation) application for exploring and querying exported Instagram conversations.
+**Sira** is a local, privacy-focused RAG (Retrieval-Augmented Generation) application for exploring and querying exported Instagram conversations.
 
 **Package Managers:** `pip` (Backend), `pnpm` (Frontend)
 

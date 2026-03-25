@@ -256,12 +256,12 @@ def main():
     )
     parser.add_argument(
         '--input',
-        default='/Users/ismaelsebbane/dev/lab/instagram-assistant/rag_data/chunks.json',
+        default='/Users/ismaelsebbane/dev/lab/sira/rag_data/chunks.json',
         help='Path to chunks.json'
     )
     parser.add_argument(
         '--output',
-        default='/Users/ismaelsebbane/dev/lab/instagram-assistant/validation_dataset.json',
+        default='/Users/ismaelsebbane/dev/lab/sira/validation_dataset.json',
         help='Output path for validation dataset'
     )
     parser.add_argument(

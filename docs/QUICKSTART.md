@@ -1,4 +1,4 @@
-# Instagram Assistant - Quick Start Guide
+# Sira - Quick Start Guide
 
 > For a detailed explanation of each pipeline stage, see [RAG_PIPELINE.md](RAG_PIPELINE.md).
 
@@ -13,7 +13,7 @@
 ```bash
 # Clone the project
 git clone <repo-url>
-cd instagram-assistant
+cd sira
 
 # Create virtual environment
 python -m venv venv

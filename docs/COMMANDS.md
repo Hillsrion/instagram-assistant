@@ -150,7 +150,7 @@ python scripts/setup/setup_enrich.py --total-shards 2 --shard-index 0
 **On Machine 2:**
 ```bash
 # First, copy chunks.json from Machine 1
-scp user@machine1:~/instagram-assistant/rag_data/chunks.json ./rag_data/
+scp user@machine1:~/sira/rag_data/chunks.json ./rag_data/
 
 python scripts/setup/setup_enrich.py --total-shards 2 --shard-index 1
 # Processes chunks 1, 3, 5, 7... (~50% of work)
@@ -160,7 +160,7 @@ python scripts/setup/setup_enrich.py --total-shards 2 --shard-index 1
 **After both complete:**
 ```bash
 # Copy shard files to one machine
-scp user@machine2:~/instagram-assistant/rag_data/chunks_shard1.json ./rag_data/
+scp user@machine2:~/sira/rag_data/chunks_shard1.json ./rag_data/
 
 # Merge shards
 python scripts/merge_enriched_shards.py

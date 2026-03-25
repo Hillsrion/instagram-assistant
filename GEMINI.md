@@ -1,10 +1,10 @@
-# Instagram Assistant Context
+# Sira Context
 
-This `GEMINI.md` provides context for the Gemini CLI agent working on the Instagram Assistant project.
+This `GEMINI.md` provides context for the Gemini CLI agent working on the Sira project.
 
 ## Project Overview
 
-**Instagram Assistant** is a local, privacy-focused RAG (Retrieval-Augmented Generation) application for exploring and querying exported Instagram conversations. It uses a hybrid search approach (Dense + BM25), hierarchical summarization, and a modern React frontend.
+**Sira** is a local, privacy-focused RAG (Retrieval-Augmented Generation) application for exploring and querying exported Instagram conversations. It uses a hybrid search approach (Dense + BM25), hierarchical summarization, and a modern React frontend.
 
 **Key Characteristics:**
 - **Local-First:** Runs entirely on the user's machine (Ollama + MLX, local embeddings, FAISS).

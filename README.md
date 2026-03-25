@@ -1,4 +1,4 @@
-# Instagram Assistant
+# Sira
 
 **Explore your digital memories. Privately. Locally.**
 

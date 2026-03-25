@@ -1,11 +1,11 @@
 ---
 name: rag-debug-assistant
-description: Diagnostic tool for Instagram Assistant RAG pipeline. Use when the user reports a bug, an infinite loop in the agent, or when the bot fails to find information that should be present. Helps analyze QueryAnalyzer output, Retrieval quality, and LLM generation steps.
+description: Diagnostic tool for Sira RAG pipeline. Use when the user reports a bug, an infinite loop in the agent, or when the bot fails to find information that should be present. Helps analyze QueryAnalyzer output, Retrieval quality, and LLM generation steps.
 ---
 
 # RAG Debug Assistant
 
-This skill provides a structured workflow for diagnosing issues in the Instagram Assistant RAG pipeline.
+This skill provides a structured workflow for diagnosing issues in the Sira RAG pipeline.
 
 ## When to use
 

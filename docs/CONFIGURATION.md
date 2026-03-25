@@ -43,7 +43,7 @@ Example command for stable embedding on M1 Pro 16GB:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `INSTAGRAM_EXPORT_DIR` | Directory of your Instagram export (inbox) | `~/Documents/instagram/messages/inbox` |
-| `BASE_DIR` | Project root directory (auto-detected) | `/Users/username/instagram-assistant` |
+| `BASE_DIR` | Project root directory (auto-detected) | `/Users/username/sira` |
 | `CONVERSATIONS_DIR` | Directory for converted conversations | `instagram_conversations` (relative) |
 | `INDEX_DIR` | Directory for RAG indexes | `rag_data` (relative) |
 

@@ -1,6 +1,6 @@
 # Documentation Map
 
-Welcome to the **Instagram Assistant** documentation. This directory is organized to help you find information based on your current need, whether you are setting up the project, understanding the architecture, or deep-diving into the RAG pipeline.
+Welcome to the **Sira** documentation. This directory is organized to help you find information based on your current need, whether you are setting up the project, understanding the architecture, or deep-diving into the RAG pipeline.
 
 ## 🚀 Getting Started
 *   **[QUICKSTART.md](QUICKSTART.md)**: The fastest way to get the project running.

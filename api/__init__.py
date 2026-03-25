@@ -1,5 +1,5 @@
 """
-Instagram Assistant API package.
+Sira API package.
 """
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -12,7 +12,7 @@ from .routes import register_routes
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
-        title="Instagram Conversations Assistant",
+        title="Sira API",
         lifespan=lifespan
     )
     

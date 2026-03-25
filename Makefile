@@ -6,7 +6,7 @@ PIP := $(VENV)/bin/pip
 # Default target
 .PHONY: help
 help:
-	@echo "Instagram Assistant - Makefile Helper"
+	@echo "Sira - Makefile Helper"
 	@echo "====================================="
 	@echo "Usage: make [target]"
 	@echo ""

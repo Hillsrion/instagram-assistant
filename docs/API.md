@@ -1,4 +1,4 @@
-# Instagram Assistant - API Reference
+# Sira - API Reference
 
 FastAPI REST API documentation.
 

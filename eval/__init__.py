@@ -1,5 +1,5 @@
 """
-Evaluation module for the Instagram Assistant RAG pipeline.
+Evaluation module for the Sira RAG pipeline.
 Includes synthetic data generation, RAGAS metrics, and benchmarking.
 
 Submodules:

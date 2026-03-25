@@ -1,6 +1,6 @@
 # RAG Documentation Index
 
-This directory contains detailed specific documentation for the Retrieval-Augmented Generation (RAG) system of the Instagram Assistant.
+This directory contains detailed specific documentation for the Retrieval-Augmented Generation (RAG) system of the Sira.
 
 ## Core Architecture
 - **[RAG_PIPELINE.md](RAG_PIPELINE.md)**: The central source of truth for the RAG pipeline. Details the indexing phases (Chunking, Enrichment, Embedding, Indexing) and the Query/Search phases.

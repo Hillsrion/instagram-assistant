@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Instagram Conversations Assistant - Web Application
+Sira - Web Application
 FastAPI backend with modern chat interface.
 
 This is the main entry point. The actual API logic is now in the 'api/' package.
@@ -13,7 +13,7 @@ if __name__ == "__main__":
     import argparse
     import uvicorn
 
-    parser = argparse.ArgumentParser(description='Instagram Assistant - Web API')
+    parser = argparse.ArgumentParser(description='Sira - Web API')
     parser.add_argument(
         '--log-verbose',
         action='store_true',

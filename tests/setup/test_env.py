@@ -27,7 +27,7 @@ class TestSetupEnv(unittest.TestCase):
     def test_env_file_creation(self):
         """The .env file is created correctly."""
         # Simulate content of a generated .env file
-        env_content = """# Instagram Assistant Configuration
+        env_content = """# Sira Configuration
 INSTAGRAM_EXPORT_DIR=/path/to/export
 BASE_DIR=/path/to/base
 CONVERSATIONS_DIR=instagram_conversations

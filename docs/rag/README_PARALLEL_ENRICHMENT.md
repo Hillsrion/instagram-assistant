@@ -53,7 +53,7 @@ Technical deep-dive:
 
 ### Step 1: Copy chunks (Machine 1 → Machine 2)
 ```bash
-scp rag_data/chunks.json user@machine2:~/instagram-assistant/rag_data/
+scp rag_data/chunks.json user@machine2:~/sira/rag_data/
 ```
 
 ### Step 2: Start enrichment on both machines
@@ -68,7 +68,7 @@ python setup_enrich.py --total-shards 2 --shard-index 1
 ### Step 3: Merge (after both complete)
 ```bash
 # On Machine 1, copy shard 1 results
-scp user@machine2:~/instagram-assistant/rag_data/chunks_shard1.json ./rag_data/
+scp user@machine2:~/sira/rag_data/chunks_shard1.json ./rag_data/
 
 # Merge shards
 python scripts/merge_enriched_shards.py
@@ -158,7 +158,7 @@ python scripts/validate_implementation.py --verbose # Detailed output
 ### Setup
 ```bash
 # Copy chunks to all machines
-scp rag_data/chunks.json user@machine2:~/instagram-assistant/rag_data/
+scp rag_data/chunks.json user@machine2:~/sira/rag_data/
 
 # Ensure LLM is running (on both machines)
 ollama serve  # or your LLM provider
@@ -208,7 +208,7 @@ grep -i error enrichment_shard*.log
 ### Merging
 ```bash
 # Copy shard files from other machines
-scp user@machine2:~/instagram-assistant/rag_data/chunks_shard1.json ./rag_data/
+scp user@machine2:~/sira/rag_data/chunks_shard1.json ./rag_data/
 
 # Preview merge (dry-run)
 python scripts/merge_enriched_shards.py --dry-run
@@ -242,7 +242,7 @@ python scripts/check_enrichment_status.py
 **Machine 1:**
 ```bash
 # Copy chunks.json to Machine 2
-scp rag_data/chunks.json user@machine2:~/instagram-assistant/rag_data/
+scp rag_data/chunks.json user@machine2:~/sira/rag_data/
 
 # Start enrichment for shard 0
 python setup_enrich.py --total-shards 2 --shard-index 0
@@ -265,7 +265,7 @@ tail -f enrichment_shard1.log
 **Machine 1 (after both complete):**
 ```bash
 # Copy shard 1 results
-scp user@machine2:~/instagram-assistant/rag_data/chunks_shard1.json ./rag_data/
+scp user@machine2:~/sira/rag_data/chunks_shard1.json ./rag_data/
 
 # Merge shards
 python scripts/merge_enriched_shards.py
@@ -291,7 +291,7 @@ python setup_embeddings.py
 ### Different chunks.json on machines
 **Solution:** Use `scp` to copy same file to both machines
 ```bash
-scp rag_data/chunks.json user@machine2:~/instagram-assistant/rag_data/
+scp rag_data/chunks.json user@machine2:~/sira/rag_data/
 ```
 
 ### "LLM model not found"

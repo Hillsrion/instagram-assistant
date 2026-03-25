@@ -1,6 +1,6 @@
-# Instagram Assistant - Frontend
+# Sira - Frontend
 
-Modern web interface for the Instagram Assistant RAG system, built with React, Vite, and TanStack.
+Modern web interface for the Sira RAG system, built with React, Vite, and TanStack.
 
 ## Tech Stack
 - **Framework**: [React 19](https://react.dev) + [Vite](https://vitejs.dev)

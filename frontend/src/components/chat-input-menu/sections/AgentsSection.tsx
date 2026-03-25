@@ -48,10 +48,10 @@ export function AgentsSection({
                 {agent.icon}
               </div>
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="font-medium truncate">{agent.name}</span>
-                <span className="text-xs text-muted-foreground truncate">
+                <div className="font-medium truncate">{agent.name}</div>
+                <div className="text-xs text-muted-foreground line-clamp-2 leading-relaxed wrap-break-word">
                   {agent.description}
-                </span>
+                </div>
               </div>
               {selectedAgent === agent.id && (
                 <Check className="h-4 w-4 shrink-0 text-primary" />

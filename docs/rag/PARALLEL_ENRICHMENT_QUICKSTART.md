@@ -20,7 +20,7 @@ python scripts/merge_enriched_shards.py
 ### 1. Copy chunks to all machines
 ```bash
 # From machine 1 to machine 2
-scp rag_data/chunks.json user@machine2:~/instagram-assistant/rag_data/
+scp rag_data/chunks.json user@machine2:~/sira/rag_data/
 ```
 
 ### 2. Ensure Ollama/LLM is running
@@ -56,7 +56,7 @@ python scripts/check_enrichment_status.py --show-shards
 
 ### 1. Copy shard files to one machine
 ```bash
-scp user@machine2:~/instagram-assistant/rag_data/chunks_shard1.json ./rag_data/
+scp user@machine2:~/sira/rag_data/chunks_shard1.json ./rag_data/
 ```
 
 ### 2. Merge shards

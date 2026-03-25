@@ -1,5 +1,5 @@
 """
-Pydantic models for the Instagram Assistant API.
+Pydantic models for the Sira API.
 """
 from typing import List, Optional
 from pydantic import BaseModel

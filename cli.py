@@ -31,7 +31,7 @@ class Colors:
 def print_header():
     """Displays program header."""
     print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*70}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.CYAN}🤖 Instagram Assistant - Chat CLI{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.CYAN}🤖 Sira - Chat CLI{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.CYAN}{'='*70}{Colors.RESET}\n")
     print(f"{Colors.DIM}Ask questions about your Instagram conversations.{Colors.RESET}")
     print(f"{Colors.DIM}Type 'exit', 'quit' or Ctrl+D to quit.{Colors.RESET}")
@@ -186,7 +186,7 @@ def main():
     """Main entry point."""
     # Parse arguments
     parser = argparse.ArgumentParser(
-        description='Instagram Assistant - Chat CLI',
+        description='Sira - Chat CLI',
         add_help=False
     )
     parser.add_argument(

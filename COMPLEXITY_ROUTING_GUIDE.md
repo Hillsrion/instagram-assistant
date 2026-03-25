@@ -93,7 +93,7 @@ ollama pull ministral-3:8b
 ### Execute
 
 ```bash
-cd /Users/ismaelsebbane/dev/lab/instagram-assistant
+cd /Users/ismaelsebbane/dev/lab/sira
 
 # Full validation (60 chunks, ~45 min)
 python scripts/create_validation_dataset.py

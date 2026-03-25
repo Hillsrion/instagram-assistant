@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the **Audio Transcription** module for the Instagram Assistant RAG pipeline.
+This document describes the **Audio Transcription** module for the Sira RAG pipeline.
 Audio files from Instagram exports are transcribed using a local **MLX model** (Voxtral) and integrated as first-class text in the RAG index.
 
 > **✅ STATUS: ACTIVE (Feb 2026)**

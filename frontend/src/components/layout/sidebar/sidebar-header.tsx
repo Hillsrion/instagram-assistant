@@ -1,4 +1,4 @@
-import { Instagram, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -20,28 +20,36 @@ export function SidebarHeader({
     >
       {!isCollapsed ? (
         <>
-          <div className="flex items-center gap-2 overflow-hidden">
-            <Instagram className="h-5 w-5 text-primary shrink-0" />
+          <div className="flex items-center gap-2 overflow-hidden px-1">
+            <img
+              src="/logo.png"
+              alt="Logo"
+              className="h-8 w-8 rounded-lg object-contain shrink-0 p-0.5"
+            />
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsCollapsed(true)}
-            className="h-8 w-8"
+            className="h-8 w-8 ml-auto"
           >
-            <PanelLeftClose className="h-6 w-6" />
+            <PanelLeftClose className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
           </Button>
         </>
       ) : (
         <>
-          <Instagram className="h-6 w-6 text-primary shrink-0" />
+          <img
+            src="/logo.png"
+            alt="Logo"
+            className="h-8 w-8 rounded-lg object-contain shrink-0 bg-white p-0.5 shadow-sm mx-auto"
+          />
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsCollapsed(false)}
-            className="h-8 w-8"
+            className="h-8 w-8 mx-auto"
           >
-            <PanelLeftOpen className="h-5 w-5" />
+            <PanelLeftOpen className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
           </Button>
         </>
       )}
