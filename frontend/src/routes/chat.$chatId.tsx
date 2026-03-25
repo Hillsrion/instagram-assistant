@@ -6,13 +6,13 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AgentProgression } from "@/components/AgentProgression";
 import { ChatInput } from "@/components/ChatInput";
-import { ConversationMenu } from "@/components/ConversationMenu";
+import { ChatMenu } from "@/components/ChatMenu";
 import { SourcesModal } from "@/components/SourcesModal";
 import { TypingIndicator } from "@/components/TypingIndicator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChatFilters } from "@/hooks/use-chat-filters";
 import { useChatStream } from "@/hooks/use-chat-stream";
-import { getConversation } from "@/lib/api";
+import { getChat } from "@/lib/api";
 import type { Source, SummarySource } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -49,9 +49,9 @@ function ChatRoute() {
   } = Route.useSearch();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { data: conversation, isLoading } = useQuery({
-    queryKey: ["conversation", chatId],
-    queryFn: () => getConversation(chatId),
+  const { data: chat, isLoading } = useQuery({
+    queryKey: ["chat", chatId],
+    queryFn: () => getChat(chatId),
     refetchOnWindowFocus: false,
   });
 
@@ -91,10 +91,10 @@ function ChatRoute() {
 
   // Sync with initial loaded messages
   useEffect(() => {
-    if (conversation?.messages) {
-      setMessages(conversation.messages);
+    if (chat?.messages) {
+      setMessages(chat.messages);
     }
-  }, [conversation, setMessages]);
+  }, [chat, setMessages]);
 
   // Filter Logic
   const filteredMessages = useMemo(() => {
@@ -148,7 +148,7 @@ function ChatRoute() {
   // Handle initial message from query param
   const initialProcessed = useRef(false);
   useEffect(() => {
-    if (initialMessage && !initialProcessed.current && conversation) {
+    if (initialMessage && !initialProcessed.current && chat) {
       initialProcessed.current = true;
       sendMessage(initialMessage, {
         participant: filterParticipant,
@@ -162,8 +162,7 @@ function ChatRoute() {
       });
     }
   }, [
-    initialMessage,
-    conversation,
+    chat,
     sendMessage,
     filterParticipant,
     filterGroup,
@@ -171,6 +170,7 @@ function ChatRoute() {
     selectedModel,
     selectedMode,
     initialAttachmentsId,
+    initialMessage,
   ]);
 
   const [sourcesModalOpen, setSourcesModalOpen] = useState(false);
@@ -196,7 +196,7 @@ function ChatRoute() {
       <div className="p-4 pl-8 flex items-center justify-between backdrop-blur z-10 w-full h-14 bg-background/50">
         <div className="flex items-center gap-2">
           <h2 className="font-medium truncate max-w-[500px]">
-            {conversation?.title || "Chat"}
+            {chat?.title || "Chat"}
           </h2>
           {isLoading && (
             <span className="text-xs text-muted-foreground animate-pulse">
@@ -204,12 +204,12 @@ function ChatRoute() {
             </span>
           )}
         </div>
-        {conversation && (
-          <ConversationMenu
-            conversation={{
-              id: conversation.id,
-              title: conversation.title,
-              is_favorite: !!conversation.is_favorite,
+        {chat && (
+          <ChatMenu
+            chat={{
+              id: chat.id,
+              title: chat.title,
+              is_favorite: !!chat.is_favorite,
             }}
           />
         )}

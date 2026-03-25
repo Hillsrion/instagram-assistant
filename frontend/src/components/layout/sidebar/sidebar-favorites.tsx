@@ -1,20 +1,20 @@
-import type { ConversationListResponse } from "@/lib/types";
-import { ConversationItem } from "./conversation-item";
+import type { ChatListResponse } from "@/lib/types";
+import { ChatItem } from "./chat-item";
 
 interface SidebarFavoritesProps {
-  conversations: ConversationListResponse[];
+  chats: ChatListResponse[];
   openMenuId: string | null;
   setOpenMenuId: (id: string | null) => void;
 }
 
 export function SidebarFavorites({
-  conversations,
+  chats,
   openMenuId,
   setOpenMenuId,
 }: SidebarFavoritesProps) {
-  const favoriteConversations = conversations.filter((c) => c.is_favorite);
+  const favoriteChats = chats.filter((c) => c.is_favorite);
 
-  if (favoriteConversations.length === 0) return null;
+  if (favoriteChats.length === 0) return null;
 
   return (
     <>
@@ -22,10 +22,10 @@ export function SidebarFavorites({
         Favoris
       </div>
       <div className="flex flex-col mb-4">
-        {favoriteConversations.map((conv) => (
-          <ConversationItem
-            key={conv.id}
-            conversation={conv}
+        {favoriteChats.map((chat) => (
+          <ChatItem
+            key={chat.id}
+            chat={chat}
             openMenuId={openMenuId}
             setOpenMenuId={setOpenMenuId}
           />

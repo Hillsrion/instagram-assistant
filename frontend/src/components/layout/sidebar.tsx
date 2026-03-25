@@ -1,8 +1,8 @@
-import { useConversationActions } from "@/hooks/use-conversation-actions";
+import { useChatActions } from "@/hooks/use-chat-actions";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "./sidebar/search-dialog";
-import { SidebarConversations } from "./sidebar/sidebar-conversations";
+import { SidebarChats } from "./sidebar/sidebar-chats";
 import { SidebarFavorites } from "./sidebar/sidebar-favorites";
 import { SidebarFooter } from "./sidebar/sidebar-footer";
 import { SidebarHeader } from "./sidebar/sidebar-header";
@@ -11,8 +11,9 @@ import { SidebarProjects } from "./sidebar/sidebar-projects";
 
 export function Sidebar() {
   const {
-    conversations,
+    chats,
     projects,
+    instagramGroups,
     isSearchOpen,
     setIsSearchOpen,
     isSettingsOpen,
@@ -27,7 +28,7 @@ export function Sidebar() {
     toggleProject,
   } = useSidebar();
 
-  const { createMutation } = useConversationActions();
+  const { createMutation } = useChatActions();
 
   return (
     <div
@@ -43,8 +44,8 @@ export function Sidebar() {
 
       <SidebarNav
         isCollapsed={isCollapsed}
-        onNewConversation={() => createMutation.mutate(undefined)}
-        isCreatingConversation={createMutation.isPending}
+        onNewChat={() => createMutation.mutate(undefined)}
+        isCreatingChat={createMutation.isPending}
         onSearchOpen={() => setIsSearchOpen(true)}
         onNewProjectOpen={() => setIsNewProjectOpen(true)}
       />
@@ -52,27 +53,28 @@ export function Sidebar() {
       <SearchDialog
         open={isSearchOpen}
         onOpenChange={setIsSearchOpen}
-        conversations={conversations}
+        chats={chats}
       />
 
       {!isCollapsed ? (
         <div className="flex-1 w-full min-w-0 overflow-y-auto">
           <div className="p-0 w-full min-w-0 flex flex-col">
             <SidebarFavorites
-              conversations={conversations || []}
+              chats={chats || []}
               openMenuId={openMenuId}
               setOpenMenuId={setOpenMenuId}
             />
 
             <SidebarProjects
               projects={projects}
-              conversations={conversations}
+              chats={chats}
+              instagramGroups={instagramGroups}
               expandedProjects={expandedProjects}
               toggleProject={toggleProject}
             />
 
-            <SidebarConversations
-              conversations={conversations}
+            <SidebarChats
+              chats={chats}
               openMenuId={openMenuId}
               setOpenMenuId={setOpenMenuId}
             />

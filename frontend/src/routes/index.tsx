@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChatInput } from "@/components/ChatInput";
 import { useChatFilters } from "@/hooks/use-chat-filters";
-import { createConversation } from "@/lib/api";
+import { createChat } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -33,22 +33,21 @@ function Index() {
   } = useChatFilters();
 
   const createMutation = useMutation({
-    mutationFn: (title?: string) => createConversation(title),
+    mutationFn: (title?: string) => createChat(title),
   });
 
   const [selectedAgent, setSelectedAgent] = useState("standard");
 
   const handleSendMessage = async (content: string, options: any) => {
     try {
-      const newConv = await createMutation.mutateAsync(
+      const newChat = (await createMutation.mutateAsync(
         content.slice(0, 30) + (content.length > 30 ? "..." : ""),
-      );
-      // Invalidation is delayed after navigation to avoid flickering during view transition
+      )) as any;
 
       // Navigate to chat with initial message and filters
       navigate({
         to: "/chat/$chatId",
-        params: { chatId: newConv.id },
+        params: { chatId: newChat.id },
         search: {
           q: content,
           p: options.participant || undefined,
@@ -63,10 +62,10 @@ function Index() {
 
       // Delay invalidation to avoid flickering during the view transition
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
       }, 500);
     } catch (error) {
-      console.error("Failed to create conversation:", error);
+      console.error("Failed to create chat:", error);
     }
   };
 

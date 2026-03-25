@@ -43,14 +43,14 @@ export function SettingsSidebar() {
         className="justify-start gap-3 px-4 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all rounded-lg"
       >
         <FolderOpen className="w-4 h-4" />
-        <span className="font-medium">Groupes</span>
+        <span className="font-medium">Sources Instagram</span>
       </TabsTrigger>
       <TabsTrigger
-        value="conversations"
+        value="chats"
         className="justify-start gap-3 px-4 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all rounded-lg"
       >
         <Database className="w-4 h-4" />
-        <span className="font-medium">Conversations</span>
+        <span className="font-medium">Mes Chats</span>
       </TabsTrigger>
       <TabsTrigger
         value="preferences"

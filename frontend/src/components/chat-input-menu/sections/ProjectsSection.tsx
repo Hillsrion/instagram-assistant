@@ -2,12 +2,12 @@ import { BookOpen, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Project } from "@/lib/types";
+import type { ChatProject } from "@/lib/types";
 
 interface ProjectsSectionProps {
   projectSearch: string;
   setProjectSearch: (s: string) => void;
-  filteredProjects: Project[];
+  filteredProjects: ChatProject[];
 }
 
 export function ProjectsSection({

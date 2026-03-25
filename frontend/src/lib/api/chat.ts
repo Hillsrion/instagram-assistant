@@ -4,7 +4,7 @@ import { API_BASE } from "./base";
 
 export interface ChatStreamOptions {
   message: string;
-  conversation_id: string;
+  chat_id: string;
   model?: string;
   mode?: string;
   agent_id?: string;

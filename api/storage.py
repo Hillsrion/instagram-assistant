@@ -4,8 +4,8 @@ JSON file storage for conversations.
 import json
 from pathlib import Path
 
-CONVERSATIONS_FILE = Path("rag_data/conversations.json")
-PROJECTS_FILE = Path("rag_data/projects.json")
+CHATS_FILE = Path("rag_data/chats.json")
+CHAT_PROJECTS_FILE = Path("rag_data/chat_projects.json")
 SETTINGS_FILE = Path("rag_data/settings.json")
 
 
@@ -29,56 +29,71 @@ def save_settings(settings: dict) -> None:
         json.dump(settings, f, indent=2)
 
 
-def load_conversations() -> dict:
-    """Load all conversations from file."""
-    if CONVERSATIONS_FILE.exists():
-        with open(CONVERSATIONS_FILE, 'r') as f:
+def load_chats() -> dict:
+    """Load all chats from file."""
+    # Migration check
+    if not CHATS_FILE.exists() and Path("rag_data/conversations.json").exists():
+        old_file = Path("rag_data/conversations.json")
+        with open(old_file, 'r') as f:
+            data = json.load(f)
+        save_chats(data)
+        return data
+        
+    if CHATS_FILE.exists():
+        with open(CHATS_FILE, 'r') as f:
             return json.load(f)
     return {}
 
 
-def save_conversations(conversations: dict) -> None:
-    """Save all conversations to file."""
-    CONVERSATIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(CONVERSATIONS_FILE, 'w') as f:
-        json.dump(conversations, f, indent=2)
+def save_chats(chats: dict) -> None:
+    """Save all chats to file."""
+    CHATS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(CHATS_FILE, 'w') as f:
+        json.dump(chats, f, indent=2)
 
 
-def get_conversation(conv_id: str) -> dict | None:
-    """Get a single conversation by ID."""
-    conversations = load_conversations()
-    return conversations.get(conv_id)
+def get_chat(chat_id: str) -> dict | None:
+    """Get a single chat by ID."""
+    chats = load_chats()
+    return chats.get(chat_id)
 
 
-def save_conversation(conv: dict) -> None:
-    """Save a single conversation."""
-    conversations = load_conversations()
-    conversations[conv['id']] = conv
-    save_conversations(conversations)
+def save_chat(chat_data: dict) -> None:
+    """Save a single chat."""
+    chats = load_chats()
+    chats[chat_data['id']] = chat_data
+    save_chats(chats)
 
 
-def delete_conversation(conv_id: str) -> bool:
-    """Delete a conversation."""
-    conversations = load_conversations()
-    if conv_id in conversations:
-        del conversations[conv_id]
-        save_conversations(conversations)
+def delete_chat(chat_id: str) -> bool:
+    """Delete a chat."""
+    chats = load_chats()
+    if chat_id in chats:
+        del chats[chat_id]
+        save_chats(chats)
         return True
     return False
 
 
 def load_projects() -> dict:
-    """Load all projects from file."""
-    if PROJECTS_FILE.exists():
-        with open(PROJECTS_FILE, 'r') as f:
+    """Load all chat projects from file."""
+    if not CHAT_PROJECTS_FILE.exists() and Path("rag_data/projects.json").exists():
+        old_file = Path("rag_data/projects.json")
+        with open(old_file, 'r') as f:
+            data = json.load(f)
+        save_projects(data)
+        return data
+
+    if CHAT_PROJECTS_FILE.exists():
+        with open(CHAT_PROJECTS_FILE, 'r') as f:
             return json.load(f)
     return {}
 
 
 def save_projects(projects: dict) -> None:
-    """Save all projects to file."""
-    PROJECTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(PROJECTS_FILE, 'w') as f:
+    """Save all chat projects to file."""
+    CHAT_PROJECTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(CHAT_PROJECTS_FILE, 'w') as f:
         json.dump(projects, f, indent=2)
 
 

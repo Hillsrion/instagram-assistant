@@ -5,16 +5,16 @@ import { cn } from "@/lib/utils";
 
 interface SidebarNavProps {
   isCollapsed: boolean;
-  onNewConversation: () => void;
-  isCreatingConversation: boolean;
+  onNewChat: () => void;
+  isCreatingChat: boolean;
   onSearchOpen: () => void;
   onNewProjectOpen: () => void;
 }
 
 export function SidebarNav({
   isCollapsed,
-  onNewConversation,
-  isCreatingConversation,
+  onNewChat,
+  isCreatingChat,
   onSearchOpen,
   onNewProjectOpen,
 }: SidebarNavProps) {
@@ -26,12 +26,12 @@ export function SidebarNav({
           isCollapsed && "justify-center px-0",
         )}
         variant="ghost"
-        onClick={onNewConversation}
-        disabled={isCreatingConversation}
-        title={isCollapsed ? "Nouvelle conversation" : undefined}
+        onClick={onNewChat}
+        disabled={isCreatingChat}
+        title={isCollapsed ? "Nouveau chat" : undefined}
       >
         <Plus className="h-5 w-5" />
-        {!isCollapsed && <span>Nouvelle conversation</span>}
+        {!isCollapsed && <span>Nouveau chat</span>}
       </Button>
 
       <Link to="/analytics" className="block">

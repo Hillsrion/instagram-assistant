@@ -1,52 +1,47 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  createConversation,
-  deleteConversation,
-  updateConversation,
-} from "@/lib/api";
+import { createChat, deleteChat, updateChat } from "@/lib/api";
 
-export function useConversationActions() {
+export function useChatActions() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const createMutation = useMutation({
-    mutationFn: (projectId?: string) =>
-      createConversation(undefined, projectId),
-    onSuccess: (newConv: any) => {
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    mutationFn: (projectId?: string) => createChat(undefined, projectId),
+    onSuccess: (newChat: any) => {
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
       navigate({
         to: "/chat/$chatId",
-        params: { chatId: newConv.id },
+        params: { chatId: newChat.id },
       });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteConversation(id),
+    mutationFn: (id: string) => deleteChat(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
     },
   });
 
   const toggleFavoriteMutation = useMutation({
     mutationFn: ({ id, is_favorite }: { id: string; is_favorite: boolean }) =>
-      updateConversation(id, { is_favorite: !is_favorite }),
+      updateChat(id, { is_favorite: !is_favorite }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
       queryClient.invalidateQueries({
-        queryKey: ["conversation", variables.id],
+        queryKey: ["chat", variables.id],
       });
     },
   });
 
   const renameMutation = useMutation({
     mutationFn: ({ id, title }: { id: string; title: string }) =>
-      updateConversation(id, { title }),
+      updateChat(id, { title }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
       queryClient.invalidateQueries({
-        queryKey: ["conversation", variables.id],
+        queryKey: ["chat", variables.id],
       });
     },
   });

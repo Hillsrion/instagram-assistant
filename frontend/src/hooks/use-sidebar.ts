@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { getConversations, getProjects } from "@/lib/api";
+import { getChats, getProjects, instagramApi } from "@/lib/api";
 
 export function useSidebar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -19,9 +19,9 @@ export function useSidebar() {
     }));
   };
 
-  const { data: conversations } = useQuery({
-    queryKey: ["conversations"],
-    queryFn: getConversations,
+  const { data: chats } = useQuery({
+    queryKey: ["chats"],
+    queryFn: getChats,
   });
 
   const { data: projects } = useQuery({
@@ -29,9 +29,15 @@ export function useSidebar() {
     queryFn: getProjects,
   });
 
+  const { data: instagramGroups } = useQuery({
+    queryKey: ["instagram-groups"],
+    queryFn: instagramApi.listGroups,
+  });
+
   return {
-    conversations,
+    chats,
     projects,
+    instagramGroups,
     isSearchOpen,
     setIsSearchOpen,
     isSettingsOpen,

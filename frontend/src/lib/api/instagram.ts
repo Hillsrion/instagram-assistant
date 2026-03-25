@@ -1,20 +1,5 @@
+import type { InstagramConversation, SourceGroup } from "../types";
 import { API_BASE } from "./base";
-
-export interface InstagramThread {
-  id: string;
-  participants: string[];
-  summary: string;
-  message_count: number;
-  date_range: string;
-}
-
-export interface SourceGroup {
-  id: string;
-  title: string;
-  thread_ids: string[];
-  created_at: string;
-  updated_at: string;
-}
 
 export interface SourceGroupUpdate {
   title: string;
@@ -29,7 +14,7 @@ export const instagramApi = {
   /**
    * List all unique Instagram threads from the summary index.
    */
-  listThreads: async (): Promise<InstagramThread[]> => {
+  listThreads: async (): Promise<InstagramConversation[]> => {
     const res = await fetch(`${API_BASE}/instagram/threads`);
     if (!res.ok) throw new Error("Failed to fetch threads");
     return res.json();

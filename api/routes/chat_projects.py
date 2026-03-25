@@ -7,27 +7,27 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 from api.models import (
-    Project,
-    ProjectUpdate,
-    ProjectListResponse,
-    ConversationListResponse,
-    ProjectBulkUpdate
+    ChatProject,
+    ChatProjectUpdate,
+    ChatProjectListResponse,
+    ChatListResponse,
+    ChatProjectBulkUpdate
 )
 from api.storage import (
     load_projects,
     get_project,
     save_project,
     delete_project,
-    load_conversations,
-    save_conversations
+    load_chats,
+    save_chats
 )
 
 router = APIRouter()
 
 
-@router.get("/projects", response_model=List[ProjectListResponse])
+@router.get("/projects", response_model=List[ChatProjectListResponse])
 async def list_projects():
-    """List all projects."""
+    """List all chat projects."""
     projects = load_projects()
     sorted_projects = sorted(
         projects.values(),
@@ -46,9 +46,9 @@ async def list_projects():
     ]
 
 
-@router.post("/projects", response_model=Project)
-async def create_project(data: ProjectUpdate):
-    """Create a new project."""
+@router.post("/projects", response_model=ChatProject)
+async def create_project(data: ChatProjectUpdate):
+    """Create a new chat project."""
     project_id = str(uuid.uuid4())[:8]
     now = datetime.now().isoformat()
 
@@ -66,9 +66,9 @@ async def create_project(data: ProjectUpdate):
     return project
 
 
-@router.get("/projects/{project_id}", response_model=Project)
+@router.get("/projects/{project_id}", response_model=ChatProject)
 async def get_project_detail(project_id: str):
-    """Get a project with all details."""
+    """Get a chat project with all details."""
     project = get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -77,14 +77,14 @@ async def get_project_detail(project_id: str):
 
 @router.delete("/projects/{project_id}")
 async def delete_project_endpoint(project_id: str):
-    """Delete a project."""
+    """Delete a chat project."""
     if delete_project(project_id):
         return {"status": "deleted"}
     raise HTTPException(status_code=404, detail="Project not found")
 
 
-@router.patch("/projects/{project_id}", response_model=Project)
-async def update_project_endpoint(project_id: str, data: ProjectUpdate):
+@router.patch("/projects/{project_id}", response_model=ChatProject)
+async def update_project_endpoint(project_id: str, data: ChatProjectUpdate):
     """Update project details."""
     project = get_project(project_id)
     if not project:
@@ -105,17 +105,17 @@ async def update_project_endpoint(project_id: str, data: ProjectUpdate):
     return project
 
 
-@router.get("/projects/{project_id}/conversations", response_model=List[ConversationListResponse])
-async def list_project_conversations(project_id: str):
-    """List all conversations belonging to a project."""
-    conversations = load_conversations()
-    project_convs = [
-        c for c in conversations.values()
+@router.get("/projects/{project_id}/chats", response_model=List[ChatListResponse])
+async def list_project_chats(project_id: str):
+    """List all chats belonging to a project."""
+    chats = load_chats()
+    project_chats = [
+        c for c in chats.values()
         if c.get('project_id') == project_id
     ]
     
-    sorted_convs = sorted(
-        project_convs,
+    sorted_chats = sorted(
+        project_chats,
         key=lambda x: x.get('updated_at', ''),
         reverse=True
     )
@@ -130,36 +130,36 @@ async def list_project_conversations(project_id: str):
             "project_id": c.get('project_id'),
             "message_count": len(c.get('messages', []))
         }
-        for c in sorted_convs
+        for c in sorted_chats
     ]
 
 
-@router.post("/projects/{project_id}/conversations/bulk")
-async def bulk_update_project_conversations(project_id: str, data: ProjectBulkUpdate):
-    """Bulk add or remove conversations from a project."""
+@router.post("/projects/{project_id}/chats/bulk")
+async def bulk_update_project_chats(project_id: str, data: ChatProjectBulkUpdate):
+    """Bulk add or remove chats from a project."""
     projects = load_projects()
     if project_id != "none" and project_id not in projects:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    conversations = load_conversations()
+    chats = load_chats()
     updated_count = 0
     
     target_project_id = None if project_id == "none" else project_id
 
-    for conv_id in data.conversation_ids:
-        if conv_id in conversations:
+    for chat_id in data.chat_ids:
+        if chat_id in chats:
             if data.action == "add":
-                conversations[conv_id]["project_id"] = target_project_id
+                chats[chat_id]["project_id"] = target_project_id
                 updated_count += 1
             elif data.action == "remove":
-                if conversations[conv_id].get("project_id") == target_project_id:
-                    conversations[conv_id]["project_id"] = None
+                if chats[chat_id].get("project_id") == target_project_id:
+                    chats[chat_id]["project_id"] = None
                     updated_count += 1
             elif data.action == "set":
-                conversations[conv_id]["project_id"] = target_project_id
+                chats[chat_id]["project_id"] = target_project_id
                 updated_count += 1
 
     if updated_count > 0:
-        save_conversations(conversations)
+        save_chats(chats)
 
     return {"status": "success", "updated_count": updated_count}

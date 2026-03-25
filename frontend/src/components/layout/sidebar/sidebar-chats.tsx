@@ -1,18 +1,18 @@
-import type { ConversationListResponse } from "@/lib/types";
-import { ConversationItem } from "./conversation-item";
+import type { ChatListResponse } from "@/lib/types";
+import { ChatItem } from "./chat-item";
 
-interface SidebarConversationsProps {
-  conversations: ConversationListResponse[] | undefined;
+interface SidebarChatsProps {
+  chats: ChatListResponse[] | undefined;
   openMenuId: string | null;
   setOpenMenuId: (id: string | null) => void;
 }
 
-export function SidebarConversations({
-  conversations,
+export function SidebarChats({
+  chats,
   openMenuId,
   setOpenMenuId,
-}: SidebarConversationsProps) {
-  const freeConversations = conversations?.filter(
+}: SidebarChatsProps) {
+  const freeChats = chats?.filter(
     (c) =>
       !c.project_id && (c.is_favorite === false || c.is_favorite === undefined),
   );
@@ -20,18 +20,18 @@ export function SidebarConversations({
   return (
     <>
       <div className="px-2 py-2 text-xs font-medium text-muted-foreground shrink-0 mt-4">
-        Conversations
+        Chats
       </div>
       <div className="px-2">
-        {freeConversations?.length === 0 ? (
+        {freeChats?.length === 0 ? (
           <div className="p-4 text-sm text-muted-foreground text-center">
-            Aucune conversation libre
+            Aucun chat libre
           </div>
         ) : (
-          freeConversations?.map((conv) => (
-            <ConversationItem
-              key={conv.id}
-              conversation={conv}
+          freeChats?.map((chat) => (
+            <ChatItem
+              key={chat.id}
+              chat={chat}
               openMenuId={openMenuId}
               setOpenMenuId={setOpenMenuId}
             />

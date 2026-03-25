@@ -27,15 +27,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  type InstagramThread,
-  instagramApi,
-  type SourceGroup,
-} from "@/lib/api/instagram";
+import { instagramApi } from "@/lib/api/instagram";
+import type { InstagramConversation, SourceGroup } from "@/lib/types";
 
 export function GroupsTab() {
   const [groups, setGroups] = useState<SourceGroup[]>([]);
-  const [threads, setThreads] = useState<InstagramThread[]>([]);
+  const [threads, setThreads] = useState<InstagramConversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -137,11 +134,10 @@ export function GroupsTab() {
       <div className="flex items-center justify-between mb-2">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 leading-none">
-            Groupes
+            Groupes source
           </h2>
           <p className="text-sm text-muted-foreground mt-2">
-            Organisez vos threads Instagram (conversations sources) par
-            thématiques.
+            Organisez vos threads Instagram par thématiques.
           </p>
         </div>
         <Button
@@ -179,11 +175,12 @@ export function GroupsTab() {
               <FolderOpen className="w-12 h-12 text-slate-300 mx-auto mb-4" />
               <p className="text-slate-500 font-medium">Aucun groupe trouvé</p>
               <p className="text-slate-400 text-sm mt-1">
-                Créez votre premier groupe pour commencer à organiser vos chats.
+                Créez votre premier groupe pour organiser vos sources.
               </p>
             </div>
           ) : (
             filteredGroups.map((group) => {
+              const groupThreads = getGroupThreads(group.id);
               return (
                 <div
                   key={group.id}
@@ -246,9 +243,9 @@ export function GroupsTab() {
                   </div>
 
                   <div className="p-2 bg-slate-50/30">
-                    {group.thread_ids.length > 0 ? (
+                    {groupThreads.length > 0 ? (
                       <div className="flex flex-wrap gap-2 p-3">
-                        {getGroupThreads(group.id).map((thread) => (
+                        {groupThreads.map((thread) => (
                           <div
                             key={thread.id}
                             className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-sm text-slate-700 shadow-sm animate-in fade-in zoom-in duration-200"
@@ -258,7 +255,7 @@ export function GroupsTab() {
                             <span className="max-w-[150px] truncate font-medium">
                               {thread.participants
                                 .filter(
-                                  (p) =>
+                                  (p: string) =>
                                     p.toLowerCase() !== "me" &&
                                     p.toLowerCase() !== "user",
                                 )
@@ -297,7 +294,7 @@ export function GroupsTab() {
               Nouveau groupe
             </DialogTitle>
             <DialogDescription className="text-slate-500">
-              Donnez un nom à votre nouveau groupe de conversations.
+              Donnez un nom à votre nouveau groupe de sources.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -348,7 +345,7 @@ export function GroupsTab() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="Rechercher par participants ou contenu..."
+                placeholder="Rechercher par participants..."
                 className="pl-10 h-10 bg-white border-slate-200 rounded-xl shadow-sm"
                 value={threadSearchQuery}
                 onChange={(e) => setThreadSearchQuery(e.target.value)}
@@ -359,15 +356,11 @@ export function GroupsTab() {
           <ScrollArea className="flex-1 px-6">
             <div className="py-4 space-y-2">
               {unassignedThreads
-                .filter(
-                  (t) =>
-                    t.participants
-                      .join(" ")
-                      .toLowerCase()
-                      .includes(threadSearchQuery.toLowerCase()) ||
-                    t.summary
-                      .toLowerCase()
-                      .includes(threadSearchQuery.toLowerCase()),
+                .filter((t) =>
+                  t.participants
+                    .join(" ")
+                    .toLowerCase()
+                    .includes(threadSearchQuery.toLowerCase()),
                 )
                 .map((thread) => (
                   <div
@@ -386,7 +379,7 @@ export function GroupsTab() {
                         <p className="text-sm font-semibold text-slate-800 truncate">
                           {thread.participants
                             .filter(
-                              (p) =>
+                              (p: string) =>
                                 p.toLowerCase() !== "me" &&
                                 p.toLowerCase() !== "user",
                             )

@@ -6,40 +6,36 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import type { ConversationListResponse } from "@/lib/types";
+import type { ChatListResponse } from "@/lib/types";
 
 interface SearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  conversations: ConversationListResponse[] | undefined;
+  chats: ChatListResponse[] | undefined;
 }
 
-export function SearchDialog({
-  open,
-  onOpenChange,
-  conversations,
-}: SearchDialogProps) {
+export function SearchDialog({ open, onOpenChange, chats }: SearchDialogProps) {
   const navigate = useNavigate();
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Rechercher une conversation..." />
+      <CommandInput placeholder="Rechercher un chat..." />
       <CommandList className="h-[40vh]">
-        <CommandEmpty>Aucune conversation trouvée.</CommandEmpty>
-        {conversations?.map((conv) => (
+        <CommandEmpty>Aucun chat trouvé.</CommandEmpty>
+        {chats?.map((chat) => (
           <CommandItem
-            key={conv.id}
+            key={chat.id}
             onSelect={() => {
               onOpenChange(false);
               navigate({
                 to: "/chat/$chatId",
-                params: { chatId: conv.id },
+                params: { chatId: chat.id },
               });
             }}
             className="flex flex-col items-start gap-1 p-3"
           >
             <div className="font-medium truncate w-full text-left">
-              {conv.title || "Nouvelle conversation"}
+              {chat.title || "Nouveau chat"}
             </div>
           </CommandItem>
         ))}

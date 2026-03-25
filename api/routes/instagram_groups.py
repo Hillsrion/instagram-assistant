@@ -3,7 +3,7 @@ from typing import List
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from api.models import (
-    InstagramThread, 
+    InstagramConversation, 
     SourceGroup, 
     SourceGroupUpdate,
     SourceGroupBulkUpdate
@@ -20,7 +20,7 @@ from rag_pipeline.core.logger import get_logger
 logger = get_logger()
 router = APIRouter()
 
-@router.get("/instagram/threads", response_model=List[InstagramThread])
+@router.get("/instagram/threads", response_model=List[InstagramConversation])
 async def list_instagram_threads():
     """List all unique Instagram threads from the summary index."""
     components = get_components()
@@ -37,16 +37,15 @@ async def list_instagram_threads():
             date_end = (getattr(summary, 'date_end', "") or "")[:10]
             
             try:
-                thread = InstagramThread(
+                threads.append(InstagramConversation(
                     id=summary.conversation_id,
                     participants=summary.participants or [],
                     summary=getattr(summary, 'summary', "") or "",
                     message_count=getattr(summary, 'total_messages', 0) or 0,
                     date_range=f"{date_start} - {date_end}"
-                )
-                threads.append(thread)
+                ))
             except Exception as model_err:
-                logger.error(f"Error creating InstagramThread model for {summary.conversation_id}: {model_err}")
+                logger.error(f"Error creating InstagramConversation model for {summary.conversation_id}: {model_err}")
                 continue
         
         return sorted(threads, key=lambda x: x.id)

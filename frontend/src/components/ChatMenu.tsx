@@ -15,31 +15,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useConversationActions } from "@/hooks/use-conversation-actions";
-import type { ConversationListResponse } from "@/lib/types";
+import { useChatActions } from "@/hooks/use-chat-actions";
+import type { ChatListResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-interface ConversationMenuProps {
-  conversation:
-    | ConversationListResponse
-    | { id: string; title: string; is_favorite: boolean };
+interface ChatMenuProps {
+  chat: ChatListResponse | { id: string; title: string; is_favorite: boolean };
   align?: "start" | "end";
   trigger?: React.ReactNode;
 }
 
-export function ConversationMenu({
-  conversation,
-  align = "end",
-  trigger,
-}: ConversationMenuProps) {
+export function ChatMenu({ chat, align = "end", trigger }: ChatMenuProps) {
   const { toggleFavoriteMutation, deleteMutation, renameMutation } =
-    useConversationActions();
+    useChatActions();
   const [isRenameOpen, setIsRenameOpen] = useState(false);
-  const [newTitle, setNewTitle] = useState(conversation.title || "");
+  const [newTitle, setNewTitle] = useState(chat.title || "");
 
   const handleRename = () => {
-    if (newTitle.trim() && newTitle !== conversation.title) {
-      renameMutation.mutate({ id: conversation.id, title: newTitle.trim() });
+    if (newTitle.trim() && newTitle !== chat.title) {
+      renameMutation.mutate({ id: chat.id, title: newTitle.trim() });
     }
     setIsRenameOpen(false);
   };
@@ -63,28 +57,26 @@ export function ConversationMenu({
             className="gap-2 cursor-pointer"
             onClick={() =>
               toggleFavoriteMutation.mutate({
-                id: conversation.id,
-                is_favorite: conversation.is_favorite,
+                id: chat.id,
+                is_favorite: chat.is_favorite,
               })
             }
           >
             <Star
               className={cn(
                 "h-4 w-4",
-                conversation.is_favorite && "fill-amber-400 text-amber-400",
+                chat.is_favorite && "fill-amber-400 text-amber-400",
               )}
             />
             <span>
-              {conversation.is_favorite
-                ? "Retirer des favoris"
-                : "Mettre en favoris"}
+              {chat.is_favorite ? "Retirer des favoris" : "Mettre en favoris"}
             </span>
           </DropdownMenuItem>
 
           <DropdownMenuItem
-            className="gap-2 cursor-pointer"
+            className="focus:bg-destructive/10 text-destructive focus:text-destructive gap-2 cursor-pointer transition-colors"
             onClick={() => {
-              setNewTitle(conversation.title || "");
+              setNewTitle(chat.title || "");
               setIsRenameOpen(true);
             }}
           >
@@ -95,8 +87,8 @@ export function ConversationMenu({
           <DropdownMenuItem
             className="focus:bg-destructive/10 text-destructive focus:text-destructive gap-2 cursor-pointer transition-colors"
             onClick={() => {
-              if (confirm("Supprimer cette conversation ?")) {
-                deleteMutation.mutate(conversation.id);
+              if (confirm("Supprimer ce chat ?")) {
+                deleteMutation.mutate(chat.id);
               }
             }}
           >
@@ -109,13 +101,13 @@ export function ConversationMenu({
       <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Renommer la conversation</DialogTitle>
+            <DialogTitle>Renommer le chat</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <Input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="Titre de la conversation"
+              placeholder="Titre du chat"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   handleRename();

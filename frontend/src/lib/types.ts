@@ -61,7 +61,7 @@ export interface ChunkDetail {
   hypothetical_questions: string[];
 }
 
-export interface Conversation {
+export interface Chat {
   id: string;
   title: string;
   created_at: string;
@@ -72,7 +72,7 @@ export interface Conversation {
   messages?: Message[];
 }
 
-export interface Project {
+export interface ChatProject {
   id: string;
   title: string;
   description?: string;
@@ -82,7 +82,7 @@ export interface Project {
   updated_at: string;
 }
 
-export interface ProjectListResponse {
+export interface ChatProjectListResponse {
   id: string;
   title: string;
   description?: string;
@@ -90,7 +90,7 @@ export interface ProjectListResponse {
   updated_at: string;
 }
 
-export interface ConversationListResponse {
+export interface ChatListResponse {
   id: string;
   title: string;
   created_at: string;
@@ -141,4 +141,19 @@ export interface ChatInputProps {
   isLoading?: boolean;
   autoFocus?: boolean;
   isHome?: boolean;
+}
+export interface InstagramConversation {
+  id: string;
+  participants: string[];
+  summary: string;
+  message_count: number;
+  date_range: string;
+}
+
+export interface SourceGroup {
+  id: string;
+  title: string;
+  thread_ids: string[];
+  created_at: string;
+  updated_at: string;
 }

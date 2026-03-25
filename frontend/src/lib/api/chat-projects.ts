@@ -1,23 +1,25 @@
 import type {
-  ConversationListResponse,
-  Project,
-  ProjectListResponse,
+  ChatListResponse,
+  ChatProject,
+  ChatProjectListResponse,
 } from "../types";
 import { API_BASE } from "./base";
 
-export async function getProjects(): Promise<ProjectListResponse[]> {
+export async function getProjects(): Promise<ChatProjectListResponse[]> {
   const res = await fetch(`${API_BASE}/projects`);
   if (!res.ok) throw new Error("Failed to fetch projects");
   return res.json();
 }
 
-export async function getProject(id: string): Promise<Project> {
+export async function getProject(id: string): Promise<ChatProject> {
   const res = await fetch(`${API_BASE}/projects/${id}`);
   if (!res.ok) throw new Error("Failed to fetch project");
   return res.json();
 }
 
-export async function createProject(data: Partial<Project>): Promise<Project> {
+export async function createProject(
+  data: Partial<ChatProject>,
+): Promise<ChatProject> {
   const res = await fetch(`${API_BASE}/projects`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -29,8 +31,8 @@ export async function createProject(data: Partial<Project>): Promise<Project> {
 
 export async function updateProject(
   id: string,
-  data: Partial<Project>,
-): Promise<Project> {
+  data: Partial<ChatProject>,
+): Promise<ChatProject> {
   const res = await fetch(`${API_BASE}/projects/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -47,27 +49,24 @@ export async function deleteProject(id: string): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete project");
 }
 
-export async function getProjectConversations(
+export async function getProjectChats(
   projectId: string,
-): Promise<ConversationListResponse[]> {
-  const res = await fetch(`${API_BASE}/projects/${projectId}/conversations`);
-  if (!res.ok) throw new Error("Failed to fetch project conversations");
+): Promise<ChatListResponse[]> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/chats`);
+  if (!res.ok) throw new Error("Failed to fetch project chats");
   return res.json();
 }
 
-export async function bulkUpdateProjectConversations(
+export async function bulkUpdateProjectChats(
   projectId: string,
-  conversationIds: string[],
+  chatIds: string[],
   action: "add" | "remove" | "set",
 ): Promise<{ status: string; updated_count: number }> {
-  const res = await fetch(
-    `${API_BASE}/projects/${projectId}/conversations/bulk`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversation_ids: conversationIds, action }),
-    },
-  );
-  if (!res.ok) throw new Error("Failed to bulk update conversations");
+  const res = await fetch(`${API_BASE}/projects/${projectId}/chats/bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_ids: chatIds, action }),
+  });
+  if (!res.ok) throw new Error("Failed to bulk update chats");
   return res.json();
 }

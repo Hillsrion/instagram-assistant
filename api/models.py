@@ -15,7 +15,7 @@ class FileAttachment(BaseModel):
 
 
 class Message(BaseModel):
-    """A single message in a conversation."""
+    """A single message (in an AI Chat)."""
     role: str
     content: str
     timestamp: str
@@ -24,8 +24,8 @@ class Message(BaseModel):
     attachments: Optional[List[FileAttachment]] = None
 
 
-class Project(BaseModel):
-    """A project to group conversations."""
+class ChatProject(BaseModel):
+    """A project to group AI Chats."""
     id: str
     title: str
     description: Optional[str] = None
@@ -35,8 +35,8 @@ class Project(BaseModel):
     updated_at: str
 
 
-class Conversation(BaseModel):
-    """A conversation with messages."""
+class Chat(BaseModel):
+    """A chat session with messages (AI interaction)."""
     id: str
     title: str
     created_at: str
@@ -50,14 +50,14 @@ class ChatRequest(BaseModel):
     """Request body for chat endpoints."""
     message: str
     attachments: Optional[List[FileAttachment]] = None
-    conversation_id: Optional[str] = None
+    chat_id: Optional[str] = None
     project_id: Optional[str] = None
     model: Optional[str] = None
-    mode: Optional[str] = "fast" # NEW: mode selector (fast, reflexion)
+    mode: Optional[str] = "fast" # mode selector (fast, reflexion)
     agent_id: Optional[str] = None # Persona selector (standard, nostalgique, analyste)
     participant_filter: Optional[str] = None
     about_person: Optional[str] = None 
-    use_about_person: bool = False # NEW: toggle between strict and broad person search
+    use_about_person: bool = False # toggle between strict and broad person search
     group_filter: Optional[str] = None 
     year_filter: Optional[int] = None
     date_start: Optional[str] = None
@@ -67,8 +67,8 @@ class ChatRequest(BaseModel):
     expand_context: bool = True
 
 
-class ConversationListResponse(BaseModel):
-    """Simplified conversation info for listing."""
+class ChatListResponse(BaseModel):
+    """Simplified chat info for listing."""
     id: str
     title: str
     created_at: str
@@ -78,7 +78,7 @@ class ConversationListResponse(BaseModel):
     message_count: int
 
 
-class ProjectListResponse(BaseModel):
+class ChatProjectListResponse(BaseModel):
     """Simplified project info for listing."""
     id: str
     title: str
@@ -87,7 +87,7 @@ class ProjectListResponse(BaseModel):
     updated_at: str
 
 
-class ProjectUpdate(BaseModel):
+class ChatProjectUpdate(BaseModel):
     """Request body for updating projects."""
     title: Optional[str] = None
     description: Optional[str] = None
@@ -95,8 +95,8 @@ class ProjectUpdate(BaseModel):
     instructions: Optional[str] = None
 
 
-class ConversationUpdate(BaseModel):
-    """Request body for updating conversations."""
+class ChatUpdate(BaseModel):
+    """Request body for updating chats."""
     title: Optional[str] = None
     is_favorite: Optional[bool] = None
     project_id: Optional[str] = None
@@ -108,14 +108,14 @@ class TitleEvaluationRequest(BaseModel):
     model: Optional[str] = None
 
 
-class ProjectBulkUpdate(BaseModel):
-    """Request body for bulk updating conversations in a project."""
-    conversation_ids: List[str]
+class ChatProjectBulkUpdate(BaseModel):
+    """Request body for bulk updating chats in a project."""
+    chat_ids: List[str]
     action: str  # "add", "remove", or "set"
 
 
-class InstagramThread(BaseModel):
-    """Represents a source Instagram conversation (thread)."""
+class InstagramConversation(BaseModel):
+    """Represents a source Instagram conversation."""
     id: str  # The conversation_id from metadata.db
     participants: List[str]
     summary: str

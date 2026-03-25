@@ -13,7 +13,7 @@ import {
   FormRenderer,
 } from "@/components/ui/form/form-renderer";
 import { createProject, updateProject } from "@/lib/api";
-import type { Project } from "@/lib/types";
+import type { ChatProject } from "@/lib/types";
 
 const ProjectSchema = v.object({
   title: v.pipe(v.string(), v.minLength(1, "Le titre est requis")),
@@ -80,7 +80,7 @@ export function NewProjectModal({ open, onOpenChange }: NewProjectModalProps) {
 }
 
 interface ProjectSettingsModalProps {
-  project: Project;
+  project: ChatProject;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

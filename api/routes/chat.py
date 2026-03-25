@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from api.models import ChatRequest
-from api.storage import get_conversation, save_conversation
+from api.storage import get_chat, save_chat
 from api.utils import get_image_base64
 from api.dependencies import (
     get_retriever,
@@ -35,24 +35,24 @@ router = APIRouter()
 # Helpers
 # ============================================================
 
-def _get_or_create_conversation(request: ChatRequest) -> tuple:
-    """Returns (conv_id, conv_dict, error_msg_or_None)."""
-    conv_id = request.conversation_id
-    if conv_id:
-        conv = get_conversation(conv_id)
-        if not conv:
-            return conv_id, None, "Conversation not found"
+def _get_or_create_chat(request: ChatRequest) -> tuple:
+    """Returns (chat_id, chat_dict, error_msg_or_None)."""
+    chat_id = request.chat_id
+    if chat_id:
+        chat_data = get_chat(chat_id)
+        if not chat_data:
+            return chat_id, None, "Chat not found"
     else:
-        conv_id = str(uuid.uuid4())[:8]
+        chat_id = str(uuid.uuid4())[:8]
         now = datetime.now().isoformat()
-        conv = {
-            "id": conv_id,
+        chat_data = {
+            "id": chat_id,
             "title": request.message[:50] + ("..." if len(request.message) > 50 else ""),
             "created_at": now,
             "updated_at": now,
             "messages": []
         }
-    return conv_id, conv, None
+    return chat_id, chat_data, None
 
 
 def _add_user_message(conv: dict, message: str, attachments: list = None):
@@ -70,11 +70,11 @@ def _add_user_message(conv: dict, message: str, attachments: list = None):
     conv['messages'].append(user_msg)
 
 
-def _save_assistant_message(conv: dict, response_text: str, sources: list = None,
+def _save_assistant_message(chat_data: dict, response_text: str, sources: list = None,
                             summary_sources: list = None, low_confidence: bool = False,
                             used_summary_fallback: bool = False, confidence_score: float = 0.0,
                             followups: list = None):
-    """Append assistant message and save conversation."""
+    """Append assistant message and save chat."""
     assistant_msg = {
         "role": "assistant",
         "content": response_text,
@@ -87,9 +87,9 @@ def _save_assistant_message(conv: dict, response_text: str, sources: list = None
     }
     if followups:
         assistant_msg["followups"] = followups
-    conv['messages'].append(assistant_msg)
-    conv['updated_at'] = datetime.now().isoformat()
-    save_conversation(conv)
+    chat_data['messages'].append(assistant_msg)
+    chat_data['updated_at'] = datetime.now().isoformat()
+    save_chat(chat_data)
     return assistant_msg
 
 
@@ -106,15 +106,15 @@ async def generate_agent_response(request: ChatRequest, analysis) -> AsyncGenera
         yield f"data: {json.dumps({'error': 'Agent not initialized'})}\n\n"
         return
 
-    # Get or create conversation
-    conv_id, conv, error = _get_or_create_conversation(request)
+    # Get or create chat
+    chat_id, chat_data, error = _get_or_create_chat(request)
     if error:
         yield f"data: {json.dumps({'error': error})}\n\n"
         return
 
-    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
+    yield f"data: {json.dumps({'type': 'chat_id', 'id': chat_id})}\n\n"
 
-    _add_user_message(conv, request.message, request.attachments)
+    _add_user_message(chat_data, request.message, request.attachments)
 
     # Extract images from attachments
     images = []
@@ -219,7 +219,7 @@ async def generate_agent_response(request: ChatRequest, analysis) -> AsyncGenera
     # Save conversation
     context = agent.tools.get_last_context()
     _save_assistant_message(
-        conv, response_text, sources, summary_sources,
+        chat_data, response_text, sources, summary_sources,
         low_confidence=context.low_confidence if context else False,
         used_summary_fallback=context.used_summary_fallback if context else False,
         confidence_score=context.max_confidence_score if context else 0.0,
@@ -238,15 +238,15 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
     retriever = get_retriever()
     chatbot = get_chatbot()
 
-    # Get or create conversation
-    conv_id, conv, error = _get_or_create_conversation(request)
+    # Get or create chat
+    chat_id, chat_data, error = _get_or_create_chat(request)
     if error:
         yield f"data: {json.dumps({'error': error})}\n\n"
         return
 
-    yield f"data: {json.dumps({'type': 'conversation_id', 'id': conv_id})}\n\n"
+    yield f"data: {json.dumps({'type': 'chat_id', 'id': chat_id})}\n\n"
 
-    _add_user_message(conv, request.message, request.attachments)
+    _add_user_message(chat_data, request.message, request.attachments)
 
     # Extract images from attachments
     images = []
@@ -412,9 +412,9 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
     if followups:
         yield f"data: {json.dumps({'type': 'followups', 'questions': followups})}\n\n"
 
-    # Save conversation
+    # Save chat
     _save_assistant_message(
-        conv, response_text, sources, summary_sources,
+        chat_data, response_text, sources, summary_sources,
         low_confidence=context.low_confidence,
         used_summary_fallback=context.used_summary_fallback,
         confidence_score=context.max_confidence_score,
@@ -449,12 +449,12 @@ async def chat(request: ChatRequest):
 
 
     if should_use_agent(analysis, request.mode) and agent:
-        # Agent path
-        conv_id, conv, error = _get_or_create_conversation(request)
+        # Get or create chat
+        chat_id, chat_data, error = _get_or_create_chat(request)
         if error:
             raise HTTPException(status_code=404, detail=error)
 
-        _add_user_message(conv, request.message, request.attachments)
+        _add_user_message(chat_data, request.message, request.attachments)
         
         # Extract images from attachments
         images = []
@@ -467,7 +467,7 @@ async def chat(request: ChatRequest):
 
         history = [
             {"role": m["role"], "content": m["content"]}
-            for m in conv['messages'][:-1]
+            for m in chat_data['messages'][:-1]
         ]
 
         # Use stronger model for agent if mode is reflexion
@@ -484,24 +484,24 @@ async def chat(request: ChatRequest):
 
         context = agent.tools.get_last_context()
         assistant_msg = _save_assistant_message(
-            conv, response_text, result.sources, result.summary_sources,
+            chat_data, response_text, result.sources, result.summary_sources,
             low_confidence=context.low_confidence if context else False,
             used_summary_fallback=context.used_summary_fallback if context else False,
             confidence_score=context.max_confidence_score if context else 0.0
         )
 
-        return {
-            "conversation_id": conv_id,
-            "message": assistant_msg,
-            "sources": result.sources
-        }
+    return {
+        "chat_id": chat_id,
+        "message": assistant_msg,
+        "sources": result.sources
+    }
 
-    # Fast-path: direct retrieval (original flow)
-    conv_id, conv, error = _get_or_create_conversation(request)
+    # Fast-path: direct retrieval
+    chat_id, chat_data, error = _get_or_create_chat(request)
     if error:
         raise HTTPException(status_code=404, detail=error)
 
-    _add_user_message(conv, request.message, request.attachments)
+    _add_user_message(chat_data, request.message, request.attachments)
 
     # Extract images from attachments
     images = []
@@ -590,15 +590,16 @@ async def chat(request: ChatRequest):
                 "expanded": r.is_expanded
             })
 
+    # Save chat
     assistant_msg = _save_assistant_message(
-        conv, response_text, sources,
+        chat_data, response_text, sources,
         low_confidence=context.low_confidence,
         used_summary_fallback=context.used_summary_fallback,
         confidence_score=context.max_confidence_score
     )
 
     return {
-        "conversation_id": conv_id,
+        "chat_id": chat_id,
         "message": assistant_msg,
         "sources": sources
     }

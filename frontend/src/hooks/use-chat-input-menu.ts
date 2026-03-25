@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { getAgents } from "@/lib/api/agents";
-import { getProjects } from "@/lib/api/projects";
+import { getProjects } from "@/lib/api/chat-projects";
 
 interface UseChatInputMenuProps {
   participantNames: string[];

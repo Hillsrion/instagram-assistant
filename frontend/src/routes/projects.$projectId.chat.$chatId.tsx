@@ -9,7 +9,7 @@ import { ChatInput } from "@/components/ChatInput";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChatFilters } from "@/hooks/use-chat-filters";
 import { useChatStream } from "@/hooks/use-chat-stream";
-import { getConversation, getProject } from "@/lib/api";
+import { getChat, getProject } from "@/lib/api";
 import type { FileAttachment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -26,9 +26,9 @@ function ProjectChat() {
     queryFn: () => getProject(projectId),
   });
 
-  const { data: conversation, isLoading } = useQuery({
-    queryKey: ["conversation", chatId],
-    queryFn: () => getConversation(chatId),
+  const { data: chat, isLoading } = useQuery({
+    queryKey: ["chat", chatId],
+    queryFn: () => getChat(chatId),
   });
 
   const {
@@ -61,10 +61,10 @@ function ProjectChat() {
   } = useChatStream({ chatId });
 
   useEffect(() => {
-    if (conversation?.messages) {
-      setMessages(conversation.messages);
+    if (chat?.messages) {
+      setMessages(chat.messages);
     }
-  }, [conversation, setMessages]);
+  }, [chat, setMessages]);
 
   const filteredMessages = useMemo(() => {
     return messages;
@@ -92,11 +92,7 @@ function ProjectChat() {
     <div className="flex flex-col h-full bg-white relative">
       <header className="flex items-center justify-between px-6 py-4 border-b bg-white z-10 h-14 shrink-0">
         {project && (
-          <Breadcrumbs
-            project={project}
-            conversation={conversation}
-            showMenu={false}
-          />
+          <Breadcrumbs project={project} chat={chat} showMenu={false} />
         )}
         {project && <ProjectMenu project={project} />}
       </header>

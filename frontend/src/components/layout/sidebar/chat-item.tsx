@@ -1,30 +1,30 @@
 import { Link, useMatchRoute } from "@tanstack/react-router";
 import { MoreVertical, Star } from "lucide-react";
-import { ConversationMenu } from "@/components/ConversationMenu";
+import { ChatMenu } from "@/components/ChatMenu";
 import { Button } from "@/components/ui/button";
-import type { ConversationListResponse } from "@/lib/types";
+import type { ChatListResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-interface ConversationItemProps {
-  conversation: ConversationListResponse;
+interface ChatItemProps {
+  chat: ChatListResponse;
   openMenuId: string | null;
   setOpenMenuId: (id: string | null) => void;
   isCollapsed?: boolean;
 }
 
-export function ConversationItem({
-  conversation,
+export function ChatItem({
+  chat,
   openMenuId,
   setOpenMenuId,
   isCollapsed,
-}: ConversationItemProps) {
+}: ChatItemProps) {
   const matchRoute = useMatchRoute();
   const isActive = matchRoute({
     to: "/chat/$chatId",
-    params: { chatId: conversation.id },
+    params: { chatId: chat.id },
     fuzzy: false,
   });
-  const isMenuOpen = openMenuId === conversation.id;
+  const isMenuOpen = openMenuId === chat.id;
 
   if (isCollapsed) return null;
 
@@ -37,15 +37,15 @@ export function ConversationItem({
     >
       <Link
         to="/chat/$chatId"
-        params={{ chatId: conversation.id }}
+        params={{ chatId: chat.id }}
         search={{ q: undefined }}
         className="flex-1 basis-0 min-w-0 overflow-hidden p-1.5 rounded-md text-sm flex items-center gap-2"
       >
-        {conversation.is_favorite && (
+        {chat.is_favorite && (
           <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400 shrink-0" />
         )}
         <div className="font-medium truncate block w-full">
-          {conversation.title || "New Conversation"}
+          {chat.title || "New Chat"}
         </div>
       </Link>
 
@@ -57,8 +57,8 @@ export function ConversationItem({
           isActive ? "from-muted" : "from-gray-50 group-hover:from-[#f2f2f3]",
         )}
       >
-        <ConversationMenu
-          conversation={conversation}
+        <ChatMenu
+          chat={chat}
           trigger={
             <Button
               variant="ghost"
@@ -66,7 +66,7 @@ export function ConversationItem({
               className="h-8 w-8 shrink-0 hover:bg-muted/30 focus-visible:ring-0"
               onClick={(e) => {
                 e.stopPropagation();
-                setOpenMenuId(conversation.id);
+                setOpenMenuId(chat.id);
               }}
             >
               <MoreVertical className="h-4 w-4 text-muted-foreground" />

@@ -11,13 +11,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import {
-  deleteAllConversations,
-  exportConversations,
-} from "@/lib/api/conversations";
+import { deleteAllChats, exportChats } from "@/lib/api/chats";
 
-export function ConversationsTab() {
+export function ChatsTab() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [isExporting, setIsExporting] = useState(false);
@@ -26,19 +22,19 @@ export function ConversationsTab() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const data = await exportConversations();
+      const data = await exportChats();
       const blob = new Blob([JSON.stringify(data, null, 2)], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `conversations_export_${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `chats_export_${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success("Conversations exportées avec succès");
+      toast.success("Chats exportés avec succès");
     } catch (error) {
       toast.error("Erreur lors de l'exportation");
       console.error(error);
@@ -52,8 +48,8 @@ export function ConversationsTab() {
 
     setIsDeleting(true);
     try {
-      await deleteAllConversations();
-      toast.success("Toutes les conversations ont été supprimées");
+      await deleteAllChats();
+      toast.success("Tous les chats ont été supprimés");
       setDeleteDialogOpen(false);
       setConfirmText("");
       // Force refresh to update the sidebar and clear current chat
@@ -69,11 +65,9 @@ export function ConversationsTab() {
   return (
     <div className="mt-0 space-y-10">
       <div>
-        <h2 className="text-2xl font-bold mb-2 text-slate-900">
-          Conversations
-        </h2>
+        <h2 className="text-2xl font-bold mb-2 text-slate-900">Mes Chats</h2>
         <p className="text-sm text-muted-foreground mb-8">
-          Gérez vos données de conversation, exportez-les ou supprimez-les
+          Gérez vos sessions de chat IA, exportez-les ou supprimez-les
           définitivement.
         </p>
 
@@ -84,8 +78,8 @@ export function ConversationsTab() {
               Exporter les données
             </h3>
             <p className="text-sm text-slate-600 mb-4">
-              Téléchargez l'intégralité de vos conversations au format JSON pour
-              les sauvegarder ou les utiliser ailleurs.
+              Téléchargez l'intégralité de vos chats au format JSON pour les
+              sauvegarder ou les utiliser ailleurs.
             </p>
             <Button
               onClick={handleExport}
@@ -93,9 +87,7 @@ export function ConversationsTab() {
               className="gap-2"
             >
               <Download className="w-4 h-4" />
-              {isExporting
-                ? "Exportation..."
-                : "Exporter toutes les conversations"}
+              {isExporting ? "Exportation..." : "Exporter tous les chats"}
             </Button>
           </div>
 
@@ -105,15 +97,15 @@ export function ConversationsTab() {
               Zone de danger
             </h3>
             <p className="text-sm text-red-700/80 mb-4">
-              La suppression de toutes vos conversations est définitive et ne
-              peut pas être annulée.
+              La suppression de tous vos chats est définitive et ne peut pas
+              être annulée.
             </p>
 
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="destructive" className="gap-2">
                   <Trash2 className="w-4 h-4" />
-                  Supprimer toutes les conversations
+                  Supprimer tous les chats
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
@@ -124,8 +116,8 @@ export function ConversationsTab() {
                   </DialogTitle>
                   <DialogDescription className="pt-2 text-slate-600">
                     Cette action supprimera définitivement{" "}
-                    <span className="font-bold">TOUTES</span> vos conversations
-                    de la base de données locale. C'est irréversible.
+                    <span className="font-bold">TOUS</span> vos chats de la base
+                    de données locale. C'est irréveresible.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -137,11 +129,13 @@ export function ConversationsTab() {
                     </span>{" "}
                     pour confirmer :
                   </p>
-                  <Input
+                  <input
                     placeholder="TOUT SUPPRIMER"
                     value={confirmText}
-                    onChange={(e) => setConfirmText(e.target.value)}
-                    className="border-red-200 focus-visible:ring-red-500 font-mono uppercase"
+                    onChange={(e) =>
+                      setConfirmText(e.target.value.toUpperCase())
+                    }
+                    className="w-full h-10 px-3 bg-white border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
                   />
                 </div>
 

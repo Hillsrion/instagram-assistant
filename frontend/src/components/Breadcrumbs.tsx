@@ -11,17 +11,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { deleteProject } from "@/lib/api";
-import type { Conversation, Project } from "@/lib/types";
-import { ConversationMenu } from "./ConversationMenu";
+import type { Chat, ChatProject } from "@/lib/types";
+import { ChatMenu } from "./ChatMenu";
 import { ProjectSettingsModal } from "./ProjectModals";
 
 interface BreadcrumbsProps {
-  project?: Project;
-  conversation?: Conversation;
+  project?: ChatProject;
+  chat?: Chat;
   showMenu?: boolean;
 }
 
-export function ProjectMenu({ project }: { project: Project }) {
+export function ProjectMenu({ project }: { project: ChatProject }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -76,7 +76,7 @@ export function ProjectMenu({ project }: { project: Project }) {
 
 export function Breadcrumbs({
   project,
-  conversation,
+  chat,
   showMenu = true,
 }: BreadcrumbsProps) {
   if (!project) return null;
@@ -88,18 +88,18 @@ export function Breadcrumbs({
         {project.title}
       </div>
 
-      {conversation && (
+      {chat && (
         <>
           <span className="text-slate-300">/</span>
           <div className="flex items-center gap-2 group/conv">
             <span className="text-slate-900 font-medium truncate max-w-[200px]">
-              {conversation.title || "Sans titre"}
+              {chat.title || "Sans titre"}
             </span>
-            <ConversationMenu
-              conversation={{
-                id: conversation.id,
-                title: conversation.title,
-                is_favorite: !!conversation.is_favorite,
+            <ChatMenu
+              chat={{
+                id: chat.id,
+                title: chat.title,
+                is_favorite: !!chat.is_favorite,
               }}
               trigger={
                 <Button
