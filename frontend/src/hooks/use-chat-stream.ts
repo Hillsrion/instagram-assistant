@@ -72,6 +72,20 @@ export function useChatStream({ chatId, onFinish }: UseChatStreamProps) {
           onMessage: (data) => {
             if (data.type === "progress") {
               setStreamStatus(data.message);
+            } else if (data.type === "agent_step") {
+              setMessages((prev) => {
+                const last = prev[prev.length - 1];
+                if (last.role === "assistant") {
+                  const steps = last.agent_steps || [];
+                  // Append only if it's a new step or a different thought
+                  return [
+                    ...prev.slice(0, -1),
+                    { ...last, agent_steps: [...steps, data] },
+                  ];
+                }
+                return prev;
+              });
+              setStreamStatus(data.label);
             } else if (data.type === "chunk") {
               setMessages((prev) => {
                 const last = prev[prev.length - 1];

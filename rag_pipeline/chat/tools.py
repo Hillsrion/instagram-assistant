@@ -135,6 +135,18 @@ class ToolBox:
         "get_summaries_for_contact": "get_summaries_for_contact(contact: str, limit: int = 5): Récupère les résumés de haut niveau des dernières conversations avec ce contact.",
     }
 
+    # Human-readable labels for UI progression
+    TOOL_LABELS = {
+        "search_conversations": "Recherche dans vos discussions",
+        "get_contact_stats": "Analyse des statistiques",
+        "get_participants": "Consultation des contacts",
+        "get_todays_date": "Vérification de la date",
+        "explore_topic_timeline": "Analyse de la chronologie",
+        "get_thread_context": "Lecture du contexte",
+        "check_entity_presence": "Vérification des mentions",
+        "get_summaries_for_contact": "Lecture des résumés",
+    }
+
     def get_tools_description(self, allowed_tools: list = None) -> str:
         """Returns description of available tools for the agent prompt, optionally filtered."""
         descs = self.TOOL_DESCRIPTIONS

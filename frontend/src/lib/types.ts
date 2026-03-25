@@ -10,6 +10,13 @@ export interface FileAttachment {
   size?: number;
 }
 
+export interface AgentStep {
+  step: number;
+  agent_type: "thought" | "action" | "observation";
+  label: string;
+  tool?: string;
+}
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
@@ -18,6 +25,7 @@ export interface Message {
   sources?: Source[];
   summary_sources?: SummarySource[];
   followups?: string[];
+  agent_steps?: AgentStep[];
 }
 
 export interface Source {

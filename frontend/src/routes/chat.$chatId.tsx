@@ -4,6 +4,7 @@ import { ArrowRight, FileText } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AgentProgression } from "@/components/AgentProgression";
 import { ChatInput } from "@/components/ChatInput";
 import { ConversationMenu } from "@/components/ConversationMenu";
 import { SourcesModal } from "@/components/SourcesModal";
@@ -275,6 +276,17 @@ function ChatRoute() {
                   </div>
                 )}
 
+                {msg.role === "assistant" &&
+                  msg.agent_steps &&
+                  msg.agent_steps.length > 0 && (
+                    <AgentProgression
+                      steps={msg.agent_steps}
+                      isStreaming={
+                        isStreaming && i === filteredMessages.length - 1
+                      }
+                    />
+                  )}
+
                 {msg.content && (
                   <div
                     className={cn(
@@ -344,12 +356,13 @@ function ChatRoute() {
           ))}
 
           {/* Stream Status Indicator */}
-          {isStreaming && (
-            <div className="flex items-center gap-3 text-[13px] text-muted-foreground animate-pulse font-medium">
-              <TypingIndicator />
-              <span>{streamStatus}</span>
-            </div>
-          )}
+          {isStreaming &&
+            !filteredMessages[filteredMessages.length - 1]?.agent_steps && (
+              <div className="flex items-center gap-3 text-[13px] text-muted-foreground animate-pulse font-medium">
+                <TypingIndicator />
+                <span>{streamStatus}</span>
+              </div>
+            )}
 
           <div ref={scrollRef} />
         </div>
