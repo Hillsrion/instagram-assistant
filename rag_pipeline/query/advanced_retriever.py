@@ -108,6 +108,7 @@ class AdvancedRetriever:
         date_end: Optional[str] = None,
         year_filter: Optional[int] = None,
         conversation_filter: Optional[str] = None,
+        conversation_ids: Optional[List[str]] = None,
         # Options
         use_reranking: bool = True,
         use_hybrid: bool = True,
@@ -125,7 +126,8 @@ class AdvancedRetriever:
             about_person: Filter by person mentioned (broad: participant OR entity)
             date_start/date_end: Filter by period
             year_filter: Filter by year
-            conversation_filter: Filter by conversation
+            conversation_filter: Filter by conversation (string match)
+            conversation_ids: Filter by specific conversation IDs (exact match)
             use_reranking: Use cross-encoder
             use_hybrid: Combine dense + BM25
             expand_context: Add adjacent chunks
@@ -192,6 +194,12 @@ class AdvancedRetriever:
                     conversation_filter, allowed_indices
                 )
                 filters_applied['conversation'] = conversation_filter
+
+            if conversation_ids:
+                allowed_indices = self.metadata_store.filter_by_conversations(
+                    conversation_ids, allowed_indices
+                )
+                filters_applied['conversation_ids_count'] = len(conversation_ids)
 
             if allowed_indices is not None and len(allowed_indices) == 0:
                 return AdvancedRetrievalContext(

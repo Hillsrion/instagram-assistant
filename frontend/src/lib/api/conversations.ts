@@ -35,7 +35,11 @@ export async function deleteConversation(id: string): Promise<void> {
 
 export async function updateConversation(
   id: string,
-  data: { title?: string; is_favorite?: boolean },
+  data: {
+    title?: string;
+    is_favorite?: boolean;
+    project_id?: string | null;
+  },
 ): Promise<Conversation> {
   const res = await fetch(`${API_BASE}/conversations/${id}`, {
     method: "PATCH",

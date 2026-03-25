@@ -309,11 +309,31 @@ class MetadataStore:
         conversation_id: str,
         chunk_indices: Optional[Set[int]] = None
     ) -> Set[int]:
-        """Filter chunks by conversation."""
+        """Filter chunks by conversation (single ID or partial match)."""
         self._connect()
 
         query = "SELECT id FROM chunks WHERE conversation_id LIKE ?"
         cursor = self.conn.execute(query, (f"%{conversation_id}%",))
+        result = {row[0] for row in cursor.fetchall()}
+
+        if chunk_indices is not None:
+            return result.intersection(chunk_indices)
+        return result
+
+    def filter_by_conversations(
+        self,
+        conversation_ids: List[str],
+        chunk_indices: Optional[Set[int]] = None
+    ) -> Set[int]:
+        """Filter chunks by multiple conversation IDs (exact match)."""
+        if not conversation_ids:
+            return chunk_indices if chunk_indices is not None else set()
+            
+        self._connect()
+
+        placeholders = ','.join(['?'] * len(conversation_ids))
+        query = f"SELECT id FROM chunks WHERE conversation_id IN ({placeholders})"
+        cursor = self.conn.execute(query, conversation_ids)
         result = {row[0] for row in cursor.fetchall()}
 
         if chunk_indices is not None:

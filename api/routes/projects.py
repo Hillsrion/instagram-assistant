@@ -6,19 +6,20 @@ from typing import List
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
-
 from api.models import (
     Project,
     ProjectUpdate,
     ProjectListResponse,
-    ConversationListResponse
+    ConversationListResponse,
+    ProjectBulkUpdate
 )
 from api.storage import (
     load_projects,
     get_project,
     save_project,
     delete_project,
-    load_conversations
+    load_conversations,
+    save_conversations
 )
 
 router = APIRouter()
@@ -131,3 +132,34 @@ async def list_project_conversations(project_id: str):
         }
         for c in sorted_convs
     ]
+
+
+@router.post("/projects/{project_id}/conversations/bulk")
+async def bulk_update_project_conversations(project_id: str, data: ProjectBulkUpdate):
+    """Bulk add or remove conversations from a project."""
+    projects = load_projects()
+    if project_id != "none" and project_id not in projects:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    conversations = load_conversations()
+    updated_count = 0
+    
+    target_project_id = None if project_id == "none" else project_id
+
+    for conv_id in data.conversation_ids:
+        if conv_id in conversations:
+            if data.action == "add":
+                conversations[conv_id]["project_id"] = target_project_id
+                updated_count += 1
+            elif data.action == "remove":
+                if conversations[conv_id].get("project_id") == target_project_id:
+                    conversations[conv_id]["project_id"] = None
+                    updated_count += 1
+            elif data.action == "set":
+                conversations[conv_id]["project_id"] = target_project_id
+                updated_count += 1
+
+    if updated_count > 0:
+        save_conversations(conversations)
+
+    return {"status": "success", "updated_count": updated_count}

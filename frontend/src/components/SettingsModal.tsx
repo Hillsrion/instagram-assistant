@@ -6,6 +6,7 @@ import { AccountsTab } from "./settings/Tabs/AccountsTab";
 import { AgentTab } from "./settings/Tabs/AgentTab";
 import { ConversationsTab } from "./settings/Tabs/ConversationsTab";
 import { GeneralTab } from "./settings/Tabs/GeneralTab";
+import { GroupsTab } from "./settings/Tabs/GroupsTab";
 import { PreferencesTab } from "./settings/Tabs/PreferencesTab";
 
 interface SettingsModalProps {
@@ -65,6 +66,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
                   <TabsContent value="accounts">
                     <AccountsTab />
+                  </TabsContent>
+
+                  <TabsContent value="groups">
+                    <GroupsTab />
                   </TabsContent>
 
                   <TabsContent value="conversations">

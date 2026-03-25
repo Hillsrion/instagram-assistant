@@ -106,3 +106,38 @@ class TitleEvaluationRequest(BaseModel):
     """Request body for title evaluation."""
     message: str
     model: Optional[str] = None
+
+
+class ProjectBulkUpdate(BaseModel):
+    """Request body for bulk updating conversations in a project."""
+    conversation_ids: List[str]
+    action: str  # "add", "remove", or "set"
+
+
+class InstagramThread(BaseModel):
+    """Represents a source Instagram conversation (thread)."""
+    id: str  # The conversation_id from metadata.db
+    participants: List[str]
+    summary: str
+    message_count: int
+    date_range: str
+
+
+class SourceGroup(BaseModel):
+    """A user-defined group of source Instagram threads."""
+    id: str
+    title: str
+    thread_ids: List[str]
+    created_at: str
+    updated_at: str
+
+
+class SourceGroupUpdate(BaseModel):
+    """Request body for creating/updating source groups."""
+    title: str
+
+
+class SourceGroupBulkUpdate(BaseModel):
+    """Request body for bulk updating threads in a source group."""
+    thread_ids: List[str]
+    action: str  # "add", "remove"

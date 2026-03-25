@@ -23,6 +23,7 @@ from api.dependencies import (
     get_config
 )
 from api.routing import should_use_agent
+from api.storage_groups import load_source_groups
 from rag_pipeline.chat.personas import get_persona
 from rag_pipeline.core.logger import get_logger
 
@@ -287,19 +288,28 @@ async def generate_direct_response(request: ChatRequest, analysis) -> AsyncGener
     final_date_start = request.date_start or analysis.date_start
     final_date_end = request.date_end or analysis.date_end
 
+    # Handle group filter
+    conversation_ids = None
+    if request.group_filter:
+        groups = load_source_groups()
+        if request.group_filter in groups:
+            conversation_ids = groups[request.group_filter].get("thread_ids", [])
+            logger.info(f"Resolved group '{request.group_filter}' to {len(conversation_ids)} threads")
+
     context = await run_sync(
         retriever.retrieve,
         search_query,
         p_filter,
         a_person,
-        request.group_filter,
+        None, # original group_filter param is unused now, we use conversation_ids
         request.year_filter,
         final_date_start,
         final_date_end,
         dyn_top_k,
         dyn_reranking,
         request.use_hybrid,
-        dyn_expand
+        dyn_expand,
+        conversation_ids=conversation_ids
     )
 
     # Smart Fallback: If rewritten query yields poor results, try original query
@@ -510,19 +520,27 @@ async def chat(request: ChatRequest):
     final_date_start = request.date_start or analysis.date_start
     final_date_end = request.date_end or analysis.date_end
 
+    # Handle group filter
+    conversation_ids = None
+    if request.group_filter:
+        groups = load_source_groups()
+        if request.group_filter in groups:
+            conversation_ids = groups[request.group_filter].get("thread_ids", [])
+
     context = await run_sync(
         retriever.retrieve,
         search_query,
         request.participant_filter,
         request.about_person,
-        request.group_filter,
+        None,
         request.year_filter,
         final_date_start,
         final_date_end,
         dyn_top_k,
         dyn_reranking,
         request.use_hybrid,
-        dyn_expand
+        dyn_expand,
+        conversation_ids=conversation_ids
     )
 
     # Smart Fallback

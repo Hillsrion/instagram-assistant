@@ -12,6 +12,7 @@ from .projects import router as projects_router
 from .settings import router as settings_router
 from .files import router as files_router
 from .agents import router as agents_router
+from .instagram_groups import router as instagram_groups_router
 
 
 def register_routes(app):
@@ -25,3 +26,4 @@ def register_routes(app):
     app.include_router(settings_router, prefix="/api", tags=["settings"])
     app.include_router(files_router, prefix="/api", tags=["files"])
     app.include_router(agents_router, prefix="/api", tags=["agents"])
+    app.include_router(instagram_groups_router, prefix="/api", tags=["instagram"])

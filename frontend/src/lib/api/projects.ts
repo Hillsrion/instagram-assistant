@@ -54,3 +54,20 @@ export async function getProjectConversations(
   if (!res.ok) throw new Error("Failed to fetch project conversations");
   return res.json();
 }
+
+export async function bulkUpdateProjectConversations(
+  projectId: string,
+  conversationIds: string[],
+  action: "add" | "remove" | "set",
+): Promise<{ status: string; updated_count: number }> {
+  const res = await fetch(
+    `${API_BASE}/projects/${projectId}/conversations/bulk`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversation_ids: conversationIds, action }),
+    },
+  );
+  if (!res.ok) throw new Error("Failed to bulk update conversations");
+  return res.json();
+}

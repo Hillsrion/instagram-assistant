@@ -1,5 +1,6 @@
 import {
   Database,
+  FolderOpen,
   MessageSquare,
   Palette,
   Settings as SettingsIcon,
@@ -36,6 +37,13 @@ export function SettingsSidebar() {
       >
         <Users className="w-4 h-4" />
         <span className="font-medium">Gestion des comptes</span>
+      </TabsTrigger>
+      <TabsTrigger
+        value="groups"
+        className="justify-start gap-3 px-4 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all rounded-lg"
+      >
+        <FolderOpen className="w-4 h-4" />
+        <span className="font-medium">Groupes</span>
       </TabsTrigger>
       <TabsTrigger
         value="conversations"
