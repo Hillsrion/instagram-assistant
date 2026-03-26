@@ -129,7 +129,7 @@ export function ChatInput({
           <div className="flex items-center">
             {isStreaming ? (
               <Button
-                variant="destructive"
+                variant="default"
                 size="icon"
                 onClick={stopStream}
                 className="h-8 w-8 rounded-full"

@@ -7,10 +7,11 @@ import {
   ChevronDown,
   MessageCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getChunkContent } from "@/lib/api";
+import { useSettingsStore } from "@/lib/settings-store";
 import type { Source, SummarySource } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +29,24 @@ export function SourcesModal({
   onOpenChange,
 }: SourcesModalProps) {
   const [expandedChunks, setExpandedChunks] = useState<Set<string>>(new Set());
-  console.log(sources);
+  const { settings } = useSettingsStore();
+
+  const formatParticipants = useCallback(
+    (participants: string[]) => {
+      return participants
+        .filter((p: string) => {
+          const lowerP = p.toLowerCase();
+          const lowerOwn = settings.ownUsername.toLowerCase();
+          return (
+            lowerP !== "me" &&
+            lowerP !== "user" &&
+            (!lowerOwn || lowerP !== lowerOwn)
+          );
+        })
+        .join(", ");
+    },
+    [settings.ownUsername],
+  );
 
   // Fetch all chunk content in parallel
   const chunkQueries = useQueries({
@@ -72,7 +90,7 @@ export function SourcesModal({
             {hasConversationSources && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-blue-600" />
+                  <MessageCircle className="h-5 w-5 text-primary" />
                   <h3 className="text-sm font-semibold text-foreground">
                     Extraits de conversations
                   </h3>
@@ -107,7 +125,7 @@ export function SourcesModal({
                             />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-medium px-2 py-1 rounded bg-blue-100 text-blue-700">
+                                <span className="text-xs font-medium px-2 py-1 rounded bg-primary/10 text-primary">
                                   conversation
                                 </span>
                                 <span className="text-xs text-muted-foreground">
@@ -115,9 +133,10 @@ export function SourcesModal({
                                 </span>
                               </div>
                               <div className="text-xs text-muted-foreground mb-2">
-                                {source.participants.join(", ")} •{" "}
+                                {formatParticipants(source.participants)} •{" "}
                                 {source.date_start}
                               </div>
+
                               <p className="text-sm text-foreground line-clamp-2">
                                 {source.preview}
                               </p>
@@ -184,7 +203,7 @@ export function SourcesModal({
             {hasSummarySources && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-amber-600" />
+                  <BarChart3 className="h-5 w-5 text-secondary" />
                   <h3 className="text-sm font-semibold text-foreground">
                     Résumés
                   </h3>
@@ -197,22 +216,24 @@ export function SourcesModal({
                   {summarySources.map((summary) => (
                     <div
                       key={summary.summary_id}
-                      className="border border-amber-200 bg-amber-50 rounded-lg p-3 hover:border-amber-300 transition-colors"
+                      className="border border-secondary/20 bg-secondary/5 rounded-lg p-3 hover:border-secondary/30 transition-colors"
                     >
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium px-2 py-1 rounded bg-amber-100 text-amber-700">
+                            <span className="text-xs font-medium px-2 py-1 rounded bg-secondary/10 text-secondary">
                               résumé
                             </span>
-                            <span className="text-xs text-amber-700">
+                            <span className="text-xs text-secondary/80">
                               Score: {summary.score.toFixed(2)}
                             </span>
                           </div>
-                          <div className="text-xs text-amber-700 mb-2">
-                            {summary.participants.join(", ")} • {summary.period}
+                          <div className="text-xs text-secondary/70 mb-2">
+                            {formatParticipants(summary.participants)} •{" "}
+                            {summary.period}
                           </div>
-                          <p className="text-sm text-amber-900">
+
+                          <p className="text-sm text-foreground">
                             {summary.preview}
                           </p>
                         </div>

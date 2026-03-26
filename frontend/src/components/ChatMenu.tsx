@@ -81,7 +81,7 @@ export function ChatMenu({ chat, align = "end", trigger }: ChatMenuProps) {
           </DropdownMenuItem>
 
           <DropdownMenuItem
-            className="focus:bg-destructive/10 text-destructive focus:text-destructive gap-2 cursor-pointer transition-colors"
+            className="focus:bg-secondary/10 text-foreground focus:text-foreground gap-2 cursor-pointer transition-colors"
             onClick={() => {
               setNewTitle(chat.title || "");
               setIsRenameOpen(true);

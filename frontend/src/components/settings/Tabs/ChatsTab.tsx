@@ -92,11 +92,11 @@ export function ChatsTab() {
           </div>
 
           {/* Danger Zone Section */}
-          <div className="bg-red-50/50 border border-red-100 rounded-2xl p-6">
-            <h3 className="text-lg font-semibold text-red-900 mb-2 font-display">
+          <div className="bg-destructive/5 border border-destructive/10 rounded-2xl p-6">
+            <h3 className="text-lg font-semibold text-destructive mb-2 font-display">
               Zone de danger
             </h3>
-            <p className="text-sm text-red-700/80 mb-4">
+            <p className="text-sm text-destructive/80 mb-4">
               La suppression de tous vos chats est définitive et ne peut pas
               être annulée.
             </p>
@@ -135,7 +135,7 @@ export function ChatsTab() {
                     onChange={(e) =>
                       setConfirmText(e.target.value.toUpperCase())
                     }
-                    className="w-full h-10 px-3 bg-white border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
+                    className="w-full h-10 px-3 bg-white border border-destructive/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-destructive/50 font-mono"
                   />
                 </div>
 
@@ -154,7 +154,6 @@ export function ChatsTab() {
                     variant="destructive"
                     onClick={handleDeleteAll}
                     disabled={confirmText !== "TOUT SUPPRIMER" || isDeleting}
-                    className="bg-red-600 hover:bg-red-700"
                   >
                     {isDeleting ? "Suppression..." : "Tout supprimer"}
                   </Button>
