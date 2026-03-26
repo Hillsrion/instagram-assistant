@@ -2,10 +2,8 @@ import {
   Database,
   FolderOpen,
   MessageSquare,
-  Palette,
   Settings as SettingsIcon,
   Shield,
-  Users,
 } from "lucide-react";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -32,18 +30,11 @@ export function SettingsSidebar() {
         <span className="font-medium">Contrôle de l'agent</span>
       </TabsTrigger>
       <TabsTrigger
-        value="accounts"
-        className="justify-start gap-3 px-4 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all rounded-lg"
-      >
-        <Users className="w-4 h-4" />
-        <span className="font-medium">Gestion des comptes</span>
-      </TabsTrigger>
-      <TabsTrigger
         value="groups"
         className="justify-start gap-3 px-4 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all rounded-lg"
       >
         <FolderOpen className="w-4 h-4" />
-        <span className="font-medium">Sources Instagram</span>
+        <span className="font-medium">Groupes</span>
       </TabsTrigger>
       <TabsTrigger
         value="chats"
@@ -51,13 +42,6 @@ export function SettingsSidebar() {
       >
         <Database className="w-4 h-4" />
         <span className="font-medium">Mes Chats</span>
-      </TabsTrigger>
-      <TabsTrigger
-        value="preferences"
-        className="justify-start gap-3 px-4 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all rounded-lg"
-      >
-        <Palette className="w-4 h-4" />
-        <span className="font-medium">Préférences</span>
       </TabsTrigger>
     </TabsList>
   );

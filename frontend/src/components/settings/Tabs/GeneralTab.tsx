@@ -20,6 +20,19 @@ export function GeneralTab({ settings, onSave, loading }: GeneralTabProps) {
       type: "text",
     },
     {
+      name: "interfaceTheme",
+      label: "Thème de l'interface",
+      description:
+        "Ajustez l'apparence visuelle pour une expérience personnalisée.",
+      type: "select",
+      options: [
+        { label: "Clair", value: "Clair" },
+        { label: "Sombre", value: "Sombre" },
+        { label: "Système", value: "Système" },
+      ],
+      placeholder: "Choisir un thème",
+    },
+    {
       name: "developerMode",
       label: "Mode développeur",
       description:
@@ -35,7 +48,8 @@ export function GeneralTab({ settings, onSave, loading }: GeneralTabProps) {
           Options basiques
         </h2>
         <p className="text-sm text-muted-foreground mb-8">
-          Configurez les paramètres globaux de l'application.
+          Configurez les paramètres globaux de l'application et vos préférences
+          d'affichage.
         </p>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">

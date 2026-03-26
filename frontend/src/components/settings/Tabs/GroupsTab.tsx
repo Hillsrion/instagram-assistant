@@ -103,10 +103,10 @@ export function GroupsTab() {
         thread_ids: [threadId],
         action: "remove",
       });
-      toast.success("Thread retiré du groupe");
+      toast.success("Conversation retirée du groupe");
       fetchData();
     } catch {
-      toast.error("Erreur lors du retrait du thread");
+      toast.error("Erreur lors du retrait de la conversation");
     }
   };
 
@@ -116,12 +116,12 @@ export function GroupsTab() {
         thread_ids: threadIds,
         action: "add",
       });
-      toast.success("Threads ajoutés au groupe");
+      toast.success("Conversations ajoutées au groupe");
       setIsAddThreadModalOpen(false);
       setThreadSearchQuery("");
       fetchData();
     } catch {
-      toast.error("Erreur lors de l'ajout des threads");
+      toast.error("Erreur lors de l'ajout des conversations");
     }
   };
 
@@ -144,10 +144,10 @@ export function GroupsTab() {
       <div className="flex items-center justify-between mb-2">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 leading-none">
-            Groupes source
+            Groupes
           </h2>
           <p className="text-sm text-muted-foreground mt-2">
-            Organisez vos threads Instagram par thématiques.
+            Organisez vos conversations Instagram par thématiques.
           </p>
         </div>
         <Button
@@ -185,7 +185,7 @@ export function GroupsTab() {
               <FolderOpen className="w-12 h-12 text-slate-300 mx-auto mb-4" />
               <p className="text-slate-500 font-medium">Aucun groupe trouvé</p>
               <p className="text-slate-400 text-sm mt-1">
-                Créez votre premier groupe pour organiser vos sources.
+                Créez votre premier groupe pour organiser vos conversations.
               </p>
             </div>
           ) : (
@@ -206,7 +206,7 @@ export function GroupsTab() {
                           {group.title}
                         </h3>
                         <p className="text-xs text-slate-400 font-medium">
-                          {group.thread_ids.length} thread
+                          {group.thread_ids.length} conversation
                           {group.thread_ids.length > 1 ? "s" : ""}
                         </p>
                       </div>
@@ -279,7 +279,7 @@ export function GroupsTab() {
                       </div>
                     ) : (
                       <div className="py-8 text-center text-xs text-slate-400 font-medium italic">
-                        Aucun thread dans ce groupe
+                        Aucune conversation dans ce groupe
                       </div>
                     )}
                   </div>
@@ -298,7 +298,7 @@ export function GroupsTab() {
               Nouveau groupe
             </DialogTitle>
             <DialogDescription className="text-slate-500">
-              Donnez un nom à votre nouveau groupe de sources.
+              Donnez un nom à votre nouveau groupe.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -338,7 +338,7 @@ export function GroupsTab() {
         <DialogContent className="sm:max-w-[500px] h-[600px] flex flex-col rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
           <DialogHeader className="p-6 pb-4 border-b">
             <DialogTitle className="text-xl font-bold">
-              Ajouter des threads
+              Ajouter des conversations
             </DialogTitle>
             <DialogDescription className="text-slate-500">
               Sélectionnez les conversations Instagram à ajouter au groupe.
@@ -400,7 +400,7 @@ export function GroupsTab() {
               {unassignedThreads.length === 0 && (
                 <div className="py-20 text-center">
                   <p className="text-slate-400 text-sm font-medium">
-                    Tous les threads sont déjà groupés.
+                    Toutes les conversations sont déjà groupées.
                   </p>
                 </div>
               )}

@@ -2,12 +2,10 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useSettingsModal } from "./settings/hooks/useSettingsModal";
 import { SettingsSidebar } from "./settings/SettingsSidebar";
-import { AccountsTab } from "./settings/Tabs/AccountsTab";
 import { AgentTab } from "./settings/Tabs/AgentTab";
 import { ChatsTab } from "./settings/Tabs/ChatsTab";
 import { GeneralTab } from "./settings/Tabs/GeneralTab";
 import { GroupsTab } from "./settings/Tabs/GroupsTab";
-import { PreferencesTab } from "./settings/Tabs/PreferencesTab";
 
 interface SettingsModalProps {
   open: boolean;
@@ -64,24 +62,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     />
                   </TabsContent>
 
-                  <TabsContent value="accounts">
-                    <AccountsTab />
-                  </TabsContent>
-
                   <TabsContent value="groups">
                     <GroupsTab />
                   </TabsContent>
 
                   <TabsContent value="chats">
                     <ChatsTab />
-                  </TabsContent>
-
-                  <TabsContent value="preferences">
-                    <PreferencesTab
-                      settings={settings}
-                      onSave={handleSave}
-                      loading={loading}
-                    />
                   </TabsContent>
                 </>
               )}

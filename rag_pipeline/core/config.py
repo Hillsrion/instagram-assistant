@@ -146,13 +146,29 @@ class Config:
     developer_mode: bool = False
     
     def load_settings(self):
-        """Loads settings from settings.json if it exists."""
-        settings_path = self.index_dir / "settings.json"
-        if settings_path.exists():
+        """Loads settings from SQLite database if it exists (fallback to settings.json)."""
+        db_path = self.index_dir / "sira.db"
+        
+        # 1. Try to load from SQLite
+        if db_path.exists():
             try:
+                import sqlite3
                 import json
-                with open(settings_path, 'r') as f:
-                    settings = json.load(f)
+                conn = sqlite3.connect(str(db_path))
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("SELECT key, value FROM settings")
+                rows = cursor.fetchall()
+                conn.close()
+                
+                if rows:
+                    settings = {}
+                    for row in rows:
+                        try:
+                            settings[row['key']] = json.loads(row['value'])
+                        except (json.JSONDecodeError, TypeError):
+                            settings[row['key']] = row['value']
+                    
                     self.agent_tone = settings.get("agentTone", "Professionnel")
                     self.global_instructions = settings.get("globalInstructions", "")
                     self.developer_mode = settings.get("developerMode", False)
@@ -160,38 +176,53 @@ class Config:
                     own_username = settings.get("ownUsername")
                     if own_username:
                         self.user_name = own_username
+                    
                     print(
-                        f"⚙️ Settings loaded: tone={self.agent_tone}, user={self.user_name}, instructions={len(self.global_instructions)} chars"
+                        f"⚙️ Settings loaded from DB: tone={self.agent_tone}, user={self.user_name}"
                     )
+                    return # Exit if successful
 
             except Exception as e:
-                print(f"⚠️ Failed to load settings: {e}")
+                print(f"⚠️ Failed to load settings from DB: {e}")
 
-    def save_settings(self, settings_dict: dict):
-        """Saves settings to settings.json."""
+        # 2. Fallback to settings.json if it exists (for compatibility during transition)
         settings_path = self.index_dir / "settings.json"
-        
-        # Load existing settings first to preserve other fields
-        current_settings = {}
         if settings_path.exists():
             try:
                 import json
                 with open(settings_path, 'r', encoding='utf-8') as f:
-                    current_settings = json.load(f)
+                    settings = json.load(f)
+                    self.agent_tone = settings.get("agentTone", "Professionnel")
+                    self.global_instructions = settings.get("globalInstructions", "")
+                    self.developer_mode = settings.get("developerMode", False)
+                    own_username = settings.get("ownUsername")
+                    if own_username:
+                        self.user_name = own_username
+                    print(f"⚙️ Settings loaded from JSON (legacy): {self.user_name}")
             except Exception:
                 pass
-        
-        # Update with new values
-        current_settings.update(settings_dict)
-        
-        # Save back to file
+
+    def save_settings(self, settings_dict: dict):
+        """Saves settings to sira.db."""
+        db_path = self.index_dir / "sira.db"
         try:
+            import sqlite3
             import json
-            with open(settings_path, 'w', encoding='utf-8') as f:
-                json.dump(current_settings, f, ensure_ascii=False, indent=2)
-            print(f"✅ Settings saved to {settings_path}")
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+            
+            # Ensure table exists
+            cursor.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+            
+            for k, v in settings_dict.items():
+                cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (k, json.dumps(v)))
+            
+            conn.commit()
+            conn.close()
+            print(f"✅ Settings saved to DB ({list(settings_dict.keys())})")
+            
         except Exception as e:
-            print(f"⚠️ Failed to save settings: {e}")
+            print(f"⚠️ Failed to save settings to DB: {e}")
 
     def __post_init__(self):
         """Initializes derived paths and validates configuration."""

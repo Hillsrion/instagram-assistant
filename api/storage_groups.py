@@ -1,21 +1,22 @@
+"""
+SQLite storage for Instagram source groups.
+"""
 import json
-import os
+import sqlite3
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
-
-# The groups are stored in the RAG data directory
-GROUPS_FILE = Path("rag_data/instagram_groups.json")
-
-def _ensure_dir():
-    """Ensure the rag_data directory exists."""
-    os.makedirs(GROUPS_FILE.parent, exist_ok=True)
+from api.database import get_db
 
 def load_source_groups() -> Dict[str, Any]:
-    """Load all source groups from JSON."""
-    if not GROUPS_FILE.exists():
-        # Create default groups
-        _ensure_dir()
+    """Load all source groups from database."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM source_groups")
+    rows = cursor.fetchall()
+    
+    if not rows:
+        # Create default groups if none exist
         defaults = {
             "famille": {
                 "id": "famille",
@@ -39,40 +40,79 @@ def load_source_groups() -> Dict[str, Any]:
                 "updated_at": datetime.now().isoformat()
             }
         }
-        save_source_groups(defaults)
+        for g in defaults.values():
+            cursor.execute("""
+                INSERT INTO source_groups (id, title, thread_ids, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (g['id'], g['title'], json.dumps(g['thread_ids']), g['created_at'], g['updated_at']))
+        conn.commit()
+        conn.close()
         return defaults
-    try:
-        with open(GROUPS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading source groups: {e}")
-        return {}
+
+    groups = {}
+    for row in rows:
+        groups[row['id']] = {
+            "id": row['id'],
+            "title": row['title'],
+            "thread_ids": json.loads(row['thread_ids']) if row['thread_ids'] else [],
+            "created_at": row['created_at'],
+            "updated_at": row['updated_at']
+        }
+    conn.close()
+    return groups
 
 def save_source_groups(groups: Dict[str, Any]):
-    """Save all source groups to JSON."""
-    _ensure_dir()
-    try:
-        with open(GROUPS_FILE, "w", encoding="utf-8") as f:
-            json.dump(groups, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        print(f"Error saving source groups: {e}")
+    """Save all source groups to database (bulk)."""
+    conn = get_db()
+    cursor = conn.cursor()
+    for gid, g in groups.items():
+        cursor.execute("""
+            INSERT OR REPLACE INTO source_groups (id, title, thread_ids, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, (g['id'], g['title'], json.dumps(g.get('thread_ids', [])), g.get('created_at', ''), g.get('updated_at', '')))
+    conn.commit()
+    conn.close()
 
 def get_source_group(group_id: str) -> Optional[Dict[str, Any]]:
-    """Get a specific source group."""
-    groups = load_source_groups()
-    return groups.get(group_id)
+    """Get a specific source group from database."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM source_groups WHERE id = ?", (group_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        return None
+        
+    return {
+        "id": row['id'],
+        "title": row['title'],
+        "thread_ids": json.loads(row['thread_ids']) if row['thread_ids'] else [],
+        "created_at": row['created_at'],
+        "updated_at": row['updated_at']
+    }
 
 def save_source_group(group: Dict[str, Any]):
-    """Save or update a single source group."""
-    groups = load_source_groups()
-    groups[group["id"]] = group
-    save_source_groups(groups)
+    """Save or update a single source group in database."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT OR REPLACE INTO source_groups (id, title, thread_ids, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        group.get('id'), group.get('title'),
+        json.dumps(group.get('thread_ids', [])),
+        group.get('created_at'), group.get('updated_at')
+    ))
+    conn.commit()
+    conn.close()
 
 def delete_source_group(group_id: str) -> bool:
-    """Delete a source group."""
-    groups = load_source_groups()
-    if group_id in groups:
-        del groups[group_id]
-        save_source_groups(groups)
-        return True
-    return False
+    """Delete a source group from database."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM source_groups WHERE id = ?", (group_id,))
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
