@@ -156,7 +156,14 @@ class Config:
                     self.agent_tone = settings.get("agentTone", "Professionnel")
                     self.global_instructions = settings.get("globalInstructions", "")
                     self.developer_mode = settings.get("developerMode", False)
-                    print(f"⚙️ Settings loaded: tone={self.agent_tone}, instructions={len(self.global_instructions)} chars")
+                    # Override default user name if provided in settings
+                    own_username = settings.get("ownUsername")
+                    if own_username:
+                        self.user_name = own_username
+                    print(
+                        f"⚙️ Settings loaded: tone={self.agent_tone}, user={self.user_name}, instructions={len(self.global_instructions)} chars"
+                    )
+
             except Exception as e:
                 print(f"⚠️ Failed to load settings: {e}")
 

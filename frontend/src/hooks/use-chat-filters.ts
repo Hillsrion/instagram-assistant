@@ -26,10 +26,6 @@ export function useChatFilters(options: UseChatFiltersOptions = {}) {
     refetchOnWindowFocus: false,
   });
 
-  const participantNames = useMemo(() => {
-    return participantsData?.map((p) => p.name) || [];
-  }, [participantsData]);
-
   const { settings, fetchSettings } = useSettingsStore();
   const developerMode = settings.developerMode;
 
@@ -37,6 +33,19 @@ export function useChatFilters(options: UseChatFiltersOptions = {}) {
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  const participantNames = useMemo(() => {
+    const names = participantsData?.map((p) => p.name) || [];
+    return names.filter((p) => {
+      const lowerP = p.toLowerCase();
+      const lowerOwn = settings.ownUsername.toLowerCase();
+      return (
+        lowerP !== "me" &&
+        lowerP !== "user" &&
+        (!lowerOwn || lowerP !== lowerOwn)
+      );
+    });
+  }, [participantsData, settings.ownUsername]);
 
   // Filters State
   const [filterParticipant, setFilterParticipant] = useState<string>(

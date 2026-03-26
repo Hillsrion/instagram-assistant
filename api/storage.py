@@ -11,15 +11,20 @@ SETTINGS_FILE = Path("rag_data/settings.json")
 
 def load_settings() -> dict:
     """Load settings from file."""
-    if SETTINGS_FILE.exists():
-        with open(SETTINGS_FILE, 'r') as f:
-            return json.load(f)
-    return {
+    defaults = {
         "developerMode": False,
         "agentTone": "Professionnel",
         "globalInstructions": "",
         "interfaceTheme": "Système",
+        "ownUsername": "",
     }
+    if SETTINGS_FILE.exists():
+        with open(SETTINGS_FILE, "r") as f:
+            data = json.load(f)
+            return {**defaults, **data}
+    return defaults
+
+
 
 
 def save_settings(settings: dict) -> None:

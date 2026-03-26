@@ -12,6 +12,8 @@ class SettingsModel(BaseModel):
     agentTone: Literal["Professionnel", "Amical", "Concise"]
     globalInstructions: str
     interfaceTheme: Literal["Clair", "Sombre", "Système"]
+    ownUsername: str
+
 
 @router.get("")
 async def get_settings():

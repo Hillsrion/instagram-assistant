@@ -28,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { instagramApi } from "@/lib/api/instagram";
+import { useSettingsStore } from "@/lib/settings-store";
 import type { InstagramConversation, SourceGroup } from "@/lib/types";
 
 export function GroupsTab() {
@@ -42,6 +43,24 @@ export function GroupsTab() {
   const [isAddThreadModalOpen, setIsAddThreadModalOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [threadSearchQuery, setThreadSearchQuery] = useState("");
+  const { settings } = useSettingsStore();
+
+  const formatParticipants = useCallback(
+    (participants: string[]) => {
+      return participants
+        .filter((p: string) => {
+          const lowerP = p.toLowerCase();
+          const lowerOwn = settings.ownUsername.toLowerCase();
+          return (
+            lowerP !== "me" &&
+            lowerP !== "user" &&
+            (!lowerOwn || lowerP !== lowerOwn)
+          );
+        })
+        .join(", ");
+    },
+    [settings.ownUsername],
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -253,13 +272,7 @@ export function GroupsTab() {
                           >
                             <Users className="w-3.5 h-3.5 text-slate-400" />
                             <span className="max-w-[150px] truncate font-medium">
-                              {thread.participants
-                                .filter(
-                                  (p: string) =>
-                                    p.toLowerCase() !== "me" &&
-                                    p.toLowerCase() !== "user",
-                                )
-                                .join(", ")}
+                              {formatParticipants(thread.participants)}
                             </span>
                             <button
                               type="button"
@@ -377,13 +390,7 @@ export function GroupsTab() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-800 truncate">
-                          {thread.participants
-                            .filter(
-                              (p: string) =>
-                                p.toLowerCase() !== "me" &&
-                                p.toLowerCase() !== "user",
-                            )
-                            .join(", ")}
+                          {formatParticipants(thread.participants)}
                         </p>
                         <p className="text-[10px] text-slate-400 truncate max-w-[250px]">
                           {thread.summary}

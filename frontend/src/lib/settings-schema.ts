@@ -5,6 +5,7 @@ export const SettingsSchema = v.object({
   agentTone: v.picklist(["Professionnel", "Amical", "Concise"]),
   globalInstructions: v.pipe(v.string(), v.maxLength(1000)),
   interfaceTheme: v.picklist(["Clair", "Sombre", "Système"]),
+  ownUsername: v.string(),
 });
 
 export type Settings = v.InferOutput<typeof SettingsSchema>;
@@ -14,4 +15,5 @@ export const defaultSettings: Settings = {
   agentTone: "Professionnel",
   globalInstructions: "",
   interfaceTheme: "Système",
+  ownUsername: "",
 };

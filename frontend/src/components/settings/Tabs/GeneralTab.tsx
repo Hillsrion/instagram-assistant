@@ -13,6 +13,13 @@ interface GeneralTabProps {
 export function GeneralTab({ settings, onSave, loading }: GeneralTabProps) {
   const generalFields: FieldDefinition[] = [
     {
+      name: "ownUsername",
+      label: "Votre nom d'utilisateur",
+      description:
+        "Votre nom d'utilisateur Instagram. Il sera utilisé pour masquer votre nom dans les listes de participants.",
+      type: "text",
+    },
+    {
       name: "developerMode",
       label: "Mode développeur",
       description:
