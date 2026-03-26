@@ -167,6 +167,32 @@ class Config:
             except Exception as e:
                 print(f"⚠️ Failed to load settings: {e}")
 
+    def save_settings(self, settings_dict: dict):
+        """Saves settings to settings.json."""
+        settings_path = self.index_dir / "settings.json"
+        
+        # Load existing settings first to preserve other fields
+        current_settings = {}
+        if settings_path.exists():
+            try:
+                import json
+                with open(settings_path, 'r', encoding='utf-8') as f:
+                    current_settings = json.load(f)
+            except Exception:
+                pass
+        
+        # Update with new values
+        current_settings.update(settings_dict)
+        
+        # Save back to file
+        try:
+            import json
+            with open(settings_path, 'w', encoding='utf-8') as f:
+                json.dump(current_settings, f, ensure_ascii=False, indent=2)
+            print(f"✅ Settings saved to {settings_path}")
+        except Exception as e:
+            print(f"⚠️ Failed to save settings: {e}")
+
     def __post_init__(self):
         """Initializes derived paths and validates configuration."""
         # Convert base_dir to Path if string

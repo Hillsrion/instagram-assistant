@@ -42,6 +42,31 @@ def run(config: Config, reset: bool = False, limit: int = None, import_test: boo
         chunker.save_chunks(chunks)
         print(f"{len(chunks)} chunks created and saved")
 
+    # Username Discovery
+    try:
+        from rag_pipeline.indexing.username_discoverer import discover_usernames
+        discovered = discover_usernames(config)
+        if discovered:
+            print(f"💡 Discovered likely owner usernames: {', '.join(discovered)}")
+            
+            # Update settings if currently empty or if we want to suggest it
+            current_names = [n.strip().lower() for n in config.user_name.split(",") if n.strip()]
+            new_names = []
+            for d in discovered:
+                if d.lower() not in current_names:
+                    new_names.append(d)
+            
+            if new_names:
+                all_names = (config.user_name + ", " + ", ".join(new_names)) if config.user_name else ", ".join(new_names)
+                all_names = ", ".join(filter(None, [n.strip() for n in all_names.split(",")]))
+                
+                print(f"📝 Updating settings with newly discovered names: {', '.join(new_names)}")
+                config.save_settings({"ownUsername": all_names})
+                # Reload config value
+                config.user_name = all_names
+    except Exception as e:
+        print(f"⚠️ Username discovery skipped: {e}")
+
     print()
     return True
 
