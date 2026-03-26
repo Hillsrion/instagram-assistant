@@ -30,6 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { instagramApi } from "@/lib/api/instagram";
 import { useSettingsStore } from "@/lib/settings-store";
 import type { InstagramConversation, SourceGroup } from "@/lib/types";
+import { filterParticipants } from "@/lib/utils";
 
 export function GroupsTab() {
   const [groups, setGroups] = useState<SourceGroup[]>([]);
@@ -47,17 +48,7 @@ export function GroupsTab() {
 
   const formatParticipants = useCallback(
     (participants: string[]) => {
-      return participants
-        .filter((p: string) => {
-          const lowerP = p.toLowerCase();
-          const lowerOwn = settings.ownUsername.toLowerCase();
-          return (
-            lowerP !== "me" &&
-            lowerP !== "user" &&
-            (!lowerOwn || lowerP !== lowerOwn)
-          );
-        })
-        .join(", ");
+      return filterParticipants(participants, settings.ownUsername).join(", ");
     },
     [settings.ownUsername],
   );

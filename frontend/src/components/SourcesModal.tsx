@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { getChunkContent } from "@/lib/api";
 import { useSettingsStore } from "@/lib/settings-store";
 import type { Source, SummarySource } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, filterParticipants } from "@/lib/utils";
 
 interface SourcesModalProps {
   sources: Source[];
@@ -33,17 +33,7 @@ export function SourcesModal({
 
   const formatParticipants = useCallback(
     (participants: string[]) => {
-      return participants
-        .filter((p: string) => {
-          const lowerP = p.toLowerCase();
-          const lowerOwn = settings.ownUsername.toLowerCase();
-          return (
-            lowerP !== "me" &&
-            lowerP !== "user" &&
-            (!lowerOwn || lowerP !== lowerOwn)
-          );
-        })
-        .join(", ");
+      return filterParticipants(participants, settings.ownUsername).join(", ");
     },
     [settings.ownUsername],
   );

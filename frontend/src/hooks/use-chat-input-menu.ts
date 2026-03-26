@@ -4,6 +4,7 @@ import { getAgents } from "@/lib/api/agents";
 import { getProjects } from "@/lib/api/chat-projects";
 import { instagramApi } from "@/lib/api/instagram";
 import { useSettingsStore } from "@/lib/settings-store";
+import { filterParticipants } from "@/lib/utils";
 
 interface UseChatInputMenuProps {
   participantNames: string[];
@@ -47,15 +48,10 @@ export function useChatInputMenu({
   const [projectSearch, setProjectSearch] = useState("");
 
   const filteredParticipants = useMemo(() => {
-    return participantNames.filter((p) => {
-      const lowerP = p.toLowerCase();
-      const lowerOwn = settings.ownUsername.toLowerCase();
-      const isActive =
-        lowerP !== "me" &&
-        lowerP !== "user" &&
-        (!lowerOwn || lowerP !== lowerOwn);
-      return isActive && lowerP.includes(accountSearch.toLowerCase());
-    });
+    const filtered = filterParticipants(participantNames, settings.ownUsername);
+    return filtered.filter((p) =>
+      p.toLowerCase().includes(accountSearch.toLowerCase()),
+    );
   }, [participantNames, accountSearch, settings.ownUsername]);
 
   const sortedParticipants = useMemo(() => {

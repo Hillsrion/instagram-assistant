@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { getOllamaModels, getParticipants } from "@/lib/api";
 import { useSettingsStore } from "@/lib/settings-store";
+import { filterParticipants } from "@/lib/utils";
 
 interface UseChatFiltersOptions {
   initialParticipant?: string;
@@ -35,16 +36,8 @@ export function useChatFilters(options: UseChatFiltersOptions = {}) {
   }, [fetchSettings]);
 
   const participantNames = useMemo(() => {
-    const names = participantsData?.map((p) => p.name) || [];
-    return names.filter((p) => {
-      const lowerP = p.toLowerCase();
-      const lowerOwn = settings.ownUsername.toLowerCase();
-      return (
-        lowerP !== "me" &&
-        lowerP !== "user" &&
-        (!lowerOwn || lowerP !== lowerOwn)
-      );
-    });
+    const rawNames = participantsData?.map((p) => p.name) || [];
+    return filterParticipants(rawNames, settings.ownUsername);
   }, [participantsData, settings.ownUsername]);
 
   // Filters State

@@ -16,7 +16,7 @@ export function GeneralTab({ settings, onSave, loading }: GeneralTabProps) {
       name: "ownUsername",
       label: "Votre nom d'utilisateur",
       description:
-        "Votre nom d'utilisateur Instagram. Il sera utilisé pour masquer votre nom dans les listes de participants.",
+        "Votre nom d'utilisateur Instagram (ex: ismaelsebbane). Pour plusieurs comptes, séparez-les par des virgules (ex: account1, account2).",
       type: "text",
     },
     {
