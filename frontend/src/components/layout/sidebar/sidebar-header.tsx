@@ -1,5 +1,10 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface SidebarHeaderProps {
@@ -43,14 +48,21 @@ export function SidebarHeader({
             alt="Logo"
             className="h-8 w-8 rounded-lg object-contain shrink-0 p-0.5 mx-auto"
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsCollapsed(false)}
-            className="h-8 w-8 mx-auto"
-          >
-            <PanelLeftOpen className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsCollapsed(false)}
+                className="h-8 w-8 mx-auto"
+              >
+                <PanelLeftOpen className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              Ouvrir la barre latérale
+            </TooltipContent>
+          </Tooltip>
         </>
       )}
     </div>

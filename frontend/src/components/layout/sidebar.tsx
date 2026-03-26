@@ -1,3 +1,4 @@
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useChatActions } from "@/hooks/use-chat-actions";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { cn } from "@/lib/utils";
@@ -30,65 +31,67 @@ export function Sidebar() {
   const { createMutation } = useChatActions();
 
   return (
-    <div
-      className={cn(
-        "flex flex-col h-full bg-gray-50 transition-all duration-300 ease-in-out border-r border-gray-200 shrink-0 overflow-hidden",
-        isCollapsed ? "w-[60px]" : "w-64 min-w-0 max-w-64",
-      )}
-    >
-      <SidebarHeader
-        isCollapsed={isCollapsed}
-        setIsCollapsed={setIsCollapsed}
-      />
+    <TooltipProvider delayDuration={0}>
+      <div
+        className={cn(
+          "flex flex-col h-full bg-gray-50 transition-all duration-300 ease-in-out border-r border-gray-200 shrink-0 overflow-hidden",
+          isCollapsed ? "w-[60px]" : "w-64 min-w-0 max-w-64",
+        )}
+      >
+        <SidebarHeader
+          isCollapsed={isCollapsed}
+          setIsCollapsed={setIsCollapsed}
+        />
 
-      <SidebarNav
-        isCollapsed={isCollapsed}
-        onNewChat={() => createMutation.mutate(undefined)}
-        isCreatingChat={createMutation.isPending}
-        onSearchOpen={() => setIsSearchOpen(true)}
-        onNewProjectOpen={() => setIsNewProjectOpen(true)}
-      />
+        <SidebarNav
+          isCollapsed={isCollapsed}
+          onNewChat={() => createMutation.mutate(undefined)}
+          isCreatingChat={createMutation.isPending}
+          onSearchOpen={() => setIsSearchOpen(true)}
+          onNewProjectOpen={() => setIsNewProjectOpen(true)}
+        />
 
-      <SearchDialog
-        open={isSearchOpen}
-        onOpenChange={setIsSearchOpen}
-        chats={chats}
-      />
+        <SearchDialog
+          open={isSearchOpen}
+          onOpenChange={setIsSearchOpen}
+          chats={chats}
+        />
 
-      {!isCollapsed ? (
-        <div className="flex-1 w-full min-w-0 overflow-y-auto">
-          <div className="p-0 w-full min-w-0 flex flex-col">
-            <SidebarFavorites
-              chats={chats || []}
-              openMenuId={openMenuId}
-              setOpenMenuId={setOpenMenuId}
-            />
+        {!isCollapsed ? (
+          <div className="flex-1 w-full min-w-0 overflow-y-auto">
+            <div className="p-0 w-full min-w-0 flex flex-col">
+              <SidebarFavorites
+                chats={chats || []}
+                openMenuId={openMenuId}
+                setOpenMenuId={setOpenMenuId}
+              />
 
-            <SidebarProjects
-              projects={projects}
-              chats={chats}
-              expandedProjects={expandedProjects}
-              toggleProject={toggleProject}
-            />
+              <SidebarProjects
+                projects={projects}
+                chats={chats}
+                expandedProjects={expandedProjects}
+                toggleProject={toggleProject}
+              />
 
-            <SidebarChats
-              chats={chats}
-              openMenuId={openMenuId}
-              setOpenMenuId={setOpenMenuId}
-            />
+              <SidebarChats
+                chats={chats}
+                openMenuId={openMenuId}
+                setOpenMenuId={setOpenMenuId}
+              />
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex-1" />
-      )}
+        ) : (
+          <div className="flex-1" />
+        )}
 
-      <SidebarFooter
-        isCollapsed={isCollapsed}
-        isSettingsOpen={isSettingsOpen}
-        setIsSettingsOpen={setIsSettingsOpen}
-        isNewProjectOpen={isNewProjectOpen}
-        setIsNewProjectOpen={setIsNewProjectOpen}
-      />
-    </div>
+        <SidebarFooter
+          isCollapsed={isCollapsed}
+          isSettingsOpen={isSettingsOpen}
+          setIsSettingsOpen={setIsSettingsOpen}
+          isNewProjectOpen={isNewProjectOpen}
+          setIsNewProjectOpen={setIsNewProjectOpen}
+        />
+      </div>
+    </TooltipProvider>
   );
 }

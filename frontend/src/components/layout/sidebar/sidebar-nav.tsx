@@ -1,6 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { BarChart3, Folder, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface SidebarNavProps {
@@ -18,61 +23,69 @@ export function SidebarNav({
   onSearchOpen,
   onNewProjectOpen,
 }: SidebarNavProps) {
-  return (
-    <div className="p-2 space-y-1">
+  const NavItem = ({
+    onClick,
+    icon: Icon,
+    label,
+    disabled,
+    to,
+  }: {
+    onClick?: () => void;
+    icon: any;
+    label: string;
+    disabled?: boolean;
+    to?: string;
+  }) => {
+    const button = (
       <Button
         className={cn(
           "w-full justify-start gap-3 text-sm",
           isCollapsed && "justify-center px-0",
         )}
         variant="ghost"
-        onClick={onNewChat}
-        disabled={isCreatingChat}
-        title={isCollapsed ? "Nouveau chat" : undefined}
+        onClick={onClick}
+        disabled={disabled}
       >
-        <Plus className="h-5 w-5" />
-        {!isCollapsed && <span>Nouveau chat</span>}
+        <Icon className="h-5 w-5" />
+        {!isCollapsed && <span>{label}</span>}
       </Button>
+    );
 
-      <Link to="/analytics" className="block">
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full justify-start gap-3",
-            isCollapsed && "justify-center px-0",
-          )}
-          title={isCollapsed ? "Analytics" : undefined}
-        >
-          <BarChart3 className="h-5 w-5" />
-          {!isCollapsed && <span>Analytics</span>}
-        </Button>
+    const content = to ? (
+      <Link to={to} className="block">
+        {button}
       </Link>
+    ) : (
+      button
+    );
 
-      <Button
-        variant="ghost"
-        className={cn(
-          "w-full justify-start gap-3",
-          isCollapsed && "justify-center px-0",
-        )}
-        onClick={onSearchOpen}
-        title={isCollapsed ? "Rechercher" : undefined}
-      >
-        <Search className="h-5 w-5" />
-        {!isCollapsed && <span>Rechercher</span>}
-      </Button>
+    if (isCollapsed) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>{content}</TooltipTrigger>
+          <TooltipContent side="right">{label}</TooltipContent>
+        </Tooltip>
+      );
+    }
 
-      <Button
-        className={cn(
-          "w-full justify-start gap-3",
-          isCollapsed && "justify-center px-0",
-        )}
-        variant="ghost"
+    return content;
+  };
+
+  return (
+    <div className="p-2 space-y-1">
+      <NavItem
+        onClick={onNewChat}
+        icon={Plus}
+        label="Nouveau chat"
+        disabled={isCreatingChat}
+      />
+      <NavItem to="/analytics" icon={BarChart3} label="Analytics" />
+      <NavItem onClick={onSearchOpen} icon={Search} label="Rechercher" />
+      <NavItem
         onClick={onNewProjectOpen}
-        title={isCollapsed ? "Nouveau projet" : undefined}
-      >
-        <Folder className="h-5 w-5" />
-        {!isCollapsed && <span>Nouveau projet</span>}
-      </Button>
+        icon={Folder}
+        label="Nouveau projet"
+      />
     </div>
   );
 }
